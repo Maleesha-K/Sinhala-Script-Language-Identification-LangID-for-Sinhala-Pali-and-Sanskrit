@@ -9,7 +9,7 @@ folder containing `master.csv`.
 
 ---
 
-## What you are building
+## What we are building
 
 The pipeline merges three raw corpora into one dataset with a common schema:
 
