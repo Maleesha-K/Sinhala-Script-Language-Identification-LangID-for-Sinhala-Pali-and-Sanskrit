@@ -1,13 +1,15 @@
-from datasets import load_dataset
 import os
-
-ds_mixed = load_dataset("RaniduG/SiPaKosa-Sent", "mixed_metadata")
-ds_sinhala = load_dataset("RaniduG/SiPaKosa-Sent", "sinhala_metadata")
-
-print(ds_mixed)
-print(ds_sinhala)
+import urllib.request
 
 os.makedirs("data/raw/SiPaKosa", exist_ok=True)
 
-ds_mixed["train"].to_csv("data/raw/SiPaKosa/sipakosa_mixed_metadata.csv")
-ds_sinhala["train"].to_csv("data/raw/SiPaKosa/sipakosa_sinhala_metadata.csv")
+mixed_url = "https://huggingface.co/datasets/RaniduG/SiPaKosa-Sent/resolve/main/data/mixed/train.csv"
+sinhala_url = "https://huggingface.co/datasets/RaniduG/SiPaKosa-Sent/resolve/main/data/sinhala/train.csv"
+
+print("Downloading mixed metadata...")
+urllib.request.urlretrieve(mixed_url, "data/raw/SiPaKosa/sipakosa_mixed_metadata.csv")
+
+print("Downloading sinhala metadata...")
+urllib.request.urlretrieve(sinhala_url, "data/raw/SiPaKosa/sipakosa_sinhala_metadata.csv")
+
+print("Download complete.")
