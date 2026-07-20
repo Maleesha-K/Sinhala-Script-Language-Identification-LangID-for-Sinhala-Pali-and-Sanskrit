@@ -8,3 +8,8 @@ scikit-learn==1.8.0
 # Only needed by scripts/data_loading.py, which downloads SiPaKosa
 # from the Hugging Face Hub.
 datasets==5.0.0
+fastapi>=0.100.0
+uvicorn>=0.23.0
+streamlit>=1.25.0
+pydantic>=2.0.0
+joblib>=1.3.0

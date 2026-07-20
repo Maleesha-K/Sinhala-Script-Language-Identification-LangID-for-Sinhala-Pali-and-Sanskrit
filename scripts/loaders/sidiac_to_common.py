@@ -44,7 +44,17 @@ sys.path.insert(0, str(Path(__file__).parent))
 from common import clean_text, finalise  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[2]
-OCR_DIR = REPO / "data" / "raw" / "SiDiaC" / "OCR_Final"
+_ocr_raw = REPO / "data" / "raw" / "SiDiaC" / "OCR_Final"
+# Windows extended-length path prefix to bypass 260-char MAX_PATH limit.
+# The Sinhala book-folder names are very long and the project path is deeply nested.
+import os as _os
+if _os.name == 'nt':
+    _ocr_str = str(_ocr_raw)
+    if not _ocr_str.startswith('\\\\?\\'):
+        _ocr_str = '\\\\?\\' + _ocr_str
+    OCR_DIR = Path(_ocr_str)
+else:
+    OCR_DIR = _ocr_raw
 OUT = REPO / "data" / "processed" / "sidiac_common.csv"
 
 # Mid-word split artifact -> delete entirely (no replacement space).
@@ -172,7 +182,12 @@ def main():
     n_no_meta = 0
 
     for book_dir in book_dirs:
-        rows, meta = load_book(book_dir)
+        try:
+            rows, meta = load_book(book_dir)
+        except Exception as e:
+            print(f"  WARNING: skipping {book_dir.name}: {e}")
+            n_no_text += 1
+            continue
         if rows is None:
             n_no_text += 1
             continue

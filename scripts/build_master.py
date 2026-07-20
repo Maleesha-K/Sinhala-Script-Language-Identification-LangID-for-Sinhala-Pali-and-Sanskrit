@@ -44,6 +44,7 @@ INPUTS = [
     "sipakosa_common.csv",
     "sansin_common.csv",
     "sidiac_common.csv",
+    "sanskrit_wiki_common.csv",
 ]
 
 
@@ -98,13 +99,23 @@ def assign_grouped_split(df, seed=SEED):
 
 
 def main():
+    if sys.stdout.encoding.lower() != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
+        
     # ---------- load ----------
     frames = []
     for name in INPUTS:
         path = PROC / name
+        if not path.exists():
+            print(f"  skipping {name:<24} (file not found)")
+            continue
         df = pd.read_csv(path, encoding="utf-8")
         print(f"  loaded {name:<24} {len(df):>8,} rows")
         frames.append(df)
+
+    if not frames:
+        print("No input data found! Make sure to run the loaders first.")
+        sys.exit(1)
 
     master = pd.concat(frames, ignore_index=True)
     n_before = len(master)
@@ -122,6 +133,31 @@ def main():
     # ---------- split ----------
     # Run the grouped split separately for core rows and mixed rows.
     core = master[master["is_core"]].copy()
+    
+    # Downsample majority classes to balance the dataset
+    def downsample_class(df, label, max_rows, seed=SEED):
+        class_df = df[df["label"] == label]
+        if len(class_df) <= max_rows:
+            return class_df
+        rng = np.random.default_rng(seed)
+        groups = class_df["group_id"].unique()
+        rng.shuffle(groups)
+        
+        # Fast vectorized cumulative sum to find cutoff
+        group_sizes = class_df.groupby("group_id").size()
+        sizes = group_sizes.loc[groups].values
+        cum_sizes = np.cumsum(sizes)
+        idx = np.searchsorted(cum_sizes, max_rows)
+        keep_groups = groups[:idx+1]
+        
+        return class_df[class_df["group_id"].isin(keep_groups)]
+    
+    sinhala_ds = downsample_class(core, "sinhala", 40000)
+    pali_ds = downsample_class(core, "pali", 50000)
+    sanskrit_ds = core[core["label"] == "sanskrit"]
+    
+    core = pd.concat([sinhala_ds, pali_ds, sanskrit_ds], ignore_index=True)
+
     mixed = master[~master["is_core"]].copy()
 
     core["split"] = assign_grouped_split(core, seed=SEED)
