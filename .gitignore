@@ -1,9 +1,17 @@
-venv/
+# Never commit generated data — regenerate with src/data/build_dataset.py
+data/
+*.csv
+!results/*.csv
+
+# Large model artifacts — put these on Hugging Face Hub instead
+*.bin
+*.pt
+*.joblib
+models/xlmr_langid_finetuned/
+# EXCEPTION: the quantized fastText model is ~2 MB and is meant to be committed
+!models/fasttext_langid.ftz
+
+.ipynb_checkpoints/
 __pycache__/
 *.pyc
-.env
-data/raw/
-data/processed/
-*.pt
-*.bin
-.ipynb_checkpoints/
+venv/

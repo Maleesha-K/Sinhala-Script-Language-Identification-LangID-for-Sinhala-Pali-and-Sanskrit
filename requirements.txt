@@ -1,10 +1,10 @@
-# Core dependencies for the data pipeline.
-# Pinned to the versions the pipeline was built and verified against.
-
-pandas==2.2.2
-numpy==1.26.4
-scikit-learn==1.8.0
-
-# Only needed by scripts/data_loading.py, which downloads SiPaKosa
-# from the Hugging Face Hub.
-datasets==5.0.0
+pandas
+numpy
+scikit-learn
+fasttext-numpy2-wheel
+gradio
+joblib
+torch
+transformers
+aksharamukha
+gensim
