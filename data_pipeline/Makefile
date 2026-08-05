@@ -1,5 +1,8 @@
 .PHONY: all download preprocess check benchmark finetune clean
 
+-include .env
+export
+
 # Environment
 PYTHON := uv run python
 PAPERMILL := uv run papermill
@@ -9,33 +12,47 @@ RAW_DIR := datasets/raw_download
 PREP_DIR := datasets/preprocessed
 SCRIPT_DIR := scripts
 
+# Discover all datasets based on download scripts
+DOWNLOAD_SCRIPTS := $(wildcard $(SCRIPT_DIR)/01.download/download_*.ipynb)
+DATASETS := $(patsubst $(SCRIPT_DIR)/01.download/download_%.ipynb,%,$(DOWNLOAD_SCRIPTS))
+
 # Default target runs the pipeline sequentially
 all: download preprocess check benchmark finetune
 
 # 01. Download Stage
-download:
-	@echo "Running download notebooks..."
-	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/01.download/download_flores.ipynb /dev/null -p output_dir $(RAW_DIR)/flores_plus
+download: $(addprefix download-, $(DATASETS))
+
+download-%:
+	@echo "Running download notebook for $*..."
+	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/01.download/download_$*.ipynb /dev/null -p output_dir $(RAW_DIR)/$*
 
 # 02. Preprocess Stage
-preprocess:
-	@echo "Running preprocess notebooks..."
-	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/02.preprocess/preprocess_flores.ipynb /dev/null -p input_dir $(RAW_DIR)/flores_plus -p output_file $(PREP_DIR)/flores_plus.jsonl
+PREPROCESS_SCRIPTS := $(wildcard $(SCRIPT_DIR)/02.preprocess/preprocess_*.ipynb)
+PREPROCESS_DATASETS := $(patsubst $(SCRIPT_DIR)/02.preprocess/preprocess_%.ipynb,%,$(PREPROCESS_SCRIPTS))
+
+preprocess: $(addprefix preprocess-, $(PREPROCESS_DATASETS))
+
+preprocess-%:
+	@echo "Running preprocess notebook for $*..."
+	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/02.preprocess/preprocess_$*.ipynb /dev/null -p input_dir $(RAW_DIR)/$* -p output_file $(PREP_DIR)/$*.jsonl
 
 # 03. Dataset Checking Stage
 check:
 	@echo "Running dataset checks notebooks..."
-	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/03.dataset_checking/check_dataset.ipynb /dev/null -p input_file $(PREP_DIR)/flores_plus.jsonl
+	@if [ -d "$(PREP_DIR)" ]; then \
+		for file in $$(ls $(PREP_DIR)/*.jsonl 2>/dev/null); do \
+			echo "Checking $$file..."; \
+			$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/03.dataset_checking/check_dataset.ipynb /dev/null -p input_file "$$file"; \
+		done \
+	fi
 
 # 04. Benchmark Stage
 benchmark:
 	@echo "Running benchmarking (placeholder)..."
-	# $(PAPERMILL) $(SCRIPT_DIR)/04.benchmark/benchmark.ipynb /dev/null -p input_file $(PREP_DIR)/flores_plus.jsonl
 
 # 05. Finetune Stage
 finetune:
 	@echo "Running finetuning (placeholder)..."
-	# $(PAPERMILL) $(SCRIPT_DIR)/05.finetune/finetune.ipynb /dev/null -p input_file $(PREP_DIR)/flores_plus.jsonl
 
 # Clean up datasets (use with caution)
 clean:
