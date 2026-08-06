@@ -48,7 +48,13 @@ check:
 
 # 04. Benchmark Stage
 benchmark:
-	@echo "Running benchmarking (placeholder)..."
+	@echo "Running benchmark notebooks..."
+	@if [ -d "$(SCRIPT_DIR)/04.benchmark" ]; then \
+		for nb in $$(ls $(SCRIPT_DIR)/04.benchmark/*.ipynb 2>/dev/null); do \
+			echo "Running $$nb..."; \
+			$(PAPERMILL) -k python3 -l python "$$nb" /dev/null; \
+		done \
+	fi
 
 # 05. Finetune Stage
 finetune:

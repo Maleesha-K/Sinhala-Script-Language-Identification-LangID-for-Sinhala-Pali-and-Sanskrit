@@ -21,7 +21,7 @@ data_pipeline/
 │   ├── 01.download/         # Jupyter notebooks to fetch and save raw data
 │   ├── 02.preprocess/       # The "Middle Layer" - transforms raw data to .jsonl
 │   ├── 03.dataset_checking/ # Validation and testing scripts for the standard format
-│   ├── 04.benchmark/        # Evaluation scripts (Placeholders)
+│   ├── 04.benchmark/        # Zero-shot evaluation notebooks, one per model
 │   └── 05.finetune/         # Model training scripts (Placeholders)
 ├── Makefile                 # Orchestrates the execution of all notebooks
 ├── .env.example             # Template for environment variables (like HF_TOKEN)
@@ -48,6 +48,7 @@ You can also run individual stages:
 - `make download`: Runs all download notebooks.
 - `make preprocess`: Runs all preprocessing notebooks.
 - `make check`: Runs the dataset validation checks on all preprocessed datasets.
+- `make benchmark`: Runs every zero-shot benchmark notebook in `04.benchmark/` (note: these download large third-party models — hundreds of MB to a few GB each — so this can take a while on a fresh machine).
 - `make clean`: Deletes all downloaded and preprocessed data.
 
 ## Pipeline Standards & Conventions
@@ -85,6 +86,7 @@ Notebooks are executed via `papermill`. Inputs and outputs should not be hardcod
 - **Download notebooks** expect: `output_dir` (e.g., `datasets/raw_download/my_dataset`)
 - **Preprocess notebooks** expect: `input_dir` and `output_file`
 - **Check notebooks** expect: `input_file`
+- **Benchmark notebooks** expect: `input_file` (a preprocessed `.jsonl`) and `output_file` (where per-row predictions are saved, e.g. `datasets/benchmark_results/my_model.csv`)
 
 ## How to Contribute a New Dataset
 
