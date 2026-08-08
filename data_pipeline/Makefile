@@ -39,12 +39,7 @@ preprocess-%:
 # 03. Dataset Checking Stage
 check:
 	@echo "Running dataset checks notebooks..."
-	@if [ -d "$(PREP_DIR)" ]; then \
-		for file in $$(ls $(PREP_DIR)/*.jsonl 2>/dev/null); do \
-			echo "Checking $$file..."; \
-			$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/03.dataset_checking/check_dataset.ipynb /dev/null -p input_file "$$file"; \
-		done \
-	fi
+	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/03.dataset_checking/check_dataset.ipynb /dev/null -p input_dir $(PREP_DIR)
 
 # 04. Benchmark Stage
 benchmark:
