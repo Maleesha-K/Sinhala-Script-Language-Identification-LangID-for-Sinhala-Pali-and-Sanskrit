@@ -1,11 +1,24 @@
 .PHONY: all download preprocess check benchmark finetune clean
 
+
 -include .env
 export
 
 # Environment
 PYTHON := uv run python
 PAPERMILL := uv run papermill
+export HF_HUB_DISABLE_SYMLINKS := 1
+
+ifeq ($(OS),Windows_NT)
+    DEV_NULL := NUL
+    CONLID_PYTHON := $(CONLID_VENV)/Scripts/python
+else
+    DEV_NULL := /dev/null
+    CONLID_PYTHON := $(CONLID_VENV)/bin/python
+endif
+
+
+
 
 # Directories
 RAW_DIR := datasets/raw_download
@@ -24,7 +37,7 @@ download: $(addprefix download-, $(DATASETS))
 
 download-%:
 	@echo "Running download notebook for $*..."
-	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/01.download/download_$*.ipynb /dev/null -p output_dir $(RAW_DIR)/$*
+	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/01.download/download_$*.ipynb $(DEV_NULL) -p output_dir $(RAW_DIR)/$*
 
 # 02. Preprocess Stage
 PREPROCESS_SCRIPTS := $(wildcard $(SCRIPT_DIR)/02.preprocess/preprocess_*.ipynb)
@@ -34,12 +47,12 @@ preprocess: $(addprefix preprocess-, $(PREPROCESS_DATASETS))
 
 preprocess-%:
 	@echo "Running preprocess notebook for $*..."
-	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/02.preprocess/preprocess_$*.ipynb /dev/null -p input_dir $(RAW_DIR)/$* -p output_file $(PREP_DIR)/$*.jsonl
+	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/02.preprocess/preprocess_$*.ipynb $(DEV_NULL) -p input_dir $(RAW_DIR)/$* -p output_file $(PREP_DIR)/$*.jsonl
 
 # 03. Dataset Checking Stage
 check:
 	@echo "Running dataset checks notebooks..."
-	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/03.dataset_checking/check_dataset.ipynb /dev/null -p input_dir $(PREP_DIR)
+	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/03.dataset_checking/check_dataset.ipynb $(DEV_NULL) -p input_dir $(PREP_DIR)
 
 # 04. Benchmark Stage
 CONLID_DIR = models/benchmark/ConLID
@@ -48,32 +61,23 @@ CONLID_VENV = $(CONLID_DIR)/.venv
 
 setup-conlid:
 	@echo "Setting up ConLID environment..."
-	mkdir -p $(CONLID_DIR)
-	if [ ! -d "$(CONLID_REPO)" ]; then \
-		git clone https://github.com/epfl-nlp/language-identification.git $(CONLID_REPO); \
-	fi
-	uv venv --python 3.10 $(CONLID_VENV)
+	$(PYTHON) -c "import os, subprocess; os.makedirs('$(CONLID_DIR)', exist_ok=True); subprocess.run(['git', 'clone', 'https://github.com/epfl-nlp/language-identification.git', '$(CONLID_REPO)']) if not os.path.exists('$(CONLID_REPO)') else None"
+	uv venv $(CONLID_VENV)
 	uv pip install --python $(CONLID_VENV) -r $(CONLID_REPO)/requirements.txt
 	uv pip install --python $(CONLID_VENV) ipykernel
-	$(CONLID_VENV)/bin/python -m ipykernel install --user --name=conlid-venv --display-name "Python (ConLID Benchmark)"
+	$(CONLID_PYTHON) -m ipykernel install --user --name=conlid-venv --display-name "Python (ConLID Benchmark)"
 	@echo "ConLID setup complete! Kernel 'conlid-venv' is now available."
 
 benchmark:
 	@echo "Running benchmark notebooks..."
-	@if [ -d "$(SCRIPT_DIR)/04.benchmark" ]; then \
-		for nb in $$(ls $(SCRIPT_DIR)/04.benchmark/*.ipynb 2>/dev/null); do \
-			echo "Running $$nb..."; \
-			kernel="python3"; \
-			if [ "$$(basename $$nb)" = "ConLID.ipynb" ]; then \
-				kernel="conlid-venv"; \
-				if ! uv run jupyter kernelspec list | grep -q conlid-venv; then \
-					echo "Kernel 'conlid-venv' not found. Please run 'make setup-conlid' first."; \
-					exit 1; \
-				fi; \
-			fi; \
-			$(PAPERMILL) -k $$kernel -l python "$$nb" /dev/null; \
-		done \
-	fi
+	$(PYTHON) -c "import os, glob, subprocess, sys, jupyter_client; \
+	bdir = '$(SCRIPT_DIR)/04.benchmark'; \
+	(not os.path.exists(bdir)) or [ \
+		(print(f'Running {nb}...'), \
+		(sys.exit(1) if (os.path.basename(nb) == 'ConLID.ipynb' and 'conlid-venv' not in jupyter_client.kernelspec.KernelSpecManager().find_kernel_specs() and (print('Kernel \'conlid-venv\' not found. Please run \'make setup-conlid\' first.') or True)) else None), \
+		subprocess.run(['uv', 'run', 'papermill', '-k', ('conlid-venv' if os.path.basename(nb) == 'ConLID.ipynb' else 'python3'), '-l', 'python', nb, '$(DEV_NULL)'], check=True) \
+		) for nb in glob.glob(os.path.join(bdir, '*.ipynb')) \
+	]"
 
 # 05. Finetune Stage
 finetune:

@@ -1,3 +1,7 @@
 {
-    "python.venvFolders": ["data_pipeline"]
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}"
+    ]
 }
+
