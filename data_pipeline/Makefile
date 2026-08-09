@@ -76,8 +76,25 @@ benchmark:
 	fi
 
 # 05. Finetune Stage
-finetune:
-	@echo "Running finetuning (placeholder)..."
+finetune: finetune-dataset finetune-models
+
+finetune-dataset:
+	@echo "Running fine-tuning dataset setup..."
+	@if [ -d "$(SCRIPT_DIR)/05.finetune_dataset" ]; then \
+		for nb in $$(ls $(SCRIPT_DIR)/05.finetune_dataset/*.ipynb 2>/dev/null); do \
+			echo "Running $$nb..."; \
+			$(PAPERMILL) -k python3 -l python "$$nb" /dev/null; \
+		done \
+	fi
+
+finetune-models:
+	@echo "Running fine-tuning models..."
+	@if [ -d "$(SCRIPT_DIR)/06.finetune_models" ]; then \
+		for nb in $$(ls $(SCRIPT_DIR)/06.finetune_models/*.ipynb 2>/dev/null); do \
+			echo "Running $$nb..."; \
+			$(PAPERMILL) -k python3 -l python "$$nb" /dev/null; \
+		done \
+	fi
 
 # Clean up datasets (use with caution)
 clean:
