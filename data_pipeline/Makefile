@@ -42,12 +42,36 @@ check:
 	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/03.dataset_checking/check_dataset.ipynb /dev/null -p input_dir $(PREP_DIR)
 
 # 04. Benchmark Stage
+CONLID_DIR = models/benchmark/ConLID
+CONLID_REPO = $(CONLID_DIR)/repo
+CONLID_VENV = $(CONLID_DIR)/.venv
+
+setup-conlid:
+	@echo "Setting up ConLID environment..."
+	mkdir -p $(CONLID_DIR)
+	if [ ! -d "$(CONLID_REPO)" ]; then \
+		git clone https://github.com/epfl-nlp/language-identification.git $(CONLID_REPO); \
+	fi
+	uv venv --python 3.10 $(CONLID_VENV)
+	uv pip install --python $(CONLID_VENV) -r $(CONLID_REPO)/requirements.txt
+	uv pip install --python $(CONLID_VENV) ipykernel
+	$(CONLID_VENV)/bin/python -m ipykernel install --user --name=conlid-venv --display-name "Python (ConLID Benchmark)"
+	@echo "ConLID setup complete! Kernel 'conlid-venv' is now available."
+
 benchmark:
 	@echo "Running benchmark notebooks..."
 	@if [ -d "$(SCRIPT_DIR)/04.benchmark" ]; then \
 		for nb in $$(ls $(SCRIPT_DIR)/04.benchmark/*.ipynb 2>/dev/null); do \
 			echo "Running $$nb..."; \
-			$(PAPERMILL) -k python3 -l python "$$nb" /dev/null; \
+			kernel="python3"; \
+			if [ "$$(basename $$nb)" = "ConLID.ipynb" ]; then \
+				kernel="conlid-venv"; \
+				if ! uv run jupyter kernelspec list | grep -q conlid-venv; then \
+					echo "Kernel 'conlid-venv' not found. Please run 'make setup-conlid' first."; \
+					exit 1; \
+				fi; \
+			fi; \
+			$(PAPERMILL) -k $$kernel -l python "$$nb" /dev/null; \
 		done \
 	fi
 
