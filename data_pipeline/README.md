@@ -38,16 +38,24 @@ Before running, ensure you have set up your environment variables (especially if
 
 1. Copy the environment template: `cp .env.example .env`
 2. Add your Hugging Face token to `.env`: `HF_TOKEN=your_token_here`
-3. Run the entire pipeline:
-   ```bash
-   make all
-   ```
+
+#### Local Execution (Makefile)
+To run the entire pipeline locally:
+```bash
+make all
+```
+
+#### Google Colab Compatibility
+Every notebook in this pipeline is engineered to be **100% compatible with Google Colab**.
+- A standard `[COLAB SETUP]` cell is injected at the top of every notebook.
+- When run in Colab, this cell automatically clones the repository, installs all necessary dependencies (via `pip`), and seamlessly mounts your Google Drive for persistent storage.
+- You can simply upload any of these notebooks to Colab and run them from top to bottom without any manual environment configuration!
 
 You can also run individual stages:
 
 - `make download`: Runs all download notebooks.
 - `make preprocess`: Runs all preprocessing notebooks.
-- `make check`: Runs the dataset validation checks on all preprocessed datasets.
+- `make check`: Runs the dataset validation checks on all preprocessed datasets. This step now includes robust baseline checks for **Sinhala**, **Pali**, and **Sanskrit**, exporting any misclassifications to CSV files for manual review. It also supports dynamic test dataset replacement via Google Drive!
 - `make benchmark`: Runs every zero-shot benchmark notebook in `04.benchmark/` (note: these download large third-party models — hundreds of MB to a few GB each — so this can take a while on a fresh machine).
 - `make clean`: Deletes all downloaded and preprocessed data.
 
@@ -98,3 +106,25 @@ Notebooks are executed via `papermill`. Inputs and outputs should not be hardcod
    - Add a parameter cell with `input_dir = 'datasets/raw_download/wiki_data'` and `output_file = 'datasets/preprocessed/wiki_data.jsonl'`.
    - Write logic to read from `input_dir`, transform the data to match the standard JSONL schema, and write to `output_file`.
 4. **Test**: Run `make all` or `make download-wiki_data && make preprocess-wiki_data` to ensure your new dataset flows through the pipeline perfectly!
+
+## Datasets & Languages
+
+The pipeline currently integrates the following primary datasets for robust and diverse linguistic representation:
+
+1. **FLORES+ (Flores-200)**: A massively multilingual machine translation benchmark dataset containing high-quality translations.
+2. **WiLI-2018**: The Wikipedia Language Identification dataset, providing paragraph-level text for robust baseline classification.
+3. **CommonLID**: A comprehensive language identification dataset aggregated from various web sources.
+
+### Target Benchmarking Languages
+We are mainly benchmarking our models against **10 specific target languages** to evaluate performance across a diverse set of scripts and language families. The target languages are:
+
+1. **Sinhala**
+2. **Sanskrit**
+3. **Pali**
+4. **English**
+5. **Tamil**
+6. **Hindi**
+7. **Bengali**
+8. **Arabic**
+9. **French**
+10. **German**
