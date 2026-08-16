@@ -8,3 +8,4 @@ data/processed/
 *.bin
 .ipynb_checkpoints/
 .venv/
+third_party/
