@@ -30,7 +30,7 @@ DOWNLOAD_SCRIPTS := $(wildcard $(SCRIPT_DIR)/01.download/download_*.ipynb)
 DATASETS := $(patsubst $(SCRIPT_DIR)/01.download/download_%.ipynb,%,$(DOWNLOAD_SCRIPTS))
 
 # Default target runs the pipeline sequentially
-all: download preprocess check benchmark finetune
+all: download preprocess check benchmark finetune benchmark-finetuned
 
 # 01. Download Stage
 download: $(addprefix download-, $(DATASETS))
@@ -95,6 +95,16 @@ finetune-models:
 	@echo "Running fine-tuning models..."
 	@if [ -d "$(SCRIPT_DIR)/06.finetune_models" ]; then \
 		for nb in $$(ls $(SCRIPT_DIR)/06.finetune_models/*.ipynb 2>/dev/null); do \
+			echo "Running $$nb..."; \
+			$(PAPERMILL) -k python3 -l python "$$nb" /dev/null; \
+		done \
+	fi
+
+# 07. Benchmark Finetuned Models Stage
+benchmark-finetuned:
+	@echo "Running fine-tuned benchmark notebooks..."
+	@if [ -d "$(SCRIPT_DIR)/07.benchmark_finetuned" ]; then \
+		for nb in $$(ls $(SCRIPT_DIR)/07.benchmark_finetuned/*.ipynb 2>/dev/null); do \
 			echo "Running $$nb..."; \
 			$(PAPERMILL) -k python3 -l python "$$nb" /dev/null; \
 		done \
