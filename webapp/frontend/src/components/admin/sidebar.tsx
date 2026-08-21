@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, CreditCard, Settings, FileText } from "lucide-react";
+import { LayoutDashboard, Users, CreditCard, Settings, FileText, Edit3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { name: "Overview", href: "/admin", icon: LayoutDashboard },
   { name: "Tiers", href: "/admin/tiers", icon: CreditCard },
-  { name: "System Config", href: "/admin/config", icon: Settings },
+  { name: "Configuration", href: "/admin/config", icon: Settings },
   { name: "Users", href: "/admin/users", icon: Users },
-  { name: "Annotations", href: "/admin/annotations", icon: FileText },
+  { name: "Annotations", href: "/admin/annotations", icon: Edit3 },
 ];
 
 export function AdminSidebar() {

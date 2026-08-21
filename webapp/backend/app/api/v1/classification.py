@@ -20,6 +20,7 @@ class JobCreateRequest(BaseModel):
     segmentation_strategy: str = Field("sentence", pattern="^(sentence|paragraph|full_text)$")
 
 class SegmentResponse(BaseModel):
+    id: UUID
     segment_index: int
     text: str
     predicted_language: str
@@ -107,6 +108,7 @@ async def get_classification_job(
         segments = segments_result.scalars().all()
         response_data["segments"] = [
             {
+                "id": s.id,
                 "segment_index": s.segment_index,
                 "text": s.text,
                 "predicted_language": s.predicted_language,
