@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "LangID Platform API"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
+    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8501"]
     
     # Security
     SECRET_KEY: str = "supersecretkey_please_change_in_production"

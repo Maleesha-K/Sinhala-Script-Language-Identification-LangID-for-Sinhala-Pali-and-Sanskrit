@@ -1,17 +1,50 @@
 from typing import AsyncGenerator
-# from sqlalchemy.ext.asyncio import AsyncSession
-# from app.db.session import async_session_maker
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+from jose import jwt, JWTError
+import uuid
 
-async def get_db() -> AsyncGenerator[None, None]:
-    # Placeholder for get_db dependency
-    # async with async_session_maker() as session:
-    #     yield session
-    yield None
+from app.db.session import async_session_maker
+from app.config import settings
+from app.utils.exceptions import UnauthorizedException, ForbiddenException
+from app.db.models.user import User, UserRole
+from app.services.user_service import user_service
 
-async def get_current_user() -> dict[str, str]:
-    # Placeholder for get_current_user dependency
-    return {"id": "test_user_id", "role": "user"}
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
-async def require_admin() -> dict[str, str]:
-    # Placeholder for require_admin dependency
-    return {"id": "test_admin_id", "role": "admin"}
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id_str: str | None = payload.get("sub")
+        token_type: str | None = payload.get("type")
+        
+        if user_id_str is None or token_type != "access":
+            raise UnauthorizedException()
+            
+        user_id = uuid.UUID(user_id_str)
+    except (JWTError, ValueError):
+        raise UnauthorizedException()
+        
+    user = await user_service.get_by_id(db, user_id=user_id)
+    if not user:
+        raise UnauthorizedException(message="User not found")
+    if not user.is_active:
+        raise UnauthorizedException(message="Inactive user")
+        
+    return user
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != UserRole.ADMIN:
+        raise ForbiddenException(message="Admin privileges required")
+    return current_user
