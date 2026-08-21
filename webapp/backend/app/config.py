@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
+    # Initial Admin
+    INITIAL_ADMIN_EMAIL: str | None = None
+    INITIAL_ADMIN_PASSWORD: str | None = None
+    
     # Database
     POSTGRES_USER: str = "langid"
     POSTGRES_PASSWORD: str = "langid"
