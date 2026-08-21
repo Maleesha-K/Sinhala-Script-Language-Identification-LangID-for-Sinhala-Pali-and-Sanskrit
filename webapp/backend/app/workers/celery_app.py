@@ -18,4 +18,7 @@ celery_app.conf.update(
 )
 
 # Auto-discover tasks in all submodules
-celery_app.autodiscover_tasks(["app.workers.tasks"])
+celery_app.autodiscover_tasks(
+    ['app.workers.tasks.ocr_tasks', 'app.workers.tasks.classification_tasks'],
+    force=True
+)

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const items = [
   { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { name: "Documents", href: "/dashboard/documents", icon: FileText },
+  { name: "Language ID", href: "/dashboard/classification", icon: Activity },
   { name: "Usage", href: "/dashboard/usage", icon: Activity },
 ];
 

@@ -20,6 +20,7 @@ class ClassificationJob(Base, TimestampMixin):
     document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id"))
     input_text: Mapped[str | None] = mapped_column(Text)
     model_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    segmentation_strategy: Mapped[str] = mapped_column(String(50), default="sentence", server_default="sentence")
     status: Mapped[JobStatus] = mapped_column(SQLEnum(JobStatus), default=JobStatus.QUEUED, nullable=False)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     credits_charged: Mapped[float] = mapped_column(Numeric(18, 4), default=0.0, nullable=False)
