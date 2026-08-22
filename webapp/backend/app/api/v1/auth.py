@@ -25,3 +25,11 @@ async def login(credentials: Login, db: AsyncSession = Depends(get_db)) -> dict:
     user = await auth_service.authenticate(db, credentials)
     tokens = auth_service.create_tokens(user)
     return success_response(data=tokens, message="Login successful")
+
+from app.schemas.auth import TokenRefresh
+
+@router.post("/refresh", response_model=BaseResponse[Token])
+async def refresh_token(token_data: TokenRefresh, db: AsyncSession = Depends(get_db)) -> dict:
+    """Refresh an access token using a valid refresh token."""
+    tokens = await auth_service.refresh_tokens(db, token_data.refresh_token)
+    return success_response(data=tokens, message="Tokens refreshed successfully")

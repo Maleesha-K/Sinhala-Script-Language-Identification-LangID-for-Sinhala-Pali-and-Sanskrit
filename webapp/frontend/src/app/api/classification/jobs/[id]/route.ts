@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getValidToken } from "@/lib/auth-server";
 import axios from "axios";
 
 const API = "http://localhost:8000/api/v1";
@@ -9,8 +10,7 @@ export async function GET(
   props: { params: Promise<{ id: string }> }
 ) {
   const params = await props.params;
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = await getValidToken();
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

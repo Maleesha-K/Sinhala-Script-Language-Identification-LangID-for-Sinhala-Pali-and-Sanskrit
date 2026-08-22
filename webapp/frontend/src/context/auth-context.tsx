@@ -9,6 +9,7 @@ export type AuthUser = {
   email: string;
   role: "admin" | "user";
   is_active: boolean;
+  credits_balance: number;
 };
 
 type AuthContextType = {

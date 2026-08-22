@@ -11,6 +11,7 @@ import { Globe, Loader2, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -21,6 +22,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -33,6 +35,7 @@ export default function LoginPage() {
     try {
       setError(null);
       await axios.post("/api/auth/login", data);
+      await refreshUser();
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.detail || "Invalid email or password.");
@@ -119,7 +122,7 @@ export default function LoginPage() {
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/auth/register" className="text-primary font-medium hover:underline">
+            <Link href="/auth/signup" className="text-primary font-medium hover:underline">
               Create account
             </Link>
           </p>

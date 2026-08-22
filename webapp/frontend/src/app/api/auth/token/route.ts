@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getValidToken } from "@/lib/auth-server";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = await getValidToken();
   
   if (!token) {
     return NextResponse.json({ error: "No token" }, { status: 401 });
