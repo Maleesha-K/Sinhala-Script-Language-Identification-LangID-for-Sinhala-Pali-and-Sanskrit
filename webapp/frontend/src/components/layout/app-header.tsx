@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Globe, LayoutDashboard, ShieldCheck, LogOut, User, ChevronDown, Loader2 } from "lucide-react";
+import { Globe, LayoutDashboard, ShieldCheck, LogOut, User, ChevronDown, Loader2, Coins } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,14 @@ export function AppHeader() {
                     </Button>
                   </Link>
                 )}
+
+                {/* Credits Pill */}
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/50 shadow-sm">
+                  <Coins className="h-3.5 w-3.5" />
+                  <span className="text-xs font-bold tracking-tight">
+                    {user.credits_balance?.toLocaleString() || "0"} <span className="font-medium opacity-80">credits</span>
+                  </span>
+                </div>
 
                 {/* User dropdown — base-ui DropdownMenu doesn't use asChild */}
                 <DropdownMenu>

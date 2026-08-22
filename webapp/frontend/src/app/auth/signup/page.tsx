@@ -11,6 +11,7 @@ import { Globe, Loader2, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/auth-context";
 
 const signupSchema = z.object({
   display_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -22,6 +23,7 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -34,6 +36,7 @@ export default function SignupPage() {
     try {
       setError(null);
       await axios.post("/api/auth/signup", data);
+      await refreshUser();
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.detail || "An error occurred during sign up.");
