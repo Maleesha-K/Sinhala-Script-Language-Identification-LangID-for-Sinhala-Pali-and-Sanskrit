@@ -9,6 +9,7 @@ from app.db.session import async_session_maker
 from app.db.models.classification_job import ClassificationJob, JobStatus
 from app.db.models.classified_segment import ClassifiedSegment
 from app.ml.sklearn_langid import langid_classifier
+from app.utils.redis_client import publish_job_event
 import logging
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ async def _process_classification_job_async(job_id_str: str):
         try:
             job.status = JobStatus.PROCESSING
             await session.commit()
+            publish_job_event(job_id_str, "processing", 10, "Starting segmentation...")
             
             # Use input_text if present, else fallback (not implemented fully)
             text_to_process = job.input_text or ""
@@ -100,11 +102,13 @@ async def _process_classification_job_async(job_id_str: str):
             
             await session.commit()
             logger.info(f"ClassificationJob {job_id_str} completed successfully.")
+            publish_job_event(job_id_str, "completed", 100, "Job finished successfully.")
             
         except Exception as e:
             logger.exception(f"ClassificationJob {job_id_str} failed: {e}")
             job.status = JobStatus.FAILED
             await session.commit()
+            publish_job_event(job_id_str, "failed", 0, str(e))
 
 @celery_app.task(name="process_classification_job")
 def process_classification_job(job_id_str: str):

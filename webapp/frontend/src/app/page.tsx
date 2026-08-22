@@ -1,144 +1,111 @@
 import Link from "next/link";
-import { ArrowRight, Globe, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, Globe, ShieldCheck, Zap, BookOpen, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/layout/app-header";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-background selection:bg-primary/20 selection:text-primary">
-      {/* Navigation */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/40">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-              <Globe className="h-6 w-6 text-primary" />
-              <span>LangID</span>
-            </div>
-            <nav className="flex items-center gap-4">
-              <Link href="/auth/login">
-                <Button variant="ghost" className="hidden sm:flex font-medium">Log In</Button>
-              </Link>
-              <Link href="/auth/register">
-                <Button className="font-medium bg-primary text-primary-foreground shadow-sm hover:bg-primary/90">Sign Up</Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col bg-white">
+      <AppHeader />
 
       <main className="flex-1">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden pt-24 pb-32 sm:pt-32 sm:pb-40 lg:pb-48">
-          {/* Background Gradients */}
-          <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
-            <div
-              className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
-              style={{
-                clipPath:
-                  "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
-              }}
-            />
-          </div>
+        {/* Hero */}
+        <section className="relative overflow-hidden py-24 sm:py-32">
+          {/* Subtle blue gradient background */}
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.12),transparent)]" />
 
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="mb-8 flex justify-center">
-                <div className="relative rounded-full px-3 py-1 text-sm leading-6 text-muted-foreground ring-1 ring-border hover:ring-muted-foreground/30 transition-all cursor-default bg-muted/50 backdrop-blur-sm">
-                  Announcing our Next-Gen NLP Classifier.{" "}
-                  <a href="#" className="font-semibold text-primary">
-                    <span className="absolute inset-0" aria-hidden="true" />
-                    Read more <span aria-hidden="true">&rarr;</span>
-                  </a>
-                </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary font-medium mb-8">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                ML-Powered Language Identification
               </div>
-              
-              <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl mb-8 bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/70">
-                Identify Sinhala, Pali & Sanskrit with Precision
+
+              <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl text-foreground mb-6">
+                Identify{" "}
+                <span className="text-primary">Sinhala</span>,{" "}
+                <span className="text-primary">Pali</span> &{" "}
+                <span className="text-primary">Sanskrit</span>
               </h1>
-              
-              <p className="mt-6 text-lg leading-8 text-muted-foreground mb-10 max-w-2xl mx-auto">
-                Upload historical texts, automate transcription workflows, and instantly classify historical South Asian languages using our cutting-edge machine learning models.
+
+              <p className="text-lg text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
+                Upload historical manuscripts or paste raw text. Our ML model identifies South Asian languages at the sentence level with high confidence scores.
               </p>
-              
-              <div className="flex items-center justify-center gap-x-6">
+
+              <div className="flex flex-wrap items-center justify-center gap-4">
                 <Link href="/dashboard">
-                  <Button size="lg" className="h-12 px-8 text-base shadow-lg hover:shadow-xl transition-all duration-300 group">
+                  <Button size="lg" className="h-11 px-8 shadow-md hover:shadow-lg transition-shadow group">
                     Go to Dashboard
-                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </Button>
                 </Link>
-                <a href="#features" className="text-sm font-semibold leading-6 text-foreground hover:text-primary transition-colors">
-                  Learn more <span aria-hidden="true">→</span>
-                </a>
+                <Link href="/auth/register">
+                  <Button size="lg" variant="outline" className="h-11 px-8 border-primary/30 text-primary hover:bg-primary/5">
+                    Create Free Account
+                  </Button>
+                </Link>
               </div>
+            </div>
+
+            {/* Trust strip */}
+            <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-xs text-muted-foreground font-medium uppercase tracking-wider">
+              <span className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" />Secure by design</span>
+              <span className="flex items-center gap-2"><Zap className="h-4 w-4 text-primary" />Real-time results</span>
+              <span className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" />Community annotations</span>
+              <span className="flex items-center gap-2"><BarChart2 className="h-4 w-4 text-primary" />Confidence scores</span>
             </div>
           </div>
         </section>
 
-        {/* Features Section */}
-        <section id="features" className="py-24 sm:py-32 bg-muted/30 border-y relative">
+        {/* Features */}
+        <section className="py-20 border-t bg-secondary/30">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl lg:text-center mb-16">
-              <h2 className="text-base font-semibold leading-7 text-primary">Advanced NLP</h2>
-              <p className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Everything you need to analyze historical texts</p>
+            <div className="text-center mb-14">
+              <h2 className="text-2xl font-bold tracking-tight mb-3">Built for Scholars & Researchers</h2>
+              <p className="text-muted-foreground max-w-xl mx-auto text-sm">
+                Every feature is designed around the challenges of working with historical South Asian language texts.
+              </p>
             </div>
-            
-            <div className="mx-auto max-w-2xl lg:max-w-none">
-              <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-                
-                <div className="flex flex-col bg-card border rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
-                  <dt className="flex items-center gap-x-3 text-base font-semibold leading-7">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Zap className="h-5 w-5" aria-hidden="true" />
-                    </div>
-                    Instant Processing
-                  </dt>
-                  <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-muted-foreground">
-                    <p className="flex-auto">
-                      Powered by Celery and Redis, our backend efficiently distributes high-volume classification jobs in real-time.
-                    </p>
-                  </dd>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {[
+                {
+                  icon: Zap,
+                  title: "Sub-Sentence Accuracy",
+                  desc: "Classify at sentence, paragraph, or full-text granularity. Mixed-language documents are handled correctly.",
+                },
+                {
+                  icon: Globe,
+                  title: "Document Pipeline",
+                  desc: "Upload PDFs, run OCR, and send extracted text straight to language identification — all in one workflow.",
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "Annotation & Feedback",
+                  desc: "Spot a mistake? Report it. Admin-reviewed corrections become future training data to improve the model.",
+                },
+              ].map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="bg-white rounded-xl border border-border p-6 shadow-sm hover:shadow-md hover:border-primary/30 transition-all">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold text-sm mb-2">{title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{desc}</p>
                 </div>
-                
-                <div className="flex flex-col bg-card border rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
-                  <dt className="flex items-center gap-x-3 text-base font-semibold leading-7">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Globe className="h-5 w-5" aria-hidden="true" />
-                    </div>
-                    Sub-Sentence Accuracy
-                  </dt>
-                  <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-muted-foreground">
-                    <p className="flex-auto">
-                      Choose between full text, paragraph, or sentence-level segmentation to accurately identify mixed-language documents.
-                    </p>
-                  </dd>
-                </div>
-                
-                <div className="flex flex-col bg-card border rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow">
-                  <dt className="flex items-center gap-x-3 text-base font-semibold leading-7">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-                    </div>
-                    Community Driven
-                  </dt>
-                  <dd className="mt-4 flex flex-auto flex-col text-base leading-7 text-muted-foreground">
-                    <p className="flex-auto">
-                      Help fine-tune our models. Spot a mistake? Report it directly in the dashboard, and our admins will use it to improve future iterations.
-                    </p>
-                  </dd>
-                </div>
-                
-              </dl>
+              ))}
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t bg-card py-12">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-muted-foreground">
-          <div className="flex justify-center gap-2 items-center mb-4">
-            <Globe className="h-5 w-5" />
-            <span className="font-semibold text-foreground tracking-tight">LangID Platform</span>
+      <footer className="border-t py-8">
+        <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
+          <div className="flex justify-center items-center gap-2 mb-2">
+            <Globe className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-foreground">LangID Platform</span>
           </div>
           <p>© {new Date().getFullYear()} LangID. All rights reserved.</p>
         </div>
