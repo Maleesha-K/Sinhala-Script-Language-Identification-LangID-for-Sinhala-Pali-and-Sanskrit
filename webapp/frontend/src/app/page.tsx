@@ -42,7 +42,7 @@ export default function Home() {
                     <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
                   </Button>
                 </Link>
-                <Link href="/auth/register">
+                <Link href="/auth/signup">
                   <Button size="lg" variant="outline" className="h-11 px-8 border-primary/30 text-primary hover:bg-primary/5">
                     Create Free Account
                   </Button>
