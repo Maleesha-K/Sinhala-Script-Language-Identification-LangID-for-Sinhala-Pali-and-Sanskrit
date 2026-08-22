@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getValidToken } from "@/lib/auth-server";
 import axios from "axios";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -7,8 +8,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const cookieStore = await cookies();
-    const token = cookieStore.get("access_token")?.value;
+    const token = await getValidToken();
 
     if (!token) {
       return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });

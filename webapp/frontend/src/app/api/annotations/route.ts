@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getValidToken } from "@/lib/auth-server";
 import axios from "axios";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const pendingOnly = searchParams.get("pending_only") || "true";
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = await getValidToken();
 
   try {
     const res = await axios.get(`http://localhost:8000/api/v1/annotations?pending_only=${pendingOnly}`, {
@@ -19,8 +19,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = await getValidToken();
   const body = await request.json();
 
   try {

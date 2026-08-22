@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getValidToken } from "@/lib/auth-server";
 import axios from "axios";
 
 const API = "http://localhost:8000/api/v1";
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = await getValidToken();
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
@@ -24,8 +24,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = await getValidToken();
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getValidToken } from "@/lib/auth-server";
 import axios from "axios";
 
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const cookieStore = await cookies();
-  const token = cookieStore.get("access_token")?.value;
+  const token = await getValidToken();
   const body = await request.json();
 
   try {
