@@ -41,7 +41,28 @@ async def get_current_user(
         raise UnauthorizedException(message="User not found")
     if not user.is_active:
         raise UnauthorizedException(message="Inactive user")
+    return user
+
+async def get_ws_current_user(token: str, db: AsyncSession = Depends(get_db)) -> User:
+    """Dependency for authenticating WebSocket connections via query parameter"""
+    if not token:
+        raise ValueError("Missing token")
+    
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str | None = payload.get("sub")
+        if user_id is None:
+            raise ValueError("Invalid token")
+        token_data = TokenPayload(sub=user_id)
+    except (JWTError, ValidationError):
+        raise ValueError("Invalid token")
         
+    result = await db.execute(select(User).where(User.id == token_data.sub))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise ValueError("User not found")
+    if not user.is_active:
+        raise ValueError("User inactive")
     return user
 
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:

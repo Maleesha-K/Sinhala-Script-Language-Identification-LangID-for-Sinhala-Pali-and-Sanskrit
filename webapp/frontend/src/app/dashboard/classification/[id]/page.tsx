@@ -30,29 +30,57 @@ type JobData = {
 export default function ClassificationResultPage() {
   const params = useParams();
   const router = useRouter();
+  const { token } = useAuth();
   const [job, setJob] = useState<JobData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchJob = async () => {
-      try {
-        const res = await axios.get(`/api/classification/jobs/${params.id}`);
-        setJob(res.data);
-        
-        // Poll if not finished
-        if (res.data.status === "queued" || res.data.status === "processing") {
-          setTimeout(fetchJob, 2000);
-        } else {
-          setLoading(false);
-        }
-      } catch (error) {
-        toast.error("Failed to load job results");
+  const fetchJob = async () => {
+    try {
+      const res = await axios.get(`http://localhost:8000/api/v1/classification/jobs/${params.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setJob(res.data.data);
+      if (res.data.data.status === "completed" || res.data.data.status === "failed") {
         setLoading(false);
       }
+    } catch (error) {
+      toast.error("Failed to load job results");
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) fetchJob();
+  }, [token, params.id]);
+
+  useEffect(() => {
+    if (!token || !job || (job.status !== "queued" && job.status !== "processing")) return;
+    
+    // Connect to WebSocket using the token as query parameter
+    const wsUrl = `ws://localhost:8000/api/v1/ws/jobs/${job.id}?token=${token}`;
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.status === "completed" || data.status === "failed") {
+          fetchJob();
+        } else {
+          setJob(prev => prev ? { ...prev, status: data.status } : prev);
+        }
+      } catch (err) {
+        console.error("WebSocket message parsing error", err);
+      }
+    };
+    
+    ws.onerror = (err) => {
+      console.error("WebSocket error:", err);
     };
 
-    fetchJob();
-  }, [params.id]);
+    return () => {
+      ws.close();
+    };
+  }, [token, job?.status, job?.id]);
 
   if (loading && !job) {
     return (
