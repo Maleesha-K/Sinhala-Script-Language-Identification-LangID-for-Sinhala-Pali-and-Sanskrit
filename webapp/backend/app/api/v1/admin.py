@@ -42,6 +42,15 @@ async def update_tier(
     tier = await admin_service.update_tier(db, tier_id, tier_in)
     return success_response(data=tier, message="Tier updated")
 
+@router.delete("/tiers/{tier_id}", response_model=BaseResponse[dict])
+async def delete_tier(
+    tier_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin)
+) -> dict:
+    result = await admin_service.delete_tier(db, tier_id)
+    return success_response(data=result, message="Tier deleted")
+
 # --- System Config ---
 @router.get("/config", response_model=BaseResponse[SystemConfigResponse])
 async def get_config(

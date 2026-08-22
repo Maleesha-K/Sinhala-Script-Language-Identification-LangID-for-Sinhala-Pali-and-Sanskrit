@@ -34,6 +34,16 @@ class AdminService:
         await db.refresh(tier)
         return tier
         
+    async def delete_tier(self, db: AsyncSession, tier_id: UUID):
+        result = await db.execute(select(TierDefinition).where(TierDefinition.id == tier_id))
+        tier = result.scalar_one_or_none()
+        if not tier:
+            raise AppException(status_code=status.HTTP_404_NOT_FOUND, detail="Tier not found")
+        
+        await db.delete(tier)
+        await db.commit()
+        return {"success": True}
+        
     async def get_system_config(self, db: AsyncSession):
         result = await db.execute(select(SystemConfig).where(SystemConfig.key == "usd_to_credits"))
         config = result.scalar_one_or_none()
