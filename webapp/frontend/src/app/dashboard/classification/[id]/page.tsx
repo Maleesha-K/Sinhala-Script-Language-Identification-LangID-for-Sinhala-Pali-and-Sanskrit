@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useAuth } from "@/store/useAuth";
 
 type Segment = {
   id: string;
@@ -30,9 +29,18 @@ type JobData = {
 export default function ClassificationResultPage() {
   const params = useParams();
   const router = useRouter();
-  const { token } = useAuth();
+  const [token, setToken] = useState<string | null>(null);
   const [job, setJob] = useState<JobData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch token for WebSockets and API calls
+    axios.get("/api/auth/token").then((res) => {
+      setToken(res.data.token);
+    }).catch(() => {
+      router.push("/auth/login");
+    });
+  }, [router]);
 
   const fetchJob = async () => {
     try {
@@ -152,7 +160,7 @@ export default function ClassificationResultPage() {
           
           <div className="bg-card border rounded-lg p-6 shadow-sm leading-loose text-lg">
             {job.segments.map((segment) => (
-              <SegmentFeedback key={segment.segment_index} segment={segment} getLanguageColor={getLanguageColor} />
+              <SegmentFeedback key={segment.segment_index} segment={segment} getLanguageColor={getLanguageColor} token={token} />
             ))}
           </div>
         </div>
@@ -162,8 +170,7 @@ export default function ClassificationResultPage() {
 }
 
 // Subcomponent to handle individual segment feedback state
-function SegmentFeedback({ segment, getLanguageColor }: { segment: Segment, getLanguageColor: (l: string) => string }) {
-  const { token } = useAuth();
+function SegmentFeedback({ segment, getLanguageColor, token }: { segment: Segment, getLanguageColor: (l: string) => string, token: string | null }) {
   const [open, setOpen] = useState(false);
   const [correctedLang, setCorrectedLang] = useState("");
   const [comment, setComment] = useState("");

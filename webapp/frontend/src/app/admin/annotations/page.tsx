@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
-import { useAuth } from "@/store/useAuth";
 
 import {
   Table,
@@ -27,7 +26,6 @@ type Annotation = {
 };
 
 export default function AdminAnnotationsPage() {
-  const { token } = useAuth();
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -35,10 +33,7 @@ export default function AdminAnnotationsPage() {
   const fetchAnnotations = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("/api/v1/annotations?pending_only=true", {
-        baseURL: "http://localhost:8000",
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get("/api/annotations?pending_only=true");
       setAnnotations(res.data.data || []);
     } catch (error) {
       toast.error("Failed to fetch annotations");
@@ -48,19 +43,15 @@ export default function AdminAnnotationsPage() {
   };
 
   useEffect(() => {
-    if (token) fetchAnnotations();
-  }, [token]);
+    fetchAnnotations();
+  }, []);
 
   const handleReview = async (id: string, isValid: boolean) => {
     try {
       setActionLoading(id);
       await axios.put(
-        `/api/v1/annotations/${id}/review`,
-        { is_valid_for_training: isValid },
-        {
-          baseURL: "http://localhost:8000",
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        `/api/annotations/${id}/review`,
+        { is_valid_for_training: isValid }
       );
       toast.success(isValid ? "Annotation approved for training" : "Annotation rejected");
       setAnnotations(annotations.filter((a) => a.id !== id));
