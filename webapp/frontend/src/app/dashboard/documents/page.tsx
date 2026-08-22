@@ -7,8 +7,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import {
-  Loader2, Download, Trash2, FileText, CheckCircle2, Clock, XCircle, Upload,
+  Loader2, Download, Trash2, FileText, CheckCircle2, Clock, XCircle, Upload, Eye,
 } from "lucide-react";
 import { UploadModal } from "@/components/documents/upload-modal";
 import { PageHeader } from "@/components/layout/page-header";
@@ -34,6 +35,8 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter();
+
   const fetchDocuments = async () => {
     try {
       const res = await axios.get("/api/documents");
@@ -51,7 +54,8 @@ export default function DocumentsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleDownload = async (docId: string, filename: string) => {
+  const handleDownload = async (e: React.MouseEvent, docId: string, filename: string) => {
+    e.stopPropagation();
     try {
       const res = await axios.get(`/api/documents/${docId}/download`);
       const { download_url } = res.data;
@@ -66,7 +70,8 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleDelete = async (docId: string) => {
+  const handleDelete = async (e: React.MouseEvent, docId: string) => {
+    e.stopPropagation();
     if (!confirm("Delete this document? This action cannot be undone.")) return;
     try {
       await axios.delete(`/api/documents/${docId}`);
@@ -74,6 +79,12 @@ export default function DocumentsPage() {
       fetchDocuments();
     } catch {
       toast.error("Failed to delete document");
+    }
+  };
+
+  const handleRowClick = (docId: string, status: DocumentStatus) => {
+    if (status === "ready") {
+      router.push(`/dashboard/documents/${docId}`);
     }
   };
 
@@ -117,7 +128,11 @@ export default function DocumentsPage() {
                 const status = statusConfig[doc.upload_status];
                 const StatusIcon = status.icon;
                 return (
-                  <TableRow key={doc.id} className="hover:bg-muted/30">
+                  <TableRow 
+                    key={doc.id} 
+                    className={cn("hover:bg-muted/30 transition-colors", doc.upload_status === "ready" && "cursor-pointer")}
+                    onClick={() => handleRowClick(doc.id, doc.upload_status)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -142,7 +157,20 @@ export default function DocumentsPage() {
                           variant="ghost"
                           size="icon"
                           disabled={doc.upload_status !== "ready"}
-                          onClick={() => handleDownload(doc.id, doc.filename)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/documents/${doc.id}`);
+                          }}
+                          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          title="View OCR Results"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={doc.upload_status !== "ready"}
+                          onClick={(e) => handleDownload(e, doc.id, doc.filename)}
                           className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
                           title="Download"
                         >
@@ -152,7 +180,7 @@ export default function DocumentsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(doc.id)}
+                          onClick={(e) => handleDelete(e, doc.id)}
                           title="Delete"
                         >
                           <Trash2 className="h-4 w-4" />

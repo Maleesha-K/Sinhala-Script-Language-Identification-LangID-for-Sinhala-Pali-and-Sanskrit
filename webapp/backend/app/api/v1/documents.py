@@ -125,3 +125,30 @@ async def delete_document(
     await db.commit()
     
     return success_response(message="Document deleted successfully")
+
+from app.db.models.document_page import DocumentPage
+from app.schemas.document import DocumentPageResponse
+
+@router.get("/{document_id}/pages", response_model=BaseResponse[List[DocumentPageResponse]])
+async def get_document_pages(
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Gets all pages and OCR extracted text for a specific document."""
+    # First check if the document belongs to the user
+    doc_result = await db.execute(select(Document).where(Document.id == document_id, Document.user_id == current_user.id))
+    doc = doc_result.scalar_one_or_none()
+    
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    # Fetch pages
+    pages_result = await db.execute(
+        select(DocumentPage)
+        .where(DocumentPage.document_id == document_id)
+        .order_by(DocumentPage.page_number)
+    )
+    pages = pages_result.scalars().all()
+    
+    return success_response(data=pages, message="Document pages retrieved")
