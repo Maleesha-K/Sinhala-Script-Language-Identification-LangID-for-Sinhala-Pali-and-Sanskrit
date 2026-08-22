@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 const items = [
   { name: "Overview", href: "/admin", icon: LayoutDashboard, exact: true },
   { name: "Tiers", href: "/admin/tiers", icon: CreditCard, exact: false },
+  { name: "Model Rates", href: "/admin/rates", icon: CreditCard, exact: false },
   { name: "Configuration", href: "/admin/config", icon: Settings, exact: false },
   { name: "Annotations", href: "/admin/annotations", icon: Edit3, exact: false },
 ];

@@ -6,6 +6,8 @@ from app.api.v1.documents import router as documents_router
 from app.api.v1.classification import router as classification_router
 from app.api.v1.annotations import router as annotations_router
 from app.api.v1.websockets import router as websockets_router
+from app.api.v1.admin_rates import router as admin_rates_router
+from app.api.v1.usage import router as usage_router
 
 v1_router = APIRouter()
 v1_router.include_router(auth_router)
@@ -15,3 +17,5 @@ v1_router.include_router(documents_router)
 v1_router.include_router(classification_router)
 v1_router.include_router(annotations_router)
 v1_router.include_router(websockets_router)
+v1_router.include_router(admin_rates_router)
+v1_router.include_router(usage_router)

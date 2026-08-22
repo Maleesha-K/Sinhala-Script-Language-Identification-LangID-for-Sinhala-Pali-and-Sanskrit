@@ -96,7 +96,18 @@ async def _process_classification_job_async(job_id_str: str):
                 
             # 4. Finalize Job
             # A rough estimate for tokens if needed
-            job.total_tokens = sum(len(t.split()) for t in texts)
+            total_tokens = sum(len(t.split()) for t in texts)
+            job.total_tokens = total_tokens
+            
+            # Deduct credits
+            from app.services.credit_service import credit_service
+            success = await credit_service.charge_classification(
+                session, job.user_id, job.id, job.model_name, total_tokens
+            )
+            
+            if not success:
+                raise ValueError("Insufficient credits for classification")
+                
             job.status = JobStatus.COMPLETED
             job.completed_at = datetime.now(timezone.utc)
             

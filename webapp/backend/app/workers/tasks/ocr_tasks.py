@@ -30,8 +30,20 @@ async def _process_document_async(document_id: str):
 
         try:
             pdf_document = fitz.open(stream=doc_bytes, filetype="pdf")
+            total_pages = len(pdf_document)
             
-            for page_num in range(len(pdf_document)):
+            # Deduct credits
+            from app.services.credit_service import credit_service
+            success = await credit_service.charge_ocr_page(
+                session, doc.user_id, doc.id, "tesseract", num_pages=total_pages
+            )
+            
+            if not success:
+                doc.upload_status = UploadStatus.DELETED # Or a FAILED state if added
+                await session.commit()
+                return {"status": "error", "message": "Insufficient credits for OCR"}
+            
+            for page_num in range(total_pages):
                 page = pdf_document.load_page(page_num)
                 # Render to high-res image for OCR
                 pix = page.get_pixmap(dpi=300)
