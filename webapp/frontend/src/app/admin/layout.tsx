@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { AdminSidebar } from "@/components/admin/sidebar";
+import { AppHeader } from "@/components/layout/app-header";
 import axios from "axios";
 
-// This layout enforces that only Admins can view the /admin/* routes.
 export default async function AdminLayout({
   children,
 }: {
@@ -17,27 +17,28 @@ export default async function AdminLayout({
   }
 
   try {
-    // Validate the user's role by hitting the backend directly.
     const res = await axios.get("http://localhost:8000/api/v1/users/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
-
     const user = res.data.data;
     if (user.role !== "admin") {
-      redirect("/dashboard"); // Redirect non-admins to the regular dashboard
+      redirect("/dashboard");
     }
-  } catch (error) {
+  } catch {
     redirect("/auth/login");
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-64px)]">
-      <AdminSidebar />
-      <main className="flex-1 overflow-y-auto bg-background/50">
-        <div className="container p-6 lg:p-8">{children}</div>
-      </main>
+    <div className="flex flex-col min-h-screen">
+      <AppHeader />
+      <div className="flex flex-1 overflow-hidden">
+        <AdminSidebar />
+        <main className="flex-1 overflow-y-auto">
+          <div className="container max-w-6xl mx-auto p-6 lg:p-8 space-y-6">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
