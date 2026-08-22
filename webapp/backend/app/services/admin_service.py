@@ -39,6 +39,10 @@ class AdminService:
         tier = result.scalar_one_or_none()
         if not tier:
             raise AppException(status_code=status.HTTP_404_NOT_FOUND, detail="Tier not found")
+            
+        if tier.price_usd == 0:
+            from app.utils.exceptions import BadRequestException
+            raise BadRequestException(message="The Free Tier cannot be deleted because it is the default tier for new users.")
         
         await db.delete(tier)
         await db.commit()

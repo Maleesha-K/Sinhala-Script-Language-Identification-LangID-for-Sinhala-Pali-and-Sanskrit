@@ -21,10 +21,29 @@ class UserService:
             raise BadRequestException(message="A user with this email already exists.")
             
         hashed_password = get_password_hash(user_in.password)
+        
+        # Get or create Free Tier
+        from app.db.models.tier import TierDefinition
+        result = await db.execute(select(TierDefinition).where(TierDefinition.price_usd == 0))
+        free_tier = result.scalar_one_or_none()
+        
+        if not free_tier:
+            free_tier = TierDefinition(
+                name="Free Tier",
+                price_usd=0,
+                included_credits=1000,
+                ocr_pages_included=50,
+                is_active=True
+            )
+            db.add(free_tier)
+            await db.commit()
+            await db.refresh(free_tier)
+            
         db_user = User(
             email=user_in.email,
             password_hash=hashed_password,
             display_name=user_in.display_name,
+            credits_balance=free_tier.included_credits,
         )
         db.add(db_user)
         await db.commit()
