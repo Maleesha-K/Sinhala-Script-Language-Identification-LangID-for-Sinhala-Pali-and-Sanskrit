@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: langid_celery_worker
+    network_mode: "host" # Connects directly to localhost so it can access your local Postgres, Redis, and MinIO without changing the .env file.
+    env_file:
+      - .env
+    volumes:
+      - ../../models:/models:ro # Mount models directory from the project root
+    restart: unless-stopped

@@ -38,6 +38,19 @@ class StorageService:
             print(f"Error uploading to MinIO: {e}")
             return False
 
+    def get_document_bytes(self, object_name: str) -> bytes | None:
+        """Downloads a document from MinIO into memory."""
+        try:
+            response = self.client.get_object(self.bucket_name, object_name)
+            return response.read()
+        except S3Error as e:
+            print(f"Error downloading from MinIO: {e}")
+            return None
+        finally:
+            if 'response' in locals():
+                response.close()
+                response.release_conn()
+
     def get_presigned_url(self, object_name: str, expiry_seconds: int = 3600) -> str:
         """Generates a temporary URL to download/view the document."""
         from datetime import timedelta
