@@ -1,14 +1,17 @@
 from typing import AsyncGenerator
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt, JWTError
+from pydantic import ValidationError
 import uuid
 
 from app.db.session import async_session_maker
 from app.config import settings
 from app.utils.exceptions import UnauthorizedException, ForbiddenException
 from app.db.models.user import User, UserRole
+from app.schemas.auth import TokenPayload
 from app.services.user_service import user_service
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
@@ -50,14 +53,15 @@ async def get_ws_current_user(token: str, db: AsyncSession = Depends(get_db)) ->
     
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: str | None = payload.get("sub")
-        if user_id is None:
+        user_id_str: str | None = payload.get("sub")
+        if user_id_str is None:
             raise ValueError("Invalid token")
-        token_data = TokenPayload(sub=user_id)
-    except (JWTError, ValidationError):
+        token_data = TokenPayload(sub=user_id_str)
+        user_id = uuid.UUID(token_data.sub)
+    except (JWTError, ValidationError, ValueError):
         raise ValueError("Invalid token")
-        
-    result = await db.execute(select(User).where(User.id == token_data.sub))
+
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise ValueError("User not found")
