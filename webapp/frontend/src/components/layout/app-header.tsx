@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -78,33 +79,35 @@ export function AppHeader() {
                     <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-semibold leading-none">{user.email}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{user.role} account</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {/* base-ui DropdownMenuItem uses onClick, not asChild */}
-                    <DropdownMenuItem onClick={() => router.push("/dashboard")} className="flex items-center gap-2 cursor-pointer">
-                      <LayoutDashboard className="h-4 w-4" />
-                      Dashboard
-                    </DropdownMenuItem>
-                    {isAdmin && (
-                      <DropdownMenuItem onClick={() => router.push("/admin")} className="flex items-center gap-2 cursor-pointer">
-                        <ShieldCheck className="h-4 w-4" />
-                        Admin Panel
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-semibold leading-none">{user.email}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{user.role} account</p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {/* base-ui DropdownMenuItem uses onClick, not asChild */}
+                      <DropdownMenuItem onClick={() => router.push("/dashboard")} className="flex items-center gap-2 cursor-pointer">
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={logout}
-                      variant="destructive"
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Log out
-                    </DropdownMenuItem>
+                      {isAdmin && (
+                        <DropdownMenuItem onClick={() => router.push("/admin")} className="flex items-center gap-2 cursor-pointer">
+                          <ShieldCheck className="h-4 w-4" />
+                          Admin Panel
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={logout}
+                        variant="destructive"
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Log out
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>

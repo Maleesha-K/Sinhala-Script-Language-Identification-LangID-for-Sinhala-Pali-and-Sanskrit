@@ -112,5 +112,4 @@ async def _process_classification_job_async(job_id_str: str):
 
 @celery_app.task(name="process_classification_job")
 def process_classification_job(job_id_str: str):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(_process_classification_job_async(job_id_str))
+    return asyncio.run(_process_classification_job_async(job_id_str))
