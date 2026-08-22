@@ -64,10 +64,15 @@ async def _process_document_async(document_id: str):
                 
             doc.upload_status = UploadStatus.READY
             await session.commit()
+            
+            from app.db.session import engine
+            await engine.dispose()
             return {"status": "success", "document_id": document_id}
             
         except Exception as e:
             print(f"OCR Error for document {document_id}: {e}")
+            from app.db.session import engine
+            await engine.dispose()
             return {"status": "error", "message": str(e)}
 
 @celery_app.task(name="process_document_ocr", bind=True, max_retries=3)

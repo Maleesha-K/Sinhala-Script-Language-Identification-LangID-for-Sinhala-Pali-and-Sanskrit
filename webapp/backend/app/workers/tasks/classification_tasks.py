@@ -115,13 +115,19 @@ async def _process_classification_job_async(job_id_str: str):
             logger.info(f"ClassificationJob {job_id_str} completed successfully.")
             publish_job_event(job_id_str, "completed", 100, "Job finished successfully.")
             
+            from app.db.session import engine
+            await engine.dispose()
+            
         except Exception as e:
             logger.exception(f"ClassificationJob {job_id_str} failed: {e}")
             job.status = JobStatus.FAILED
             await session.commit()
             publish_job_event(job_id_str, "failed", 0, str(e))
+            
+            from app.db.session import engine
+            await engine.dispose()
 
 @celery_app.task(name="process_classification_job")
 def process_classification_job(job_id_str: str):
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(_process_classification_job_async(job_id_str))
+    import asyncio
+    return asyncio.run(_process_classification_job_async(job_id_str))

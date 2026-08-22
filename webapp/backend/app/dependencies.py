@@ -50,14 +50,15 @@ async def get_ws_current_user(token: str, db: AsyncSession = Depends(get_db)) ->
     
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: str | None = payload.get("sub")
-        if user_id is None:
+        user_id_str: str | None = payload.get("sub")
+        if user_id_str is None:
             raise ValueError("Invalid token")
-        token_data = TokenPayload(sub=user_id)
-    except (JWTError, ValidationError):
+        user_id = uuid.UUID(user_id_str)
+    except (JWTError, ValueError):
         raise ValueError("Invalid token")
         
-    result = await db.execute(select(User).where(User.id == token_data.sub))
+    from sqlalchemy import select
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise ValueError("User not found")
