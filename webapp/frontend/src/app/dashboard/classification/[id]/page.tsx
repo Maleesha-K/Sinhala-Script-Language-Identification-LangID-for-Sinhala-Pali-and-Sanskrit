@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ type Segment = {
   text: string;
   predicted_language: string;
   confidence: number;
+  probabilities?: Record<string, number>;
 };
 
 type JobData = {
@@ -219,16 +221,37 @@ function SegmentFeedback({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        title={`${style.label} — ${(segment.confidence * 100).toFixed(1)}% confidence. Click to report.`}
-        className={cn(
-          "inline cursor-pointer rounded-md border px-1.5 py-0.5 mx-0.5 transition-all hover:shadow-sm hover:opacity-80 select-none",
-          style.bg, style.border, style.text,
-          submitted && "opacity-50 cursor-default",
-        )}
-      >
-        {segment.text}
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <span
+              className={cn(
+                "inline cursor-pointer rounded-md border px-1.5 py-0.5 mx-0.5 transition-all hover:shadow-sm hover:opacity-80 select-none",
+                style.bg, style.border, style.text,
+                submitted && "opacity-50 cursor-default",
+              )}
+            >
+              {segment.text}
+            </span>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent className="z-50 max-w-xs space-y-1">
+          <div className="font-semibold">{style.label} ({(segment.confidence * 100).toFixed(1)}% confidence)</div>
+          {segment.probabilities && (
+            <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+              {Object.entries(segment.probabilities)
+                .sort(([, a], [, b]) => b - a)
+                .map(([lang, prob]) => (
+                  <div key={lang} className="contents">
+                    <span className="capitalize">{lang}:</span>
+                    <span className="font-mono">{(prob * 100).toFixed(2)}%</span>
+                  </div>
+              ))}
+            </div>
+          )}
+          <div className="text-[10px] text-muted-foreground pt-1 border-t mt-2">Click to report misclassification</div>
+        </TooltipContent>
+      </Tooltip>
       <PopoverContent className="w-80 p-4" align="start" sideOffset={6}>
         {submitted ? (
           <div className="text-center py-3 space-y-2">

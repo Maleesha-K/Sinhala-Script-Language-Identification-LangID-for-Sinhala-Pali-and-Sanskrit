@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Loader2, Coins, Activity, FileText, CheckCircle2, Clock, XCircle } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Coins, Activity, FileText, CheckCircle2, Clock, XCircle, Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -99,12 +101,13 @@ export default function UsagePage() {
                   <TableHead>Item</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
+                  <TableHead className="text-center w-[60px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.activities.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No recent activity.
                     </TableCell>
                   </TableRow>
@@ -135,6 +138,18 @@ export default function UsagePage() {
                       </TableCell>
                       <TableCell className="text-right font-medium text-red-600">
                         {activity.cost > 0 ? `-${activity.cost.toFixed(4)}` : "0.0000"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Link 
+                          href={activity.activity_type === "ocr" 
+                            ? `/dashboard/documents/${activity.id}` 
+                            : `/dashboard/classification/${activity.id}`
+                          }
+                        >
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))
