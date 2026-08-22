@@ -175,9 +175,20 @@ export default function ClassificationResultPage() {
 
           {/* Segments */}
           <div className="rounded-xl border border-border bg-white shadow-sm p-6 leading-[2.2] text-base">
-            {job.segments.map((seg) => (
-              <SegmentFeedback key={seg.segment_index} segment={seg} token={token} />
-            ))}
+            {job.segments.map((seg, i, arr) => {
+              const isFirstInGroup = i === 0 || arr[i - 1].predicted_language !== seg.predicted_language;
+              const isLastInGroup = i === arr.length - 1 || arr[i + 1].predicted_language !== seg.predicted_language;
+              
+              return (
+                <SegmentFeedback 
+                  key={seg.segment_index} 
+                  segment={seg} 
+                  token={token}
+                  isFirstInGroup={isFirstInGroup}
+                  isLastInGroup={isLastInGroup}
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -188,9 +199,13 @@ export default function ClassificationResultPage() {
 function SegmentFeedback({
   segment,
   token,
+  isFirstInGroup = true,
+  isLastInGroup = true,
 }: {
   segment: Segment;
   token: string | null;
+  isFirstInGroup?: boolean;
+  isLastInGroup?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [correctedLang, setCorrectedLang] = useState<string | null>(null);
@@ -226,8 +241,10 @@ function SegmentFeedback({
           <PopoverTrigger asChild>
             <span
               className={cn(
-                "inline cursor-pointer rounded-md border px-1.5 py-0.5 mx-0.5 transition-all hover:shadow-sm hover:opacity-80 select-none",
+                "inline cursor-pointer border-y transition-all hover:shadow-sm hover:opacity-80 select-none whitespace-pre-wrap",
                 style.bg, style.border, style.text,
+                isFirstInGroup ? "rounded-l-md pl-1.5 border-l ml-0.5" : "border-l-0 pl-0.5",
+                isLastInGroup ? "rounded-r-md pr-1.5 border-r mr-0.5" : "border-r-0 pr-0.5",
                 submitted && "opacity-50 cursor-default",
               )}
             >

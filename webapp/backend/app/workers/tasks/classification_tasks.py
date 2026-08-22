@@ -28,8 +28,8 @@ def _segment_text(text: str, strategy: str) -> list[dict]:
     elif strategy == "paragraph":
         segments = []
         for match in re.finditer(r'(?:[^\n][\n]?)+', text):
-            segment_text = match.group(0).strip()
-            if segment_text:
+            segment_text = match.group(0)
+            if segment_text.strip():
                 segments.append({
                     "text": segment_text,
                     "start": match.start(),
@@ -38,11 +38,24 @@ def _segment_text(text: str, strategy: str) -> list[dict]:
         return segments
         
     elif strategy == "sentence":
-        # Split by typical sentence boundaries: ., !, ?, ।, 
+        # Split by typical sentence boundaries and newlines: ., !, ?, ।, \n
         segments = []
-        for match in re.finditer(r'[^.!?।]+(?:[.!?।]+|$)', text):
-            segment_text = match.group(0).strip()
-            if segment_text:
+        for match in re.finditer(r'[^.!?।\n]+(?:[.!?।\n]+|$)', text):
+            segment_text = match.group(0)
+            if segment_text.strip():
+                segments.append({
+                    "text": segment_text,
+                    "start": match.start(),
+                    "end": match.end()
+                })
+        return segments
+        
+    elif strategy == "auto":
+        # Aggressive split by newlines, punctuation, and special characters
+        segments = []
+        for match in re.finditer(r'[^.!?।\n,;:\(\)\[\]]+(?:[.!?।\n,;:\(\)\[\]]+|$)', text):
+            segment_text = match.group(0)
+            if segment_text.strip():
                 segments.append({
                     "text": segment_text,
                     "start": match.start(),
@@ -77,7 +90,7 @@ async def _process_classification_job_async(job_id_str: str):
             segments_info = _segment_text(text_to_process, job.segmentation_strategy)
             
             # 2. Batch Classification
-            texts = [s["text"] for s in segments_info]
+            texts = [s["text"].strip() for s in segments_info]
             predictions = langid_classifier.predict_batch(texts)
             
             # 3. Create ClassifiedSegment records

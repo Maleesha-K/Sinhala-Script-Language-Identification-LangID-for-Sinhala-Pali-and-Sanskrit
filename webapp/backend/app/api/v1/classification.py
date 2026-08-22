@@ -17,7 +17,7 @@ router = APIRouter(prefix="/classification", tags=["classification"])
 
 class JobCreateRequest(BaseModel):
     input_text: str = Field(..., min_length=1)
-    segmentation_strategy: str = Field("sentence", pattern="^(sentence|paragraph|full_text)$")
+    segmentation_strategy: str = Field("sentence", pattern="^(sentence|paragraph|full_text|auto)$")
 
 class SegmentResponse(BaseModel):
     id: UUID

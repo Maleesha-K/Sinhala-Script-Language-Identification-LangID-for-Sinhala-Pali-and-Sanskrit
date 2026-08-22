@@ -22,13 +22,14 @@ fi
 cleanup() {
     echo -e "\n${BLUE}Shutting down services...${NC}"
     kill $(jobs -p) 2>/dev/null
+    docker compose -f docker-compose.worker.yml down
     exit
 }
 trap cleanup SIGINT SIGTERM EXIT
 
-# Start Celery worker in background
-echo -e "${BLUE}Starting Celery worker...${NC}"
-celery -A app.workers.celery_app worker --loglevel=info &
+# Start Celery worker in background via Docker
+echo -e "${BLUE}Starting Celery worker via Docker...${NC}"
+docker compose -f docker-compose.worker.yml up -d --build
 
 # Start FastAPI server
 echo -e "${BLUE}Starting FastAPI server...${NC}"

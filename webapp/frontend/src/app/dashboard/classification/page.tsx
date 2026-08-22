@@ -4,15 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
-import { Loader2, Activity, MessageSquare, AlignLeft, FileText } from "lucide-react";
+import { Loader2, Activity, MessageSquare, AlignLeft, FileText, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
 
-type Strategy = "sentence" | "paragraph" | "full_text";
+type Strategy = "sentence" | "paragraph" | "full_text" | "auto";
 
 const strategies: { value: Strategy; icon: React.ElementType; label: string; desc: string }[] = [
+  { value: "auto", icon: Wand2, label: "Auto", desc: "Smart split by newlines, punctuation, and special characters." },
   { value: "sentence", icon: MessageSquare, label: "Sentence", desc: "Split by punctuation marks. Best for mixed-language texts." },
   { value: "paragraph", icon: AlignLeft, label: "Paragraph", desc: "Split by newlines. Best for prose with clear paragraph breaks." },
   { value: "full_text", icon: FileText, label: "Full Text", desc: "Treat entire text as one block. Best for short passages." },
@@ -74,7 +75,7 @@ export default function ClassificationPage() {
         {/* Strategy selection */}
         <div className="space-y-3">
           <p className="text-sm font-semibold text-foreground">Segmentation Strategy</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {strategies.map(({ value, icon: Icon, label, desc }) => (
               <button
                 key={value}
