@@ -41,9 +41,27 @@ def upload_to_huggingface():
                         repo_id=dataset_repo_id,
                         repo_type="dataset"
                     )
-            print("Dataset upload complete!")
+            print("Preprocessed JSONL dataset upload complete!")
         else:
             print(f"Warning: Dataset directory {datasets_dir} not found. Skipping dataset upload.")
+            
+        # Upload Nadil's custom CSV datasets
+        nadil_data_dir = os.path.join(proj_root, "data", "Nadil")
+        if os.path.exists(nadil_data_dir):
+            for filename in ["train.csv", "val.csv", "test.csv"]:
+                file_path = os.path.join(nadil_data_dir, filename)
+                if os.path.exists(file_path):
+                    print(f"Uploading custom dataset {filename}...")
+                    api.upload_file(
+                        path_or_fileobj=file_path,
+                        path_in_repo=f"data/Nadil/{filename}",
+                        repo_id=dataset_repo_id,
+                        repo_type="dataset"
+                    )
+            print("Custom CSV dataset upload complete!")
+        else:
+            print(f"Warning: Custom dataset directory {nadil_data_dir} not found.")
+
     except Exception as e:
         print(f"Failed to upload datasets: {e}")
 
