@@ -43,13 +43,17 @@ download-%:
 PREPROCESS_SCRIPTS := $(wildcard $(SCRIPT_DIR)/02.preprocess/preprocess_*.ipynb)
 PREPROCESS_DATASETS := $(patsubst $(SCRIPT_DIR)/02.preprocess/preprocess_%.ipynb,%,$(PREPROCESS_SCRIPTS))
 
-preprocess: $(addprefix preprocess-, $(PREPROCESS_DATASETS))
+preprocess: $(addprefix preprocess-, $(PREPROCESS_DATASETS)) integrate-test-sets
 
 preprocess-%:
 	@echo "Running preprocess notebook for $*..."
 	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/02.preprocess/preprocess_$*.ipynb $(DEV_NULL) -p input_dir $(RAW_DIR)/$* -p output_file $(PREP_DIR)/$*.jsonl
 
 # 03. Dataset Checking Stage
+integrate-test-sets:
+	@echo "Integrating test datasets..."
+	$(PYTHON) $(SCRIPT_DIR)/02.preprocess/integrate_test_sets.py
+
 check:
 	@echo "Running dataset checks notebooks..."
 	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/03.dataset_checking/check_dataset.ipynb $(DEV_NULL) -p input_dir $(PREP_DIR)

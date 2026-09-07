@@ -1,0 +1,7 @@
+Model,Dataset,Evaluation Metric,Zero-shot,Sinhala-Sinh,Pali-Sinh,Sanskrit-Sinh,Sanskrit-Deva,English-Latn,Tamil-Taml,Hindi-Deva,Bengali-Beng,Arabic-Arab,French-Latn,German-Latn
+XLM-R Base,wili-2018,Per-language F1,Yes,0.0,0.0,,0.0,0.9527,0.0,0.1811,0.0,0.0,0.99,0.9899
+ConLID,wili-2018,Per-language F1,Yes,0.7916,,,0.5948,0.9439,0.9945,0.9899,0.9435,0.0,0.9819,0.9707
+fastText LID-176,wili-2018,Per-language F1,Yes,0.7912,,,0.5931,0.9385,0.995,0.9889,0.9529,0.0,0.9774,0.9854
+GlotLID v3,wili-2018,Per-language F1,Yes,0.7914,,,0.594,0.9377,0.995,0.9173,0.9451,0.0,0.988,0.9754
+NLLB LID-218,wili-2018,Per-language F1,Yes,0.7912,,,0.5935,0.9301,0.994,0.9889,0.9429,0.0,0.99,0.9904
+OpenLID-v2,wili-2018,Per-language F1,Yes,0.7912,,,0.012,0.9427,0.994,0.0134,0.9424,0.0,0.9687,0.9817

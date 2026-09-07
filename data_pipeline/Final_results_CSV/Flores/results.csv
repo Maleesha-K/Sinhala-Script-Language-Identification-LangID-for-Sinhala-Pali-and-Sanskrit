@@ -1,0 +1,7 @@
+Model,Dataset,Evaluation Metric,Zero-shot,Sinhala-Sinh,Pali-Sinh,Sanskrit-Sinh,Sanskrit-Deva,English-Latn,Tamil-Taml,Hindi-Deva,Bengali-Beng,Arabic-Arab,French-Latn,German-Latn
+XLM-R Base,flores_plus,Per-language F1,Yes,0.0,0.0,,0.0,0.9985,0.0,0.1835,0.0,0.6671,0.999,1.0
+ConLID,flores_plus,Per-language F1,Yes,0.7916,,,0.6027,0.996,0.9995,0.997,0.9995,0.3733,1.0,0.997
+fastText LID-176,flores_plus,Per-language F1,Yes,0.7912,,,0.5703,0.7213,1.0,0.9629,1.0,0.6667,0.9873,0.9897
+GlotLID v3,flores_plus,Per-language F1,Yes,0.7914,,,0.5998,1.0,1.0,0.9926,0.9995,0.6054,1.0,1.0
+NLLB LID-218,flores_plus,Per-language F1,Yes,0.7912,,,0.5952,0.984,1.0,0.9912,1.0,0.6664,0.9995,1.0
+OpenLID-v2,flores_plus,Per-language F1,Yes,0.7912,,,0.0153,0.9995,1.0,0.0361,0.997,0.5579,0.9975,1.0
