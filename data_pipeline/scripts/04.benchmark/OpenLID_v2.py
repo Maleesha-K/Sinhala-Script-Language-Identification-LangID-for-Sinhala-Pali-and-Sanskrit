@@ -78,7 +78,7 @@ def load_dataset(file_path):
         print(f"Loaded {len(df)} rows across {df['flores_label'].nunique()} language-script classes")
     return df
 
-benchmark_files = ["flores_plus.jsonl", "commonlid.jsonl", "wili-2018.jsonl"]
+benchmark_files = ["flores_plus_integrated.jsonl", "commonlid_integrated.jsonl", "wili-2018_integrated.jsonl"]
 
 for fname in benchmark_files:
     file_path = os.path.join(input_dir, fname)

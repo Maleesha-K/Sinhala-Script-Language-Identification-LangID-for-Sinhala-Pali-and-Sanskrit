@@ -185,7 +185,7 @@ def predict_two_stage(clean_text):
 # ------------------------------------------------------------------------------
 # 7. Benchmark Execution Loop Across All Datasets
 # ------------------------------------------------------------------------------
-benchmark_files = ['flores_plus.jsonl', 'commonlid.jsonl', 'wili-2018.jsonl']
+benchmark_files = ['flores_plus_integrated.jsonl', 'commonlid_integrated.jsonl', 'wili-2018_integrated.jsonl']
 
 for fname in benchmark_files:
     file_path = os.path.join(benchmark_dir, fname)

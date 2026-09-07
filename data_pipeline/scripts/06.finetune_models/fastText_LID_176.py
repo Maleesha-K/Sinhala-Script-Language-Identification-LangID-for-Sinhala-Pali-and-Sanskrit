@@ -164,7 +164,7 @@ def load_all_languages_dataset(file_path):
                 records.append(row)
     return pd.DataFrame(records)
 
-benchmark_files = ['flores_plus.jsonl', 'commonlid.jsonl', 'wili-2018.jsonl']
+benchmark_files = ['flores_plus_integrated.jsonl', 'commonlid_integrated.jsonl', 'wili-2018_integrated.jsonl']
 results_dir = fix_win_path(os.path.join("datasets", "benchmark_results"))
 os.makedirs(results_dir, exist_ok=True)
 

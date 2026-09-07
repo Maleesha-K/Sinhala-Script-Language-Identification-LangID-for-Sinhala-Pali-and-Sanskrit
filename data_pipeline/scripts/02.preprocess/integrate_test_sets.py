@@ -10,12 +10,14 @@ if not os.path.exists("Makefile") and os.path.exists("../../Makefile"):
 proj_root = os.path.abspath(".")
 
 print("Loading Nadil test dataset...")
-nadil_test_path = os.path.join(proj_root, "data", "Nadil", "test.csv")
+nadil_test_path = os.path.join(proj_root, "..", "data", "Nadil", "test.csv")
 if not os.path.exists(nadil_test_path):
-    nadil_test_path = os.path.join(proj_root, "data_pipeline", "datasets", "finetuning", "test.csv")
+    nadil_test_path = os.path.join(proj_root, "datasets", "finetuning", "test.csv")
+if not os.path.exists(nadil_test_path):
+    nadil_test_path = os.path.join(proj_root, "test_dataset_folder", "test.csv")
 
 if not os.path.exists(nadil_test_path):
-    raise FileNotFoundError(f"Could not find test dataset at {nadil_test_path}")
+    raise FileNotFoundError(f"Could not find test dataset. Tried various locations from {proj_root}")
 
 nadil_records = []
 with open(nadil_test_path, mode='r', encoding='utf-8') as f:
@@ -106,11 +108,12 @@ for benchmark_file in benchmarks:
     # Inject Nadil test records
     valid_records.extend(nadil_records)
     
-    # Save back to file
-    with open(benchmark_file, "w", encoding="utf-8") as f:
+    # Save back to a new file
+    output_file = benchmark_file.replace(".jsonl", "_integrated.jsonl")
+    with open(output_file, "w", encoding="utf-8") as f:
         for record in valid_records:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
             
-    print(f"Injected {len(nadil_records)} Nadil test records. New total: {len(valid_records)} records in {benchmark_file}.\n")
+    print(f"Injected {len(nadil_records)} Nadil test records. New total: {len(valid_records)} records in {output_file}.\n")
 
 print("Integration complete!")

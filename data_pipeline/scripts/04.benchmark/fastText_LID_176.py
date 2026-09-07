@@ -146,9 +146,9 @@ model_name = "fastText LID-176 Zero-Shot"
 target_labels = sorted(set(FASTTEXT_LANG_MAP.values()))
 
 benchmark_target_files = [
-    'flores_plus.jsonl',
-    'commonlid.jsonl',
-    'wili-2018.jsonl'
+    'flores_plus_integrated.jsonl',
+    'commonlid_integrated.jsonl',
+    'wili-2018_integrated.jsonl'
 ]
 
 for fname in benchmark_target_files:
