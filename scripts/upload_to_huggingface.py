@@ -73,26 +73,31 @@ def upload_to_huggingface():
         create_repo(repo_id=model_repo_id, repo_type="model", exist_ok=True, private=False)
         print(f"Model repository '{model_repo_id}' is ready.")
         
-        models_to_upload = [
-            "fasttext_finetuned.bin",
-            "langid_model.pkl",
-            "langid_vectorizer.pkl"
-        ]
+        # Dynamically find all model weights in the models directory
+        valid_extensions = (".bin", ".pt", ".safetensors", ".pkl", ".vec")
+        models_uploaded = 0
         
         if os.path.exists(models_dir):
-            for filename in models_to_upload:
-                file_path = os.path.join(models_dir, filename)
-                if os.path.exists(file_path):
-                    print(f"Uploading {filename}...")
-                    api.upload_file(
-                        path_or_fileobj=file_path,
-                        path_in_repo=filename,
-                        repo_id=model_repo_id,
-                        repo_type="model"
-                    )
-                else:
-                    print(f"Note: {filename} not found locally, skipping.")
-            print("Model upload complete!")
+            for root_dir, _, files in os.walk(models_dir):
+                for filename in files:
+                    if filename.endswith(valid_extensions):
+                        file_path = os.path.join(root_dir, filename)
+                        # Maintain folder structure relative to models_dir
+                        rel_path = os.path.relpath(file_path, models_dir)
+                        
+                        print(f"Uploading {rel_path}...")
+                        api.upload_file(
+                            path_or_fileobj=file_path,
+                            path_in_repo=rel_path,
+                            repo_id=model_repo_id,
+                            repo_type="model"
+                        )
+                        models_uploaded += 1
+                        
+            if models_uploaded > 0:
+                print(f"Model upload complete! ({models_uploaded} files uploaded)")
+            else:
+                print("No model files found to upload in the models directory.")
         else:
             print(f"Warning: Models directory {models_dir} not found. Skipping model upload.")
             
