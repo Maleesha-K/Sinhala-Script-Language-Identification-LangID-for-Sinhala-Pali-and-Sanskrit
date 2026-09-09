@@ -1,6 +1,6 @@
-# LangID Web Application MVP
+# LangID Web Application
 
-This directory contains the Minimum Viable Product (MVP) web application for the Sinhala-Script Language Identification (LangID) system, designed as a two-tier application using **FastAPI** (Backend) and **Streamlit** (Frontend).
+This directory contains the web application for the Sinhala-Script Language Identification (LangID) system, designed as a two-tier application using **FastAPI** (Backend) and **Next.js** (Frontend).
 
 ## Prerequisites
 
@@ -10,9 +10,14 @@ python scripts/export_3way_model.py
 ```
 This will create `langid_vectorizer.pkl` and `langid_model.pkl` in the `models/` directory.
 
-Ensure you have the required dependencies installed (they should already be available if you used the provided `requirements.txt`):
+Ensure you have the required dependencies installed for the backend:
 ```bash
-pip install fastapi uvicorn streamlit pydantic joblib
+pip install fastapi uvicorn pydantic joblib
+```
+For the frontend, ensure you have Node.js installed, then run:
+```bash
+cd webapp/frontend
+npm install
 ```
 
 ## Running the Application Locally
@@ -27,12 +32,13 @@ uvicorn webapp.backend.main:app --reload --port 8000
 - The backend will start on `http://localhost:8000`
 - You can view the interactive API documentation at `http://localhost:8000/docs`
 
-### 2. Start the Streamlit Frontend
-Open the second terminal, navigate to the root of the project, and run:
+### 2. Start the Next.js Frontend
+Open the second terminal, navigate to the frontend directory, and run:
 ```bash
-streamlit run webapp/frontend/app.py
+cd webapp/frontend
+npm run dev
 ```
-- The frontend will open automatically in your browser at `http://localhost:8501`
+- The frontend will open automatically in your browser at `http://localhost:3000`
 
 ## Features
 - **Dynamic Processing**: Evaluates complete sentences or single words accurately using character n-grams.
