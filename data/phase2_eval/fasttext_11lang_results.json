@@ -1,0 +1,53 @@
+{
+  "flores_plus": {
+    "accuracy": 0.9293,
+    "macro_f1": 0.9281,
+    "per_class_f1": {
+      "Sinh-Sinh": 0.9865,
+      "Pali-Sinh": 0.9969,
+      "San-Sinh": 0.9977,
+      "San-Deva": 0.999,
+      "Eng-Latn": 0.871,
+      "Tam-Taml": 0.7062,
+      "Hin-Deva": 0.9995,
+      "Ben-Beng": 1.0,
+      "Ara-Arab": 0.661,
+      "Fre-Latn": 0.9931,
+      "Ger-Latn": 0.9985
+    }
+  },
+  "wili-2018": {
+    "accuracy": 0.9661,
+    "macro_f1": 0.9584,
+    "per_class_f1": {
+      "Sinh-Sinh": 0.9865,
+      "Pali-Sinh": 0.9969,
+      "San-Sinh": 0.9977,
+      "San-Deva": 0.9899,
+      "Eng-Latn": 0.8795,
+      "Tam-Taml": 0.8244,
+      "Hin-Deva": 0.9863,
+      "Ben-Beng": 0.9424,
+      "Ara-Arab": 0.9837,
+      "Fre-Latn": 0.9772,
+      "Ger-Latn": 0.9781
+    }
+  },
+  "commonlid": {
+    "accuracy": 0.9316,
+    "macro_f1": 0.8758,
+    "per_class_f1": {
+      "Sinh-Sinh": 0.9861,
+      "Pali-Sinh": 0.9969,
+      "San-Sinh": 0.9977,
+      "San-Deva": 0.9492,
+      "Eng-Latn": 0.7949,
+      "Tam-Taml": 0.1398,
+      "Hin-Deva": 0.9619,
+      "Ben-Beng": 0.9865,
+      "Ara-Arab": 0.9733,
+      "Fre-Latn": 0.9162,
+      "Ger-Latn": 0.9317
+    }
+  }
+}
