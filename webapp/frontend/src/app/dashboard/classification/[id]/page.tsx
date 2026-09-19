@@ -237,21 +237,26 @@ function SegmentFeedback({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
-            <span
-              className={cn(
-                "inline cursor-pointer border-y transition-all hover:shadow-sm hover:opacity-80 select-none whitespace-pre-wrap",
-                style.bg, style.border, style.text,
-                isFirstInGroup ? "rounded-l-md pl-1.5 border-l ml-0.5" : "border-l-0 pl-0.5",
-                isLastInGroup ? "rounded-r-md pr-1.5 border-r mr-0.5" : "border-r-0 pr-0.5",
-                submitted && "opacity-50 cursor-default",
-              )}
-            >
-              {segment.text}
-            </span>
-          </PopoverTrigger>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              nativeButton={false}
+              render={
+                <span
+                  className={cn(
+                    "inline cursor-pointer border-y transition-all hover:shadow-sm hover:opacity-80 select-none whitespace-pre-wrap",
+                    style.bg, style.border, style.text,
+                    isFirstInGroup ? "rounded-l-md pl-1.5 border-l ml-0.5" : "border-l-0 pl-0.5",
+                    isLastInGroup ? "rounded-r-md pr-1.5 border-r mr-0.5" : "border-r-0 pr-0.5",
+                    submitted && "opacity-50 cursor-default",
+                  )}
+                >
+                  {segment.text}
+                </span>
+              }
+            />
+          }
+        />
         <TooltipContent className="z-50 max-w-xs space-y-1">
           <div className="font-semibold">{style.label} ({(segment.confidence * 100).toFixed(1)}% confidence)</div>
           {segment.probabilities && (
