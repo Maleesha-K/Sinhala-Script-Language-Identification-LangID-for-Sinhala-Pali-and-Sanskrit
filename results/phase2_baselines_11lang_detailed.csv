@@ -1,0 +1,232 @@
+Model,Architecture,Benchmark,Language,F1
+fastText (from scratch),Subword Embeddings,FLORES+,Sinh-Sinh,0.9865
+fastText (from scratch),Subword Embeddings,FLORES+,Pali-Sinh,0.9969
+fastText (from scratch),Subword Embeddings,FLORES+,San-Sinh,0.9977
+fastText (from scratch),Subword Embeddings,FLORES+,San-Deva,0.999
+fastText (from scratch),Subword Embeddings,FLORES+,Eng-Latn,0.871
+fastText (from scratch),Subword Embeddings,FLORES+,Tam-Taml,0.7062
+fastText (from scratch),Subword Embeddings,FLORES+,Hin-Deva,0.9995
+fastText (from scratch),Subword Embeddings,FLORES+,Ben-Beng,1.0
+fastText (from scratch),Subword Embeddings,FLORES+,Ara-Arab,0.661
+fastText (from scratch),Subword Embeddings,FLORES+,Fre-Latn,0.9931
+fastText (from scratch),Subword Embeddings,FLORES+,Ger-Latn,0.9985
+fastText (from scratch),Subword Embeddings,WiLI-2018,Sinh-Sinh,0.9865
+fastText (from scratch),Subword Embeddings,WiLI-2018,Pali-Sinh,0.9969
+fastText (from scratch),Subword Embeddings,WiLI-2018,San-Sinh,0.9977
+fastText (from scratch),Subword Embeddings,WiLI-2018,San-Deva,0.9899
+fastText (from scratch),Subword Embeddings,WiLI-2018,Eng-Latn,0.8795
+fastText (from scratch),Subword Embeddings,WiLI-2018,Tam-Taml,0.8244
+fastText (from scratch),Subword Embeddings,WiLI-2018,Hin-Deva,0.9863
+fastText (from scratch),Subword Embeddings,WiLI-2018,Ben-Beng,0.9424
+fastText (from scratch),Subword Embeddings,WiLI-2018,Ara-Arab,0.9837
+fastText (from scratch),Subword Embeddings,WiLI-2018,Fre-Latn,0.9772
+fastText (from scratch),Subword Embeddings,WiLI-2018,Ger-Latn,0.9781
+fastText (from scratch),Subword Embeddings,CommonLID,Sinh-Sinh,0.9861
+fastText (from scratch),Subword Embeddings,CommonLID,Pali-Sinh,0.9969
+fastText (from scratch),Subword Embeddings,CommonLID,San-Sinh,0.9977
+fastText (from scratch),Subword Embeddings,CommonLID,San-Deva,0.9492
+fastText (from scratch),Subword Embeddings,CommonLID,Eng-Latn,0.7949
+fastText (from scratch),Subword Embeddings,CommonLID,Tam-Taml,0.1398
+fastText (from scratch),Subword Embeddings,CommonLID,Hin-Deva,0.9619
+fastText (from scratch),Subword Embeddings,CommonLID,Ben-Beng,0.9865
+fastText (from scratch),Subword Embeddings,CommonLID,Ara-Arab,0.9733
+fastText (from scratch),Subword Embeddings,CommonLID,Fre-Latn,0.9162
+fastText (from scratch),Subword Embeddings,CommonLID,Ger-Latn,0.9317
+Multinomial NB,Probabilistic ML,FLORES+,Sinh-Sinh,0.9872
+Multinomial NB,Probabilistic ML,FLORES+,Pali-Sinh,0.9979
+Multinomial NB,Probabilistic ML,FLORES+,San-Sinh,0.9977
+Multinomial NB,Probabilistic ML,FLORES+,San-Deva,0.9985
+Multinomial NB,Probabilistic ML,FLORES+,Eng-Latn,0.6833
+Multinomial NB,Probabilistic ML,FLORES+,Tam-Taml,0.9726
+Multinomial NB,Probabilistic ML,FLORES+,Hin-Deva,0.9995
+Multinomial NB,Probabilistic ML,FLORES+,Ben-Beng,1.0
+Multinomial NB,Probabilistic ML,FLORES+,Ara-Arab,0.6654
+Multinomial NB,Probabilistic ML,FLORES+,Fre-Latn,0.9897
+Multinomial NB,Probabilistic ML,FLORES+,Ger-Latn,0.9735
+Multinomial NB,Probabilistic ML,WiLI-2018,Sinh-Sinh,0.9872
+Multinomial NB,Probabilistic ML,WiLI-2018,Pali-Sinh,0.9979
+Multinomial NB,Probabilistic ML,WiLI-2018,San-Sinh,0.9977
+Multinomial NB,Probabilistic ML,WiLI-2018,San-Deva,0.99
+Multinomial NB,Probabilistic ML,WiLI-2018,Eng-Latn,0.9255
+Multinomial NB,Probabilistic ML,WiLI-2018,Tam-Taml,0.9673
+Multinomial NB,Probabilistic ML,WiLI-2018,Hin-Deva,0.9868
+Multinomial NB,Probabilistic ML,WiLI-2018,Ben-Beng,0.9424
+Multinomial NB,Probabilistic ML,WiLI-2018,Ara-Arab,0.9945
+Multinomial NB,Probabilistic ML,WiLI-2018,Fre-Latn,0.9871
+Multinomial NB,Probabilistic ML,WiLI-2018,Ger-Latn,0.9874
+Multinomial NB,Probabilistic ML,CommonLID,Sinh-Sinh,0.9872
+Multinomial NB,Probabilistic ML,CommonLID,Pali-Sinh,0.9977
+Multinomial NB,Probabilistic ML,CommonLID,San-Sinh,0.9977
+Multinomial NB,Probabilistic ML,CommonLID,San-Deva,0.9392
+Multinomial NB,Probabilistic ML,CommonLID,Eng-Latn,0.926
+Multinomial NB,Probabilistic ML,CommonLID,Tam-Taml,0.5724
+Multinomial NB,Probabilistic ML,CommonLID,Hin-Deva,0.9588
+Multinomial NB,Probabilistic ML,CommonLID,Ben-Beng,0.9885
+Multinomial NB,Probabilistic ML,CommonLID,Ara-Arab,0.986
+Multinomial NB,Probabilistic ML,CommonLID,Fre-Latn,0.956
+Multinomial NB,Probabilistic ML,CommonLID,Ger-Latn,0.9663
+Linear SVM,Margin Linear ML,FLORES+,Sinh-Sinh,0.9878
+Linear SVM,Margin Linear ML,FLORES+,Pali-Sinh,0.9982
+Linear SVM,Margin Linear ML,FLORES+,San-Sinh,0.9992
+Linear SVM,Margin Linear ML,FLORES+,San-Deva,0.9995
+Linear SVM,Margin Linear ML,FLORES+,Eng-Latn,0.9759
+Linear SVM,Margin Linear ML,FLORES+,Tam-Taml,0.6599
+Linear SVM,Margin Linear ML,FLORES+,Hin-Deva,0.9995
+Linear SVM,Margin Linear ML,FLORES+,Ben-Beng,1.0
+Linear SVM,Margin Linear ML,FLORES+,Ara-Arab,0.6662
+Linear SVM,Margin Linear ML,FLORES+,Fre-Latn,0.9956
+Linear SVM,Margin Linear ML,FLORES+,Ger-Latn,0.9946
+Linear SVM,Margin Linear ML,WiLI-2018,Sinh-Sinh,0.9878
+Linear SVM,Margin Linear ML,WiLI-2018,Pali-Sinh,0.9982
+Linear SVM,Margin Linear ML,WiLI-2018,San-Sinh,0.9992
+Linear SVM,Margin Linear ML,WiLI-2018,San-Deva,0.9925
+Linear SVM,Margin Linear ML,WiLI-2018,Eng-Latn,0.9222
+Linear SVM,Margin Linear ML,WiLI-2018,Tam-Taml,0.8546
+Linear SVM,Margin Linear ML,WiLI-2018,Hin-Deva,0.9894
+Linear SVM,Margin Linear ML,WiLI-2018,Ben-Beng,0.9435
+Linear SVM,Margin Linear ML,WiLI-2018,Ara-Arab,0.9965
+Linear SVM,Margin Linear ML,WiLI-2018,Fre-Latn,0.9824
+Linear SVM,Margin Linear ML,WiLI-2018,Ger-Latn,0.9812
+Linear SVM,Margin Linear ML,CommonLID,Sinh-Sinh,0.9878
+Linear SVM,Margin Linear ML,CommonLID,Pali-Sinh,0.998
+Linear SVM,Margin Linear ML,CommonLID,San-Sinh,0.9992
+Linear SVM,Margin Linear ML,CommonLID,San-Deva,0.9463
+Linear SVM,Margin Linear ML,CommonLID,Eng-Latn,0.8471
+Linear SVM,Margin Linear ML,CommonLID,Tam-Taml,0.1796
+Linear SVM,Margin Linear ML,CommonLID,Hin-Deva,0.9601
+Linear SVM,Margin Linear ML,CommonLID,Ben-Beng,0.9896
+Linear SVM,Margin Linear ML,CommonLID,Ara-Arab,0.993
+Linear SVM,Margin Linear ML,CommonLID,Fre-Latn,0.9425
+Linear SVM,Margin Linear ML,CommonLID,Ger-Latn,0.9409
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Sinh-Sinh,0.9867
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Pali-Sinh,0.9978
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,San-Sinh,0.9989
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,San-Deva,0.999
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Eng-Latn,0.8746
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Tam-Taml,0.7242
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Hin-Deva,0.9995
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Ben-Beng,1.0
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Ara-Arab,0.6654
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Fre-Latn,0.9951
+Char n-gram + LogReg,Frequency NLP Baseline,FLORES+,Ger-Latn,0.9863
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Sinh-Sinh,0.9867
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Pali-Sinh,0.9978
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,San-Sinh,0.9989
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,San-Deva,0.9915
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Eng-Latn,0.958
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Tam-Taml,0.8979
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Hin-Deva,0.9884
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Ben-Beng,0.9424
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Ara-Arab,0.994
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Fre-Latn,0.9845
+Char n-gram + LogReg,Frequency NLP Baseline,WiLI-2018,Ger-Latn,0.9848
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Sinh-Sinh,0.9867
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Pali-Sinh,0.9978
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,San-Sinh,0.9989
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,San-Deva,0.943
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Eng-Latn,0.8588
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Tam-Taml,0.2017
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Hin-Deva,0.9564
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Ben-Beng,0.9879
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Ara-Arab,0.9847
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Fre-Latn,0.9381
+Char n-gram + LogReg,Frequency NLP Baseline,CommonLID,Ger-Latn,0.9431
+XGBoost,Gradient Tree Boosting,FLORES+,Sinh-Sinh,0.9843
+XGBoost,Gradient Tree Boosting,FLORES+,Pali-Sinh,0.9922
+XGBoost,Gradient Tree Boosting,FLORES+,San-Sinh,0.9936
+XGBoost,Gradient Tree Boosting,FLORES+,San-Deva,0.9931
+XGBoost,Gradient Tree Boosting,FLORES+,Eng-Latn,0.7983
+XGBoost,Gradient Tree Boosting,FLORES+,Tam-Taml,0.7494
+XGBoost,Gradient Tree Boosting,FLORES+,Hin-Deva,0.9926
+XGBoost,Gradient Tree Boosting,FLORES+,Ben-Beng,1.0
+XGBoost,Gradient Tree Boosting,FLORES+,Ara-Arab,0.6667
+XGBoost,Gradient Tree Boosting,FLORES+,Fre-Latn,0.9411
+XGBoost,Gradient Tree Boosting,FLORES+,Ger-Latn,0.9882
+XGBoost,Gradient Tree Boosting,WiLI-2018,Sinh-Sinh,0.9843
+XGBoost,Gradient Tree Boosting,WiLI-2018,Pali-Sinh,0.9922
+XGBoost,Gradient Tree Boosting,WiLI-2018,San-Sinh,0.9936
+XGBoost,Gradient Tree Boosting,WiLI-2018,San-Deva,0.9381
+XGBoost,Gradient Tree Boosting,WiLI-2018,Eng-Latn,0.6882
+XGBoost,Gradient Tree Boosting,WiLI-2018,Tam-Taml,0.7327
+XGBoost,Gradient Tree Boosting,WiLI-2018,Hin-Deva,0.9231
+XGBoost,Gradient Tree Boosting,WiLI-2018,Ben-Beng,0.9452
+XGBoost,Gradient Tree Boosting,WiLI-2018,Ara-Arab,0.9965
+XGBoost,Gradient Tree Boosting,WiLI-2018,Fre-Latn,0.9831
+XGBoost,Gradient Tree Boosting,WiLI-2018,Ger-Latn,0.96
+XGBoost,Gradient Tree Boosting,CommonLID,Sinh-Sinh,0.9843
+XGBoost,Gradient Tree Boosting,CommonLID,Pali-Sinh,0.9922
+XGBoost,Gradient Tree Boosting,CommonLID,San-Sinh,0.9936
+XGBoost,Gradient Tree Boosting,CommonLID,San-Deva,0.9197
+XGBoost,Gradient Tree Boosting,CommonLID,Eng-Latn,0.7867
+XGBoost,Gradient Tree Boosting,CommonLID,Tam-Taml,0.1686
+XGBoost,Gradient Tree Boosting,CommonLID,Hin-Deva,0.9421
+XGBoost,Gradient Tree Boosting,CommonLID,Ben-Beng,0.9744
+XGBoost,Gradient Tree Boosting,CommonLID,Ara-Arab,0.9889
+XGBoost,Gradient Tree Boosting,CommonLID,Fre-Latn,0.9294
+XGBoost,Gradient Tree Boosting,CommonLID,Ger-Latn,0.9281
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Sinh-Sinh,0.9861
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Pali-Sinh,0.996
+Char-CNN,Deep Learning (1D-CNN),FLORES+,San-Sinh,0.9925
+Char-CNN,Deep Learning (1D-CNN),FLORES+,San-Deva,0.9902
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Eng-Latn,0.7815
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Tam-Taml,0.7294
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Hin-Deva,0.991
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Ben-Beng,1.0
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Ara-Arab,0.6667
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Fre-Latn,0.9824
+Char-CNN,Deep Learning (1D-CNN),FLORES+,Ger-Latn,0.9789
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Sinh-Sinh,0.9861
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Pali-Sinh,0.996
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,San-Sinh,0.9925
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,San-Deva,0.9497
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Eng-Latn,0.5866
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Tam-Taml,0.5992
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Hin-Deva,0.9333
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Ben-Beng,0.9424
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Ara-Arab,0.996
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Fre-Latn,0.8651
+Char-CNN,Deep Learning (1D-CNN),WiLI-2018,Ger-Latn,0.8224
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Sinh-Sinh,0.9856
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Pali-Sinh,0.996
+Char-CNN,Deep Learning (1D-CNN),CommonLID,San-Sinh,0.9918
+Char-CNN,Deep Learning (1D-CNN),CommonLID,San-Deva,0.885
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Eng-Latn,0.7252
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Tam-Taml,0.0916
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Hin-Deva,0.918
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Ben-Beng,0.9868
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Ara-Arab,0.9902
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Fre-Latn,0.8256
+Char-CNN,Deep Learning (1D-CNN),CommonLID,Ger-Latn,0.8414
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Sinh-Sinh,0.9848
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Pali-Sinh,0.9949
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,San-Sinh,0.9943
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,San-Deva,0.9831
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Eng-Latn,0.7282
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Tam-Taml,0.8371
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Hin-Deva,0.9911
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Ben-Beng,1.0
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Ara-Arab,0.6662
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Fre-Latn,0.9442
+Char-BiGRU,Deep Learning (BiGRU),FLORES+,Ger-Latn,0.8983
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Sinh-Sinh,0.9848
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Pali-Sinh,0.9949
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,San-Sinh,0.994
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,San-Deva,0.9216
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Eng-Latn,0.7128
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Tam-Taml,0.668
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Hin-Deva,0.904
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Ben-Beng,0.9418
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Ara-Arab,0.997
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Fre-Latn,0.6658
+Char-BiGRU,Deep Learning (BiGRU),WiLI-2018,Ger-Latn,0.8625
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Sinh-Sinh,0.9833
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Pali-Sinh,0.9939
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,San-Sinh,0.9943
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,San-Deva,0.8451
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Eng-Latn,0.7002
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Tam-Taml,0.0876
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Hin-Deva,0.9042
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Ben-Beng,0.9734
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Ara-Arab,0.9879
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Fre-Latn,0.6687
+Char-BiGRU,Deep Learning (BiGRU),CommonLID,Ger-Latn,0.8439

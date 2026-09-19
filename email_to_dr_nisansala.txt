@@ -1,0 +1,62 @@
+Subject: Research Paper Draft Complete: Sinhala-Script LangID (Updated on Nevindu's Overleaf)
+
+Dear Dr. Nisansala,
+
+I am pleased to share that the complete draft of our research paper, "A Benchmark for Sinhala-Script Language Identification: Disambiguating Sinhala, Pali, and Sanskrit in Closed and Open World Contexts," is now finalized. 
+
+All latest revisions and section balances have been synced directly to Nevindu's Overleaf project, where you can review the fully compiled manuscript and source files.
+
+Below is a brief overview of the paper's structure and key empirical conclusions:
+
+================================================================================
+KEY FLOW & SECTION CONCLUSIONS
+================================================================================
+
+1. Phase 1: Closed-World Baselines & Morphological Resilience (Sections 3 & 4)
+   * Full Sentences Saturate (>99.8% Macro-F1): When syntactic context is 
+     available, all architectures reliably separate Sinhala, Pali, and Sanskrit.
+   * 1-Word Stress Testing Divergence: Under extreme brevity (OCR fragments / 
+     isolated roots), shallow subword models (Multinomial Naive Bayes at 85.8% 
+     and fastText at 80.3%) significantly outperform deep neural networks 
+     (Char-CNN 76.5%, BiGRU 69.2%) and margin classifiers (SVM 61.0%).
+   * Linguistic Grounding: Probabilistic n-gram models directly capture diagnostic 
+     inflectional suffixes (e.g., Pali genitive -ssa, Sanskrit conjuncts/visarga, 
+     and Sinhala æ/ǣ vowel signs) without requiring sentence-level syntax.
+
+2. Phase 2: Open-World Benchmarking & Adaptation (Section 5)
+   * Zero-Shot Foundation Collapse: Planetary-scale foundation models (NLLB, 
+     GlotLID, OpenLID-v2, fastText-176) achieve 0.0% recall on Pali-Sinh and 
+     San-Sinh due to the Orthographic Fallacy (mapping script bijectively to language).
+   * Mitigating Catastrophic Forgetting: Unconstrained fine-tuning erodes 
+     pre-trained global representations. We engineered and validated five targeted 
+     adaptation strategies—including Two-Stage Specialist Routing (guaranteeing 
+     mathematical 0.0% background degradation), LoRA with background replay, and a 
+     custom C++ weight-preserving head extension (expanding NLLB to 220 labels).
+   * Global Performance vs. Efficiency Trade-off: 
+     - Global Web Resilience: Adapted foundation models achieve peak scores on 
+       diverse web data (NLLB: 0.9530 on FLORES+; XLM-R: 0.9737 and fastText 
+       2-Stage: 0.9645 on CommonLID) due to multi-billion-token global pre-training.
+     - Baseline Efficiency: Simple from-scratch n-gram baselines remain exceptionally 
+       competitive (Multinomial NB leads WiLI-2018 at 0.9785), providing near-SOTA 
+       performance at near-zero compute.
+
+3. Discussion: The Dialect Continuum Problem (Section 6)
+   * We uncover that OpenLID-v2 collapses on Devanagari Sanskrit (0.0350 F1) 
+     because its ultra-granular South Asian dialect heads fracture probability mass 
+     across descended varieties (misclassifying 68.1% of Sanskrit as Bhojpuri and 
+     15.1% as Maithili). This demonstrates that for classical literary languages, 
+     unified linguistic heads are essential.
+
+4. Provenance & Reproducibility (Appendix)
+   * Complete per-class breakdown tables and dataset provenance (N = 74,318 
+     target sentences across SiPaKosa, SiDiaC, SansinNT, and DCS) have been 
+     balanced and verified with public access links.
+
+================================================================================
+
+Please let us know your feedback or if any sections require further refinement prior to submission. 
+
+Thank you very much for your continuous guidance.
+
+Best regards,
+[Your Name / Team]

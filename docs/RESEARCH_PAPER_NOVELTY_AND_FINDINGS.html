@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Novelty & Findings: Sinhala-Script Language Identification (LangID)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.75);
+            --bg-card-hover: rgba(31, 41, 55, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-accent: rgba(99, 102, 241, 0.3);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-primary: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.25);
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --accent-purple: #a855f7;
+            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 35px var(--accent-glow);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.65;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 65%, rgba(6, 182, 212, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 50% 90%, rgba(168, 85, 247, 0.08) 0%, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        /* Nav Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            background: rgba(11, 15, 25, 0.82);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 18px;
+            color: white;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+        }
+
+        .brand-title {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .brand-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13.5px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+        }
+
+        .nav-links a:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 40px 24px 100px 24px;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 40px 0 60px 0;
+            text-align: center;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 600;
+            background: rgba(99, 102, 241, 0.12);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .badge-pill span.dot {
+            width: 7px;
+            height: 7px;
+            background-color: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-emerald);
+        }
+
+        h1.hero-title {
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1.22;
+            letter-spacing: -1px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 70%, #67e8f9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-description {
+            font-size: 18px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .hero-meta {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .meta-tag {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .meta-tag strong {
+            color: var(--text-primary);
+        }
+
+        /* Section Layout */
+        .section-header {
+            margin-bottom: 32px;
+        }
+
+        .section-tag {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-desc {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        /* Novelty Grid Cards */
+        .novelty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .novelty-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .novelty-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-accent);
+            box-shadow: var(--shadow-md), var(--shadow-glow);
+            background: var(--bg-card-hover);
+        }
+
+        .novelty-num {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            font-size: 40px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.04);
+            font-family: var(--font-mono);
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 19px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: white;
+        }
+
+        .card-body {
+            font-size: 14.5px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .key-finding-box {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--accent-primary);
+            padding: 12px 14px;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            font-size: 13px;
+            color: #e0e7ff;
+        }
+
+        .key-finding-box strong {
+            color: white;
+        }
+
+        /* Color variations for cards */
+        .c-indigo .card-icon { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+        .c-indigo .key-finding-box { border-left-color: #6366f1; }
+
+        .c-cyan .card-icon { background: rgba(6, 182, 212, 0.15); color: #22d3ee; }
+        .c-cyan .key-finding-box { border-left-color: #06b6d4; }
+
+        .c-emerald .card-icon { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .c-emerald .key-finding-box { border-left-color: #10b981; }
+
+        .c-purple .card-icon { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+        .c-purple .key-finding-box { border-left-color: #a855f7; }
+
+        .c-amber .card-icon { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .c-amber .key-finding-box { border-left-color: #f59e0b; }
+
+        /* Tables & Benchmark Showcase */
+        .glass-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 50px;
+            backdrop-filter: blur(12px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 18px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        .filter-btn.active {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+        table.benchmark-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+            text-align: left;
+        }
+
+        table.benchmark-table th {
+            background: rgba(17, 24, 39, 0.95);
+            padding: 14px 18px;
+            color: #d1d5db;
+            font-weight: 600;
+            font-size: 12.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        table.benchmark-table td {
+            padding: 13px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        table.benchmark-table tr:hover td {
+            background: rgba(255, 255, 255, 0.025);
+            color: white;
+        }
+
+        .model-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .tag-pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            font-weight: 500;
+        }
+
+        .tag-baseline { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .tag-sota { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .score-val {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: #f3f4f6;
+        }
+
+        .score-val.top-tier {
+            color: #34d399;
+            font-weight: 700;
+        }
+
+        .score-val.warning {
+            color: #f87171;
+        }
+
+        /* Linguistic & Comparison Blocks */
+        .comparison-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        @media (max-width: 860px) {
+            .comparison-split { grid-template-columns: 1fr; }
+        }
+
+        .split-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 24px;
+        }
+
+        .split-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .split-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .linguistic-token {
+            display: inline-block;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #c7d2fe;
+            font-family: var(--font-mono);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Architecture Schematics */
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .arch-card {
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            border-top: 3px solid var(--accent-cyan);
+        }
+
+        .arch-badge {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .arch-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 8px;
+        }
+
+        .arch-desc {
+            font-size: 13.5px;
+            color: var(--text-secondary);
+            line-height: 1.55;
+        }
+
+        /* Decision Matrix */
+        .decision-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 24px;
+        }
+
+        .decision-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 22px;
+            position: relative;
+        }
+
+        .decision-target {
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 6px;
+        }
+
+        .decision-recommendation {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--accent-emerald);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .decision-rationale {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-color);
+            padding: 40px 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13.5px;
+        }
+
+        footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        /* Stress Test Visualizer */
+        .stress-bar-container {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-top: 20px;
+        }
+
+        .stress-row {
+            display: grid;
+            grid-template-columns: 140px 1fr 70px;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .stress-model {
+            font-size: 13px;
+            font-weight: 600;
+            color: #d1d5db;
+        }
+
+        .stress-bar-track {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .stress-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .stress-score {
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .bg-indigo { background: linear-gradient(90deg, #6366f1, #818cf8); }
+        .bg-emerald { background: linear-gradient(90deg, #10b981, #34d399); }
+        .bg-cyan { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+        .bg-rose { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+        .bg-purple { background: linear-gradient(90deg, #a855f7, #c084fc); }
+        .bg-amber { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+
+        .callout-quote {
+            border-left: 4px solid var(--accent-primary);
+            background: rgba(99, 102, 241, 0.06);
+            padding: 18px 24px;
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            margin: 24px 0;
+            font-size: 15.5px;
+            color: #e0e7ff;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <div class="brand-logo">LID</div>
+            <div>
+                <div class="brand-title">Sinhala-Script LangID</div>
+                <div class="brand-subtitle">ACL Rolling Review / ACL Conference Submission</div>
+            </div>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#novelty">5 Core Novelties</a></li>
+            <li><a href="#phase1">Phase 1: Closed-World</a></li>
+            <li><a href="#phase2">Phase 2: Open-World</a></li>
+            <li><a href="#benchmarks">13-Model Benchmark</a></li>
+            <li><a href="#dialect-anomaly">Dialect Anomaly</a></li>
+            <li><a href="#recommendations">Deployment Guide</a></li>
+        </ul>
+    </header>
+
+    <div class="container">
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="badge-pill">
+                <span class="dot"></span>
+                Research Synthesis Document
+            </div>
+            <h1 class="hero-title">Breaking the Orthographic Fallacy in Planetary-Scale Language Identification</h1>
+            <p class="hero-description">
+                A rigorous empirical framework disambiguating <strong>Sinhala, Pali, and Sanskrit</strong> within the shared Sinhala script, solving the catastrophic failure of planetary foundation models and uncovering morphological inflection advantages under extreme contextual deprivation.
+            </p>
+            <div class="hero-meta">
+                <div class="meta-tag">📄 <strong>Paper Target:</strong> ACL / ARR Official Format</div>
+                <div class="meta-tag">📊 <strong>Dataset Scale:</strong> 67,332 Target + 110,000 Multi-Lang</div>
+                <div class="meta-tag">🔬 <strong>Models Evaluated:</strong> 7 Baselines + 6 SOTA Foundation</div>
+                <div class="meta-tag">🌐 <strong>Benchmarks:</strong> FLORES+, CommonLID, WiLI-2018</div>
+            </div>
+        </section>
+
+        <!-- Executive Callout -->
+        <div class="callout-quote">
+            "The Orthographic Fallacy is the implicit architectural assumption that Unicode script uniquely maps to a single language. In South Asia, the Sinhala script has historically inscribed Sinhala, canonical Pali, and classical Sanskrit. Consequently, planetary LangID systems (fastText LID-176, GlotLID v3, NLLB LID-218, OpenLID-v2) collapse to <strong>0.00% recall</strong> on Sinhala-script Pali and Sanskrit, unilaterally misclassifying them as modern Sinhala."
+        </div>
+
+        <!-- Section 1: The 5 Core Novelties -->
+        <section id="novelty" style="margin-top: 60px;">
+            <div class="section-header">
+                <span class="section-tag">Theoretical & Empirical Contributions</span>
+                <h2 class="section-title">The 5 Pillars of Paper Novelty</h2>
+                <p class="section-desc">Key scientific talking points for team members, advisor meetings, and conference presentations.</p>
+            </div>
+
+            <div class="novelty-grid">
+                <!-- Pillar 1 -->
+                <div class="novelty-card c-indigo">
+                    <div class="novelty-num">01</div>
+                    <div class="card-icon">⚠️</div>
+                    <h3 class="card-title">Discovery of the Shared-Script Failure Mode</h3>
+                    <p class="card-body">
+                        We systematically prove that stock planetary LangID systems suffer from <strong>complete zero-shot collapse (0.00% recall)</strong> on Sinhala-script Pali and Sanskrit. Because classification heads map Unicode blocks monotonically, billions of web pages and digitized historical manuscripts are erroneously funneled into modern Sinhala.
+                    </p>
+                    <div class="key-finding-box">
+                        <strong>Empirical Proof:</strong> Stock GlotLID v3, NLLB LID-218, fastText LID-176, and OpenLID-v2 all yield <strong>0.00% F1</strong> on Pali-Sinh and San-Sinh across FLORES+, WiLI, and CommonLID.
+                    </div>
+                </div>
+
+                <!-- Pillar 2 -->
+                <div class="novelty-card c-cyan">
+                    <div class="novelty-num">02</div>
+                    <div class="card-icon">🔬</div>
+                    <h3 class="card-title">Morphological Stress Testing & Subword Inductive Bias</h3>
+                    <p class="card-body">
+                        In Phase 1, we prove that while full sentences saturate across all architectures (>0.994 F1), single-word stress testing creates an architectural chasm. Simple probabilistic character $n$-gram models drastically outperform deep neural networks and margin classifiers by capturing diagnostic inflectional affixes without requiring sentence syntax.
+                    </p>
+                    <div class="key-finding-box">
+                        <strong>1-Word Stress Test:</strong> Multinomial NB (<strong>0.8584 F1</strong>) & fastText (<strong>0.8027 F1</strong>) beat Char-CNN (0.7654), Char-BiGRU (0.6916), and Linear SVM (0.6099).
+                    </div>
+                </div>
+
+                <!-- Pillar 3 -->
+                <div class="novelty-card c-emerald">
+                    <div class="novelty-num">03</div>
+                    <div class="card-icon">🌐</div>
+                    <h3 class="card-title">Non-Contaminated Hybrid Benchmarking Taxonomy</h3>
+                    <p class="card-body">
+                        We constructed three standardized 11-language hybrid benchmarks from <strong>FLORES+</strong>, <strong>CommonLID</strong>, and <strong>WiLI-2018</strong>. By replacing generic Sinhala text with 7,047 held-out target rows and retaining Devanagari Sanskrit as an independent class under strict BCP-47 tags (<code>[Lang]-[Script]</code>), we provide the first contamination-free open-world testbed.
+                    </p>
+                    <div class="key-finding-box">
+                        <strong>Benchmark Scale:</strong> 16,155 rows (FLORES+), 17,023 rows (CommonLID), 15,047 rows (WiLI-2018) with strict atomic group stratification.
+                    </div>
+                </div>
+
+                <!-- Pillar 4 -->
+                <div class="novelty-card c-purple">
+                    <div class="novelty-num">04</div>
+                    <div class="card-icon">⚙️</div>
+                    <h3 class="card-title">Mitigating Catastrophic Forgetting via Targeted Adaptation</h3>
+                    <p class="card-body">
+                        We show that naive fine-tuning erodes global language representations. To resolve this, we engineered 5 targeted adaptation strategies—including <strong>Two-Stage Specialist Routing</strong>, <strong>LoRA attention rebalancing</strong>, and custom <strong>C++ label extension</strong>—which eliminate script ambiguity while maintaining 0.95–0.97 Macro-F1 globally.
+                    </p>
+                    <div class="key-finding-box">
+                        <strong>Zero-Degradation Guarantee:</strong> Two-Stage Routing guarantees mathematically <strong>0.0% degradation</strong> on all 200+ background languages.
+                    </div>
+                </div>
+
+                <!-- Pillar 5 -->
+                <div class="novelty-card c-amber">
+                    <div class="novelty-num">05</div>
+                    <div class="card-icon">🔍</div>
+                    <h3 class="card-title">The Devanagari Dialect Fragmentation Anomaly</h3>
+                    <p class="card-body">
+                        We uncovered why OpenLID-v2 experiences a catastrophic drop on Devanagari Sanskrit (<strong>0.0350 F1</strong>) compared to fastText (<strong>0.9594 F1</strong>): OpenLID fragments probability across granular regional Indo-Aryan dialect heads (Bhojpuri, Maithili, Kashmiri), demonstrating an inherent tension between ultra-fine dialect identification and classical language preservation.
+                    </p>
+                    <div class="key-finding-box">
+                        <strong>Error Breakdown:</strong> OpenLID-v2 misclassifies 68.1% of Sanskrit as Bhojpuri (<code>bho_Deva</code>) and 15.1% as Maithili (<code>mai_Deva</code>).
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Phase 1 Deep-Dive -->
+        <section id="phase1" style="margin-top: 40px;">
+            <div class="section-header">
+                <span class="section-tag">Phase 1: Closed-World Benchmark</span>
+                <h2 class="section-title">Contextual Deprivation & Morphological Analysis</h2>
+                <p class="section-desc">Why statistical subword and character n-gram models dominate deep learning on short text fragments.</p>
+            </div>
+
+            <div class="glass-panel">
+                <h3 style="color: white; margin-bottom: 12px; font-size: 18px;">1-Word Fragment Stress Test: Macro-F1 Survival Rate</h3>
+                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
+                    When sentence-level syntactic grammar is stripped away (1-word input), deep recurrent and convolutional neural networks suffer severe representational degradation, whereas character $n$-gram probabilistic models preserve discriminatory power.
+                </p>
+
+                <div class="stress-bar-container">
+                    <div class="stress-row">
+                        <span class="stress-model">Multinomial NB</span>
+                        <div class="stress-bar-track"><div class="stress-bar-fill bg-emerald" style="width: 85.84%;"></div></div>
+                        <span class="stress-score" style="color: #34d399;">0.8584 F1</span>
+                    </div>
+                    <div class="stress-row">
+                        <span class="stress-model">fastText (Scratch)</span>
+                        <div class="stress-bar-track"><div class="stress-bar-fill bg-cyan" style="width: 80.27%;"></div></div>
+                        <span class="stress-score" style="color: #22d3ee;">0.8027 F1</span>
+                    </div>
+                    <div class="stress-row">
+                        <span class="stress-model">Char-CNN (1D-CNN)</span>
+                        <div class="stress-bar-track"><div class="stress-bar-fill bg-purple" style="width: 76.54%;"></div></div>
+                        <span class="stress-score" style="color: #c084fc;">0.7654 F1</span>
+                    </div>
+                    <div class="stress-row">
+                        <span class="stress-model">Char-BiGRU</span>
+                        <div class="stress-bar-track"><div class="stress-bar-fill bg-amber" style="width: 69.16%;"></div></div>
+                        <span class="stress-score" style="color: #fbbf24;">0.6916 F1</span>
+                    </div>
+                    <div class="stress-row">
+                        <span class="stress-model">Char LogReg</span>
+                        <div class="stress-bar-track"><div class="stress-bar-fill bg-indigo" style="width: 62.23%;"></div></div>
+                        <span class="stress-score" style="color: #818cf8;">0.6223 F1</span>
+                    </div>
+                    <div class="stress-row">
+                        <span class="stress-model">Linear SVM</span>
+                        <div class="stress-bar-track"><div class="stress-bar-fill bg-rose" style="width: 60.99%;"></div></div>
+                        <span class="stress-score" style="color: #fb7185;">0.6099 F1</span>
+                    </div>
+                    <div class="stress-row">
+                        <span class="stress-model">XGBoost (Hist)</span>
+                        <div class="stress-bar-track"><div class="stress-bar-fill" style="width: 45.16%; background: #6b7280;"></div></div>
+                        <span class="stress-score" style="color: #9ca3af;">0.4516 F1</span>
+                    </div>
+                </div>
+
+                <div class="comparison-split">
+                    <div class="split-card">
+                        <div class="split-card-header">
+                            <span class="split-title">Linguistic Inflectional Markers</span>
+                            <span class="tag-pill tag-baseline">Subword Diagnostic</span>
+                        </div>
+                        <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.6;">
+                            The Sinhala script preserves unambiguous morphological suffixes:
+                            <br><br>
+                            • <strong>Pali:</strong> Dominated by the genitive singular <span class="linguistic-token">-ssa (-ස්ස)</span>, ablative <span class="linguistic-token">-smā (-ස්මා)</span>, and retroflex ligatures <span class="linguistic-token">-ṭṭh- (-ට්ඨ-)</span>.<br>
+                            • <strong>Sanskrit:</strong> Characterized by visarga <span class="linguistic-token">ඃ (ḥ)</span>, virama consonant finals <span class="linguistic-token">් (t/m)</span>, and complex 3-consonant conjuncts (<span class="linguistic-token">-rtsv-</span>).<br>
+                            • <strong>Sinhala:</strong> Characterized by front vowels <span class="linguistic-token">ඇ (æ) / ඈ (ǣ)</span> and prenazalized half-nasals <span class="linguistic-token">ඟ (n̆g), ඬ (n̆d)</span>.
+                        </p>
+                    </div>
+                    <div class="split-card">
+                        <div class="split-card-header">
+                            <span class="split-title">Architectural Takeaway for Team</span>
+                            <span class="tag-pill tag-sota">Reviewer Defense</span>
+                        </div>
+                        <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.6;">
+                            <strong>Why deep models drop:</strong> BiGRU and CNN networks learn directional transition priors across full-sentence word sequences. When given an isolated single word, their unconditioned hidden state transitions collapse.
+                            <br><br>
+                            <strong>Why Naive Bayes wins:</strong> MNB computes the log-likelihood sum $\sum \log P(c_i | L)$. A single 3-gram like <span class="linguistic-token">ස්ස_</span> carries near-infinite positive log-odds for Pali, allowing instantaneous classification without requiring sentential syntax.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Phase 2 Benchmarks -->
+        <section id="benchmarks" style="margin-top: 40px;">
+            <div class="section-header">
+                <span class="section-tag">Phase 2: Open-World 11-Language Benchmark</span>
+                <h2 class="section-title">The Complete 13-Model Evaluation Table</h2>
+                <p class="section-desc">Comparing 7 From-Scratch Baselines (uniform 110k control) against 6 Adapted Foundation Models across FLORES+, CommonLID, and WiLI-2018.</p>
+            </div>
+
+            <div class="glass-panel">
+                <div class="filter-tabs">
+                    <button class="filter-btn active" onclick="filterTable('all')">All 13 Models</button>
+                    <button class="filter-btn" onclick="filterTable('baseline')">From-Scratch Baselines (7)</button>
+                    <button class="filter-btn" onclick="filterTable('sota')">Adapted Foundation SOTA (6)</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="benchmark-table" id="modelsTable">
+                        <thead>
+                            <tr>
+                                <th>Model Name</th>
+                                <th>Category</th>
+                                <th>Architecture Paradigm</th>
+                                <th>FLORES+ (Macro F1)</th>
+                                <th>WiLI-2018 (Macro F1)</th>
+                                <th>CommonLID (Macro F1)</th>
+                                <th>Key Characteristic</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Baselines -->
+                            <tr class="row-baseline">
+                                <td><div class="model-cell">Multinomial NB</div></td>
+                                <td><span class="tag-pill tag-baseline">Baseline</span></td>
+                                <td>Probabilistic Character $n$-gram</td>
+                                <td class="score-val">0.9332</td>
+                                <td class="score-val top-tier">0.9785 🥇</td>
+                                <td class="score-val">0.9342</td>
+                                <td>Single highest score on WiLI-2018 across all 13 models</td>
+                            </tr>
+                            <tr class="row-baseline">
+                                <td><div class="model-cell">Linear SVM</div></td>
+                                <td><span class="tag-pill tag-baseline">Baseline</span></td>
+                                <td>Margin Linear Classifier</td>
+                                <td class="score-val">0.9342</td>
+                                <td class="score-val">0.9679</td>
+                                <td class="score-val">0.8895</td>
+                                <td>Highest FLORES+ baseline; sharp decision boundary</td>
+                            </tr>
+                            <tr class="row-baseline">
+                                <td><div class="model-cell">Char $n$-gram + LogReg</div></td>
+                                <td><span class="tag-pill tag-baseline">Baseline</span></td>
+                                <td>Frequency NLP Baseline</td>
+                                <td class="score-val">0.9298</td>
+                                <td class="score-val">0.9750</td>
+                                <td class="score-val">0.8907</td>
+                                <td>Fast convergence; robust log-odds calibration</td>
+                            </tr>
+                            <tr class="row-baseline">
+                                <td><div class="model-cell">fastText (from scratch)</div></td>
+                                <td><span class="tag-pill tag-baseline">Baseline</span></td>
+                                <td>Subword Embeddings (100d)</td>
+                                <td class="score-val">0.9281</td>
+                                <td class="score-val">0.9584</td>
+                                <td class="score-val">0.8758</td>
+                                <td>Lightweight edge deployment model; ultra-low latency</td>
+                            </tr>
+                            <tr class="row-baseline">
+                                <td><div class="model-cell">XGBoost (Hist)</div></td>
+                                <td><span class="tag-pill tag-baseline">Baseline</span></td>
+                                <td>Gradient Tree Boosting</td>
+                                <td class="score-val">0.9181</td>
+                                <td class="score-val">0.9215</td>
+                                <td class="score-val">0.8734</td>
+                                <td>Histogram tree ensemble on top 2,500 character $n$-grams</td>
+                            </tr>
+                            <tr class="row-baseline">
+                                <td><div class="model-cell">Char-CNN</div></td>
+                                <td><span class="tag-pill tag-baseline">Baseline</span></td>
+                                <td>Deep Learning (1D-CNN)</td>
+                                <td class="score-val">0.9177</td>
+                                <td class="score-val">0.8790</td>
+                                <td class="score-val warning">0.8398</td>
+                                <td>Drop on CommonLID reflects sensitivity to web noise</td>
+                            </tr>
+                            <tr class="row-baseline">
+                                <td><div class="model-cell">Char-BiGRU</div></td>
+                                <td><span class="tag-pill tag-baseline">Baseline</span></td>
+                                <td>Deep Learning (Recurrent BiGRU)</td>
+                                <td class="score-val">0.9111</td>
+                                <td class="score-val">0.8770</td>
+                                <td class="score-val warning">0.8166</td>
+                                <td>Un-pretrained recurrent network degraded by web noise</td>
+                            </tr>
+                            <!-- Foundation SOTA -->
+                            <tr class="row-sota">
+                                <td><div class="model-cell">NLLB LID-218</div></td>
+                                <td><span class="tag-pill tag-sota">Foundation SOTA</span></td>
+                                <td>C++ Weight Extension (<code>extend-labels</code>)</td>
+                                <td class="score-val top-tier">0.9530 🥇</td>
+                                <td class="score-val">0.9675</td>
+                                <td class="score-val">0.9501</td>
+                                <td>Best overall balance across all 3 international benchmarks</td>
+                            </tr>
+                            <tr class="row-sota">
+                                <td><div class="model-cell">GlotLID v3</div></td>
+                                <td><span class="tag-pill tag-sota">Foundation SOTA</span></td>
+                                <td>Pretrained Vector Transfer (2.1k Lang)</td>
+                                <td class="score-val">0.9465</td>
+                                <td class="score-val">0.9570</td>
+                                <td class="score-val">0.9527</td>
+                                <td>High stability from massive multilingual embedding transfer</td>
+                            </tr>
+                            <tr class="row-sota">
+                                <td><div class="model-cell">ConLID</div></td>
+                                <td><span class="tag-pill tag-sota">Foundation SOTA</span></td>
+                                <td>In-Place Head Extension (Xavier)</td>
+                                <td class="score-val">0.9329</td>
+                                <td class="score-val">0.9688</td>
+                                <td class="score-val">0.9261</td>
+                                <td>Preserves pre-trained CNN-Transformer weights</td>
+                            </tr>
+                            <tr class="row-sota">
+                                <td><div class="model-cell">fastText LID-176</div></td>
+                                <td><span class="tag-pill tag-sota">Foundation SOTA</span></td>
+                                <td>Two-Stage Specialist Routing</td>
+                                <td class="score-val">0.9276</td>
+                                <td class="score-val top-tier">0.9745</td>
+                                <td class="score-val">0.9645</td>
+                                <td>Zero background degradation + sub-millisecond throughput</td>
+                            </tr>
+                            <tr class="row-sota">
+                                <td><div class="model-cell">XLM-R Base</div></td>
+                                <td><span class="tag-pill tag-sota">Foundation SOTA</span></td>
+                                <td>LoRA + Mixed Background Rebalancing</td>
+                                <td class="score-val">0.9267</td>
+                                <td class="score-val">0.8880</td>
+                                <td class="score-val top-tier">0.9737 🥇</td>
+                                <td class="score-val">Highest CommonLID score; robust to informal web noise</td>
+                            </tr>
+                            <tr class="row-sota">
+                                <td><div class="model-cell">OpenLID-v2</div></td>
+                                <td><span class="tag-pill tag-sota">Foundation SOTA</span></td>
+                                <td>Two-Stage Specialist Routing</td>
+                                <td class="score-val warning">0.7759</td>
+                                <td class="score-val warning">0.7782</td>
+                                <td class="score-val warning">0.7913</td>
+                                <td class="score-val warning">Suppressed by Devanagari regional dialect fragmentation</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Architectural Adaptation Strategies -->
+        <section id="phase2" style="margin-top: 40px;">
+            <div class="section-header">
+                <span class="section-tag">System Engineering Innovation</span>
+                <h2 class="section-title">5 Targeted Adaptation Strategies</h2>
+                <p class="section-desc">How we prevented catastrophic forgetting of global languages while achieving 0.99 target precision.</p>
+            </div>
+
+            <div class="architecture-grid">
+                <div class="arch-card">
+                    <span class="arch-badge">Strategy 1 • Modular</span>
+                    <h4 class="arch-name">Two-Stage Specialist Routing</h4>
+                    <p class="arch-desc">
+                        A frozen global model (fastText LID-176 / OpenLID) screens incoming text. When Sinhala script is detected, it is diverted to an isolated Stage 2 specialist model. <strong>Guarantees 0.0% degradation on all non-Sinhala languages.</strong>
+                    </p>
+                </div>
+
+                <div class="arch-card">
+                    <span class="arch-badge">Strategy 2 • PEFT</span>
+                    <h4 class="arch-name">LoRA + Background Rebalancing</h4>
+                    <p class="arch-desc">
+                        Injected rank $r=8$, $\alpha=16$ adapter matrices into XLM-R's $Q, K, V$ attention projections. Fine-tuning batches were dynamically seeded with background languages to prevent representation drift.
+                    </p>
+                </div>
+
+                <div class="arch-card">
+                    <span class="arch-badge">Strategy 3 • C++ Patch</span>
+                    <h4 class="arch-name">NLLB Weight-Preserving Head Extension</h4>
+                    <p class="arch-desc">
+                        Authored a custom C++ compilation patch (<code>extend-labels</code>) expanding NLLB's projection matrix from 218 to 220 rows. Pre-trained weights were locked, while new vectors were trained via continuation decay.
+                    </p>
+                </div>
+
+                <div class="arch-card">
+                    <span class="arch-badge">Strategy 4 • Structural</span>
+                    <h4 class="arch-name">In-Place Xavier Extension (ConLID)</h4>
+                    <p class="arch-desc">
+                        Expanded ConLID's linear classification head, locking existing weight rows and initializing new target logits with Xavier uniform initialization, optimized via AdamW with validation early-stopping.
+                    </p>
+                </div>
+
+                <div class="arch-card">
+                    <span class="arch-badge">Strategy 5 • Transfer</span>
+                    <h4 class="arch-name">Pretrained Vector Transfer (GlotLID)</h4>
+                    <p class="arch-desc">
+                        Extracted subword embeddings from GlotLID's 2,100-language foundation space to seed target heads, pairing conservative learning rates ($lr=0.005$) to prevent weight corruption.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Architecture Diagram Showcase for Two-Stage Specialist Routing -->
+            <div class="figure-showcase-card" style="margin-top: 32px; background: var(--bg-card); border: 1px solid var(--border-accent); border-radius: var(--radius-md); padding: 24px; box-shadow: var(--shadow-md);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
+                    <div>
+                        <span class="arch-badge" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;">Core Architectural Innovation</span>
+                        <h3 style="font-size: 19px; font-weight: 700; color: var(--text-primary); margin-top: 6px;">Two-Stage Specialist Routing Architecture Diagram</h3>
+                        <p style="font-size: 13px; color: var(--text-muted);">Decoupling Planetary Multilingual Classification from Intra-Script Morphosyntactic Disambiguation to eliminate Catastrophic Forgetting.</p>
+                    </div>
+                    <!-- View toggle buttons -->
+                    <div style="display: flex; gap: 8px; background: rgba(0,0,0,0.35); padding: 5px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <button onclick="switchArchImg('dark')" id="btn-arch-dark" style="background: var(--accent-primary); color: white; border: none; padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Dark Theme</button>
+                        <button onclick="switchArchImg('light')" id="btn-arch-light" style="background: transparent; color: var(--text-muted); border: none; padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Academic Light</button>
+                        <button onclick="switchArchImg('concept')" id="btn-arch-concept" style="background: transparent; color: var(--text-muted); border: none; padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">3D Conceptual</button>
+                    </div>
+                </div>
+
+                <div style="text-align: center; background: #070a12; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); padding: 12px;">
+                    <img id="arch-display-img" src="../figures/two_stage_routing_dark.png" alt="Two-Stage Specialist Routing Architecture for Catastrophic Forgetting Mitigation" style="width: 100%; max-height: 720px; object-fit: contain; display: block; margin: 0 auto; border-radius: 8px;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 20px;">
+                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 14px 18px;">
+                        <div style="font-size: 12px; color: var(--accent-emerald); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">0.0% Degradation Guarantee</div>
+                        <div style="font-size: 13px; color: var(--text-body); margin-top: 6px; line-height: 1.5;">Global router weights are strictly frozen (&Delta;&theta;<sub>global</sub> &equiv; 0). 200+ background languages suffer mathematically <strong>zero representation drift</strong>.</div>
+                    </div>
+                    <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 14px 18px;">
+                        <div style="font-size: 12px; color: #a5b4fc; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Target F1 Restoration</div>
+                        <div style="font-size: 13px; color: var(--text-body); margin-top: 6px; line-height: 1.5;">Pali & Sanskrit F1 lifted from <strong style="color: #f87171;">0.0%</strong> to <strong style="color: #6ee7b7;">0.9745</strong> by targeting inflectional Middle Indo-Aryan affixes.</div>
+                    </div>
+                    <div style="background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 8px; padding: 14px 18px;">
+                        <div style="font-size: 12px; color: var(--accent-cyan); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Sub-Millisecond Efficiency</div>
+                        <div style="font-size: 13px; color: var(--text-body); margin-top: 6px; line-height: 1.5;">Stage 2 triggers <em>only</em> when Sinhala script is detected, keeping planetary web-scale crawl throughput at full baseline speed.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: The Dialect Anomaly -->
+        <section id="dialect-anomaly" style="margin-top: 50px;">
+            <div class="section-header">
+                <span class="section-tag">Linguistic Discovery</span>
+                <h2 class="section-title">The Devanagari Dialect Fragmentation Anomaly</h2>
+                <p class="section-desc">Why OpenLID-v2 scored 0.0350 F1 on Devanagari Sanskrit while fastText achieved 0.9594 F1.</p>
+            </div>
+
+            <div class="glass-panel">
+                <div class="comparison-split">
+                    <div class="split-card" style="border-left: 4px solid var(--accent-rose);">
+                        <div class="split-card-header">
+                            <span class="split-title" style="color: #f87171;">OpenLID-v2 (Ultra-Granular Dialect Heads)</span>
+                            <span class="score-val warning">0.0350 F1</span>
+                        </div>
+                        <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.6;">
+                            OpenLID-v2 was trained with hundreds of fine-grained South Asian regional dialect heads. When presented with classical Devanagari Sanskrit:
+                            <br><br>
+                            • <strong>68.1%</strong> misclassified as <strong>Bhojpuri</strong> (<code>bho_Deva</code>)<br>
+                            • <strong>15.1%</strong> misclassified as <strong>Maithili</strong> (<code>mai_Deva</code>)<br>
+                            • <strong>43.3%</strong> of Hindi text misclassified as <strong>Kashmiri</strong> (<code>kas_Deva</code>)
+                            <br><br>
+                            <em>Result:</em> The probability mass is completely fragmented across dialect variants, collapsing classical Sanskrit identification.
+                        </p>
+                    </div>
+
+                    <div class="split-card" style="border-left: 4px solid var(--accent-emerald);">
+                        <div class="split-card-header">
+                            <span class="split-title" style="color: #34d399;">fastText & NLLB (Unified Classical Tags)</span>
+                            <span class="score-val top-tier">0.9594 F1</span>
+                        </div>
+                        <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.6;">
+                            fastText LID-176 and NLLB LID-218 employ unified classical language heads (<code>sa</code> / <code>san_Deva</code>):
+                            <br><br>
+                            • Concentrates full probability mass on standard classical literature.<br>
+                            • Avoids dialect competition on shared Indo-Aryan morphological roots.<br>
+                            • Reaches <strong>0.9594 F1</strong> on FLORES+ and <strong>0.9904 F1</strong> on WiLI-2018.
+                            <br><br>
+                            <em>Core Finding:</em> For classical literary languages, ultra-granular dialect heads actively degrade identification accuracy.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 6: Practical Recommendations -->
+        <section id="recommendations" style="margin-top: 40px;">
+            <div class="section-header">
+                <span class="section-tag">Engineering Playbook</span>
+                <h2 class="section-title">Practical Deployment Recommendations</h2>
+                <p class="section-desc">Actionable decision rules for digital humanities, search engines, and web-scale pipelines.</p>
+            </div>
+
+            <div class="decision-matrix">
+                <div class="decision-card">
+                    <div class="decision-target">1. Historical Manuscript OCR & Search Queries</div>
+                    <div class="decision-recommendation">Deploy: Multinomial Naive Bayes / fastText</div>
+                    <div class="decision-rationale">
+                        For isolated words or short phrases under contextual deprivation, massive neural transformers are inappropriate. MNB delivers <strong>0.8584 F1</strong> on single words and <strong>0.9785 F1</strong> on WiLI-2018 with near-zero latency and minimal CPU requirements.
+                    </div>
+                </div>
+
+                <div class="decision-card">
+                    <div class="decision-target">2. Web-Scale Crawling (Common Crawl / WET)</div>
+                    <div class="decision-recommendation">Deploy: Two-Stage Specialist Routing</div>
+                    <div class="decision-rationale">
+                        For industrial-scale filtering where thousands of background languages must remain undisturbed, Two-Stage Routing provides mathematical certainty of <strong>0.0% background degradation</strong> with sub-millisecond routing overhead.
+                    </div>
+                </div>
+
+                <div class="decision-card">
+                    <div class="decision-target">3. High-Precision Machine Translation Pipelines</div>
+                    <div class="decision-recommendation">Deploy: NLLB LID-218 with Head Extension</div>
+                    <div class="decision-rationale">
+                        NLLB LID-218 with C++ <code>extend-labels</code> achieves the highest overall multi-benchmark balance (<strong>0.9530 FLORES+, 0.9675 WiLI, 0.9501 CommonLID</strong>), making it the optimal pre-filtering engine for multilingual MT.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <footer>
+        <p>
+            Research Project: <strong>Sinhala-Script Language Identification (LangID) for Sinhala, Pali, and Sanskrit</strong><br>
+            Prepared for pair programming team review &bull; Source paper: <a href="#">ACL.tex</a>
+        </p>
+    </footer>
+
+    <script>
+        function filterTable(category) {
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const baselineRows = document.querySelectorAll('.row-baseline');
+            const sotaRows = document.querySelectorAll('.row-sota');
+
+            if (category === 'all') {
+                baselineRows.forEach(r => r.style.display = '');
+                sotaRows.forEach(r => r.style.display = '');
+            } else if (category === 'baseline') {
+                baselineRows.forEach(r => r.style.display = '');
+                sotaRows.forEach(r => r.style.display = 'none');
+            } else if (category === 'sota') {
+                baselineRows.forEach(r => r.style.display = 'none');
+                sotaRows.forEach(r => r.style.display = '');
+            }
+        function switchArchImg(mode) {
+            const img = document.getElementById('arch-display-img');
+            const btnDark = document.getElementById('btn-arch-dark');
+            const btnLight = document.getElementById('btn-arch-light');
+            const btnConcept = document.getElementById('btn-arch-concept');
+            
+            [btnDark, btnLight, btnConcept].forEach(b => {
+                if (b) {
+                    b.style.background = 'transparent';
+                    b.style.color = 'var(--text-muted)';
+                }
+            });
+
+            if (mode === 'dark') {
+                img.src = '../figures/two_stage_routing_dark.png';
+                btnDark.style.background = 'var(--accent-primary)';
+                btnDark.style.color = 'white';
+            } else if (mode === 'light') {
+                img.src = '../figures/two_stage_routing_architecture.png';
+                btnLight.style.background = 'var(--accent-primary)';
+                btnLight.style.color = 'white';
+            } else if (mode === 'concept') {
+                img.src = '../figures/two_stage_routing_conceptual.jpg';
+                btnConcept.style.background = 'var(--accent-primary)';
+                btnConcept.style.color = 'white';
+            }
+        }
+    </script>
+</body>
+</html>

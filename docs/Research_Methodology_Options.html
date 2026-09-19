@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Research Methodology: ACL Paper Options</title>
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        background-color: #f9f9f9;
+    }
+    .container {
+        background-color: #ffffff;
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    h1 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    h2 { color: #34495e; margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+    h3 { color: #2980b9; margin-top: 25px;}
+    p { margin-bottom: 16px; }
+    ul, ol { margin-bottom: 16px; padding-left: 24px; }
+    li { margin-bottom: 8px; }
+    hr { border: 0; border-top: 1px solid #eee; margin: 40px 0; }
+    .concept { background-color: #f8f9fa; padding: 15px; border-left: 4px solid #6c757d; font-style: italic; margin-bottom: 20px; }
+    .conclusion { background-color: #e8f4f8; padding: 15px; border-left: 4px solid #3498db; font-weight: bold; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Research Methodology: ACL Paper Options</h1>
+    <p>As we prepare our paper for ACL, we need to decide on the core narrative and methodology for evaluating our models. We have two primary paths we can take. Below is a detailed breakdown of how each option impacts what we train on, how we structure the paper, and what our final conclusions will be.</p>
+
+    <hr>
+
+    <h2>Option 1: Continual Learning &amp; Adaptation (Our Current Approach)</h2>
+    <div class="concept">
+        <strong>The Concept:</strong> Train our baselines strictly on the 3 Sinhala-script languages to prove disambiguation is possible. Then, take pre-trained global SOTA models and use engineering tricks (LoRA, Head Extension, Two-Stage Routing) to teach them the new languages <em>without</em> forgetting the global ones.
+    </div>
+
+    <h3>1. What Do We Train On?</h3>
+    <ul>
+        <li><strong>Baselines (Phase 1):</strong> You train your CNNs, Naive Bayes, and SVMs <strong>only</strong> on your custom 3-language dataset (Sinhala, Pali, Sanskrit).</li>
+        <li><strong>SOTA Models (Phase 2):</strong> You take pre-trained global models (that already know 100 languages) and apply adaptation strategies (like Two-Stage Routing or LoRA). You train these adaptations using primarily your 3-language dataset to teach the model the new dialects without touching its core global knowledge.</li>
+    </ul>
+
+    <h3>2. How to Align the Research Paper Structure</h3>
+    <p>If we choose this option, the paper reads like an "Advanced Systems Engineering" paper:</p>
+    <ol>
+        <li><strong>Introduction:</strong> State the problem (Sinhala script is overloaded).</li>
+        <li><strong>Experiment 1 (Closed-World):</strong> We test baselines on just the 3 target languages to prove that character n-grams can solve the disambiguation problem better than transformers on short fragments.</li>
+        <li><strong>Experiment 2 (Open-World):</strong> We acknowledge that in the real world, models must also classify English and Tamil. We show that standard fine-tuning causes <em>catastrophic forgetting</em>. We then introduce our 5 mitigation strategies (Routing, LoRA, etc.).</li>
+        <li><strong>Results:</strong> Show how our adapted SOTA models achieve 0.97+ F1 on the Hybrid Benchmarks.</li>
+    </ol>
+
+    <h3>3. The Final Conclusion</h3>
+    <div class="conclusion">
+        "We successfully solved a critical script-ambiguity problem for historical texts. More importantly, we demonstrated that utilizing Parameter-Efficient Fine-Tuning (PEFT) and architectural routing allows massive multilingual transformers to learn rare dialects without catastrophically forgetting their global language capabilities."
+    </div>
+
+    <h3>PROS &amp; CONS</h3>
+    <ul>
+        <li><strong>Pros:</strong> Very high novelty for ACL (Continual Learning is a hot topic); computationally cheap (no massive 11-language training required); highly practical for industry deployment.</li>
+        <li><strong>Cons:</strong> Requires complex explanations of engineering patches (C++ edits, LoRA); reviewers might question why Phase 1 and Phase 2 use different datasets.</li>
+    </ul>
+
+    <hr>
+
+    <h2>Option 2: Joint Multilingual Training</h2>
+    <div class="concept">
+        <strong>The Concept:</strong> We combine our custom Sinhala/Pali/Sanskrit data with thousands of rows of English, French, Tamil, etc., to create a massive 11-language training dataset. We train all models on this exact dataset.
+    </div>
+
+    <h3>1. What Do We Train On?</h3>
+    <ul>
+        <li><strong>Data Preparation:</strong> You must heavily engineer a massive unified dataset. You take your Sinhala/Pali/Sanskrit data and combine it with English, Arabic, Tamil, etc., from FLORES+ to make an 11-language dataset. You must carefully balance the row counts so the model doesn't become biased.</li>
+        <li><strong>Baselines &amp; SOTA:</strong> You train your Naive Bayes, CNNs, and fine-tune your Transformers simultaneously on all 11 languages at once.</li>
+    </ul>
+
+    <h3>2. How to Align the Research Paper Structure</h3>
+    <p>If we choose this option, the paper reads like a "Mathematical Capacity &amp; Architecture" paper:</p>
+    <ol>
+        <li><strong>Introduction:</strong> State the problem (Multilingual models struggle when microscopic script differences are mixed with macroscopic global languages).</li>
+        <li><strong>Dataset Construction:</strong> Detail how you built and carefully balanced the massive 11-language corpus.</li>
+        <li><strong>Experiment 1 (Capacity Limits):</strong> We test all 13 models on the 11-language dataset to see which architectures completely fail when forced to learn so many diverse classes.</li>
+        <li><strong>Experiment 2 (Fragment Stress Testing):</strong> We test the surviving models on 1-word and 3-word fragments across all 11 languages to see which architecture is the most robust.</li>
+    </ol>
+
+    <h3>3. The Final Conclusion</h3>
+    <div class="conclusion">
+        "We demonstrate that when forced to classify both macro-languages (Arabic vs English) and micro-dialects (Pali vs Sanskrit in the same script), large transformers maintain the mathematical capacity to handle 11 languages. However, on short text fragments, character n-gram models remain vastly superior, proving that subword tokenizers are inadequate for fine-grained historical script disambiguation in a highly multilingual space."
+    </div>
+
+    <h3>PROS &amp; CONS</h3>
+    <ul>
+        <li><strong>Pros:</strong> Methodological purity (every model is trained and tested on the exact same 11-language dataset); very easy to compare models directly against each other.</li>
+        <li><strong>Cons:</strong> A data engineering nightmare (you will spend weeks fixing class imbalances); training CNNs on 11 languages takes massive GPU power; "training a classifier on 11 languages" is less novel to ACL reviewers than "solving catastrophic forgetting."</li>
+    </ul>
+
+    <hr>
+
+    <h3>Summary Recommendation</h3>
+    <p>If our goal is to publish at <strong>ACL</strong>, Option 1 is highly recommended. It positions the paper not just as a "Dataset" paper, but as an "Advanced Systems Engineering" paper that solves Catastrophic Forgetting for low-resource script dialects.</p>
+</div>
+</body>
+</html>
