@@ -237,10 +237,10 @@ function SegmentFeedback({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <Tooltip>
-        <TooltipTrigger
+        <PopoverTrigger
+          nativeButton={false}
           render={
-            <PopoverTrigger
-              nativeButton={false}
+            <TooltipTrigger
               render={
                 <span
                   className={cn(
