@@ -168,6 +168,7 @@
             margin-bottom: 20px;
             background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 70%, #67e8f9 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -1186,6 +1187,8 @@
                 baselineRows.forEach(r => r.style.display = 'none');
                 sotaRows.forEach(r => r.style.display = '');
             }
+        }
+
         function switchArchImg(mode) {
             const img = document.getElementById('arch-display-img');
             const btnDark = document.getElementById('btn-arch-dark');
