@@ -1,0 +1,159 @@
+version: '3.8'
+
+# Stress-test stack for LangID Platform.
+# Runs the full app stack in Docker with resource limits.
+# Ports are offset to avoid conflicts with the dev stack:
+#   Postgres : 5433  (dev: 5432)
+#   Redis    : 6380  (dev: 6379)
+#   MinIO    : 9020/9021 (dev: 9010/9011)
+#   FastAPI  : 8000
+
+services:
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    container_name: stress_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: langid
+      POSTGRES_PASSWORD: langid_password
+      POSTGRES_DB: langid_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - stress_postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langid -d langid_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: stress_redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - stress_redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: stress_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9020:9000"
+      - "9021:9001"
+    volumes:
+      - stress_minio_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Application ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ../../backend
+      dockerfile: ../testing/stress/Dockerfile.api
+    image: langid-stress-api:latest
+    container_name: stress_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_USER: langid
+      POSTGRES_PASSWORD: langid_password
+      POSTGRES_SERVER: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: langid_db
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_SECURE: "false"
+      SECRET_KEY: stress-test-secret-key-not-for-production
+      ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      REFRESH_TOKEN_EXPIRE_DAYS: "7"
+    volumes:
+      - ../../../models:/models:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile.worker
+    image: langid-stress-worker:latest
+    container_name: stress_worker
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: langid
+      POSTGRES_PASSWORD: langid_password
+      POSTGRES_SERVER: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: langid_db
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_SECURE: "false"
+    volumes:
+      - ../../../models:/models:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+volumes:
+  stress_postgres_data:
+  stress_redis_data:
+  stress_minio_data:
