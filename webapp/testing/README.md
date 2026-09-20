@@ -27,9 +27,13 @@ A comprehensive reference for setting up, writing, and running tests for the **S
    - 4.6 [Writing E2E Integration Tests (Playwright)](#46-writing-e2e-integration-tests-playwright)
    - 4.7 [Running Frontend Tests](#47-running-frontend-tests)
    - 4.8 [Frontend Test Reports](#48-frontend-test-reports)
-5. [Complete Coverage Checklist (RUP Template Mapping)](#5-complete-coverage-checklist-rup-template-mapping)
-6. [CI/CD Integration Notes](#6-cicd-integration-notes)
-7. [Troubleshooting](#7-troubleshooting)
+5. [Stress & Performance Testing](#5-stress--performance-testing)
+   - 5.1 [Prerequisites & Setup](#51-prerequisites--setup)
+   - 5.2 [Running the Tests](#52-running-the-tests)
+   - 5.3 [Test Scenarios](#53-test-scenarios)
+6. [Complete Coverage Checklist (RUP Template Mapping)](#6-complete-coverage-checklist-rup-template-mapping)
+7. [CI/CD Integration Notes](#7-cicd-integration-notes)
+8. [Troubleshooting](#8-troubleshooting)
 
 ---
 
@@ -1000,7 +1004,52 @@ npx playwright show-trace path/to/trace.zip
 
 ---
 
-## 5. Complete Coverage Checklist (RUP Template Mapping)
+## 5. Stress & Performance Testing
+
+For a complete guide to our Docker-based Locust testing infrastructure, see the dedicated README at [`webapp/testing/stress/README.md`](file:///home/vihanga/Desktop/programming/Sinhala-Script-Language-Identification-LangID-for-Sinhala-Pali-and-Sanskrit/webapp/testing/stress/README.md).
+
+### 5.1 Prerequisites & Setup
+
+The stress testing environment is isolated from local development. It uses a dedicated `docker-compose.stress.yml` which runs the entire application stack (API, Worker, Postgres, Redis, MinIO) with resource limits to simulate production.
+
+To bootstrap the environment:
+```bash
+cd webapp/testing/stress
+bash scripts/setup.sh
+```
+This command builds the Docker images, starts the containers, waits for them to become healthy, runs database migrations, and provisions a Python virtual environment with Locust.
+
+### 5.2 Running the Tests
+
+**Automated Mixed Workload (Headless)**
+Run the primary load simulation (15 minutes, ramping from 10 to 200 users) using the helper script. HTML and CSV reports are automatically saved to `webapp/testing/stress/reports/`.
+```bash
+cd webapp/testing/stress
+bash scripts/run_mixed.sh
+```
+
+**Interactive (Web UI)**
+1. Activate the Locust virtual environment: `source webapp/testing/stress/.venv/bin/activate`
+2. Run locust: `locust -f locustfiles/mixed_workload.py --host=http://localhost:8000`
+3. Open `http://localhost:8089` in your browser.
+
+**Cleanup**
+```bash
+cd webapp/testing/stress
+bash scripts/teardown.sh
+```
+
+### 5.3 Test Scenarios
+
+Stress test files are stored in `webapp/testing/stress/locustfiles/`:
+- `mixed_workload.py`: The main E2E test balancing read-heavy users (50%), classification power-users (30%), and document uploaders (20%).
+- `auth_load.py`: Isolated testing of the authentication endpoints.
+- `classification_load.py`: Tests the ML async pipeline and Celery queue saturation.
+- `document_load.py`: Tests MinIO upload throughput and concurrent database writes.
+
+---
+
+## 6. Complete Coverage Checklist (RUP Template Mapping)
 
 Use this checklist to track which areas of the RUP template have been covered by actual test cases.
 
@@ -1094,7 +1143,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 
 ---
 
-## 6. CI/CD Integration Notes
+## 7. CI/CD Integration Notes
 
 ### GitHub Actions Example
 
@@ -1148,7 +1197,7 @@ jobs:
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 ### Backend
 
