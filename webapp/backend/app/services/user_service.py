@@ -25,7 +25,7 @@ class UserService:
         # Get or create Free Tier
         from app.db.models.tier import TierDefinition
         result = await db.execute(select(TierDefinition).where(TierDefinition.price_usd == 0))
-        free_tier = result.scalar_one_or_none()
+        free_tier = result.scalars().first()
         
         if not free_tier:
             free_tier = TierDefinition(

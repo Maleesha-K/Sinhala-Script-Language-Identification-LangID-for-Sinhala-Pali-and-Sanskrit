@@ -13,7 +13,18 @@ export async function getValidToken(): Promise<string | null> {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("access_token")?.value;
   
-  if (accessToken) return accessToken;
+  if (accessToken) {
+    try {
+      const payloadBase64 = accessToken.split('.')[1];
+      const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf-8'));
+      // Check if expired or about to expire in the next 30 seconds
+      if (payload.exp && payload.exp * 1000 > Date.now() + 30000) {
+        return accessToken;
+      }
+    } catch (e) {
+      // If parsing fails, fall through to refresh
+    }
+  }
 
   const refreshToken = cookieStore.get("refresh_token")?.value;
   if (!refreshToken) return null;
