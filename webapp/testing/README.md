@@ -27,9 +27,13 @@ A comprehensive reference for setting up, writing, and running tests for the **S
    - 4.6 [Writing E2E Integration Tests (Playwright)](#46-writing-e2e-integration-tests-playwright)
    - 4.7 [Running Frontend Tests](#47-running-frontend-tests)
    - 4.8 [Frontend Test Reports](#48-frontend-test-reports)
-5. [Complete Coverage Checklist (RUP Template Mapping)](#5-complete-coverage-checklist-rup-template-mapping)
-6. [CI/CD Integration Notes](#6-cicd-integration-notes)
-7. [Troubleshooting](#7-troubleshooting)
+5. [Stress & Performance Testing](#5-stress--performance-testing)
+   - 5.1 [Prerequisites & Setup](#51-prerequisites--setup)
+   - 5.2 [Running the Tests](#52-running-the-tests)
+   - 5.3 [Test Scenarios](#53-test-scenarios)
+6. [Complete Coverage Checklist (RUP Template Mapping)](#6-complete-coverage-checklist-rup-template-mapping)
+7. [CI/CD Integration Notes](#7-cicd-integration-notes)
+8. [Troubleshooting](#8-troubleshooting)
 
 ---
 
@@ -1000,11 +1004,56 @@ npx playwright show-trace path/to/trace.zip
 
 ---
 
-## 5. Complete Coverage Checklist (RUP Template Mapping)
+## 5. Stress & Performance Testing
+
+For a complete guide to our Docker-based Locust testing infrastructure, see the dedicated README at [`webapp/testing/stress/README.md`](file:///home/vihanga/Desktop/programming/Sinhala-Script-Language-Identification-LangID-for-Sinhala-Pali-and-Sanskrit/webapp/testing/stress/README.md).
+
+### 5.1 Prerequisites & Setup
+
+The stress testing environment is isolated from local development. It uses a dedicated `docker-compose.stress.yml` which runs the entire application stack (API, Worker, Postgres, Redis, MinIO) with resource limits to simulate production.
+
+To bootstrap the environment:
+```bash
+cd webapp/testing/stress
+bash scripts/setup.sh
+```
+This command builds the Docker images, starts the containers, waits for them to become healthy, runs database migrations, and provisions a Python virtual environment with Locust.
+
+### 5.2 Running the Tests
+
+**Automated Mixed Workload (Headless)**
+Run the primary load simulation (15 minutes, ramping from 10 to 200 users) using the helper script. HTML and CSV reports are automatically saved to `webapp/testing/stress/reports/`.
+```bash
+cd webapp/testing/stress
+bash scripts/run_mixed.sh
+```
+
+**Interactive (Web UI)**
+1. Activate the Locust virtual environment: `source webapp/testing/stress/.venv/bin/activate`
+2. Run locust: `locust -f locustfiles/mixed_workload.py --host=http://localhost:8000`
+3. Open `http://localhost:8089` in your browser.
+
+**Cleanup**
+```bash
+cd webapp/testing/stress
+bash scripts/teardown.sh
+```
+
+### 5.3 Test Scenarios
+
+Stress test files are stored in `webapp/testing/stress/locustfiles/`:
+- `mixed_workload.py`: The main E2E test balancing read-heavy users (50%), classification power-users (30%), and document uploaders (20%).
+- `auth_load.py`: Isolated testing of the authentication endpoints.
+- `classification_load.py`: Tests the ML async pipeline and Celery queue saturation.
+- `document_load.py`: Tests MinIO upload throughput and concurrent database writes.
+
+---
+
+## 6. Complete Coverage Checklist (RUP Template Mapping)
 
 Use this checklist to track which areas of the RUP template have been covered by actual test cases.
 
-### 5.1 Function Testing
+### 6.1 Function Testing
 
 | Feature / Use Case | Test File | Test Level | Status |
 |---|---|---|---|
@@ -1032,7 +1081,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 | Admin: Update User Tier | `integration/test_admin.py` | Integration | ⬜ |
 | Admin: Create Model Rate | `integration/test_admin.py` | Integration | ⬜ |
 
-### 5.2 Data & Database Integrity Testing
+### 6.2 Data & Database Integrity Testing
 
 | Test Scenario | Test File | Status |
 |---|---|---|
@@ -1045,7 +1094,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 | Alembic migrations apply cleanly | `conftest.py` (auto-run) | ✅ |
 | DB session returns async connection | `unit/test_config.py` | ⬜ |
 
-### 5.3 User Interface Testing (Frontend)
+### 6.3 User Interface Testing (Frontend)
 
 | UI Scenario | Test File | Tool | Status |
 |---|---|---|---|
@@ -1062,7 +1111,23 @@ Use this checklist to track which areas of the RUP template have been covered by
 | Admin can view users table | `tests/e2e/admin.spec.ts` | Playwright | ⬜ |
 | Regular user is denied access to admin UI | `tests/e2e/admin.spec.ts` | Playwright | ⬜ |
 
-### 5.4 Security & Access Control Testing
+### 6.4 Performance Profiling
+
+| Scenario | Test File | Tool | Status |
+|---|---|---|---|
+| Single user response time baseline (all endpoints) | `stress/locustfiles/mixed_workload.py` (1 user) | Locust | ✅ |
+| End-to-end async classification time | `stress/locustfiles/classification_load.py` | Locust | ✅ |
+| Document upload throughput to MinIO | `stress/locustfiles/document_load.py` | Locust | ✅ |
+
+### 6.5 Load Testing
+
+| Scenario | Test File | Tool | Status |
+|---|---|---|---|
+| Authentication login storm (spike test) | `stress/locustfiles/auth_load.py` | Locust | ✅ |
+| Peak mixed workload (ramping to 200 users) | `stress/locustfiles/mixed_workload.py` | Locust | ✅ |
+| Celery ML worker saturation test | `stress/locustfiles/classification_load.py` | Locust | ✅ |
+
+### 6.6 Security & Access Control Testing
 
 | Scenario | Test File | Status |
 |---|---|---|
@@ -1074,7 +1139,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 | User cannot view another user's documents | `integration/test_documents.py` | ⬜ |
 | User cannot delete another user's annotations | `integration/test_annotations.py` | ⬜ |
 
-### 5.5 Configuration Testing
+### 6.7 Configuration Testing
 
 | Scenario | Test File | Status |
 |---|---|---|
@@ -1083,7 +1148,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 | REDIS_URL is correctly formed | `unit/test_config.py` | ⬜ |
 | Missing required env var raises error at startup | `unit/test_config.py` | ⬜ |
 
-### 5.6 Failover & Recovery Testing
+### 6.8 Failover & Recovery Testing
 
 | Scenario | Test File | Status |
 |---|---|---|
@@ -1094,7 +1159,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 
 ---
 
-## 6. CI/CD Integration Notes
+## 7. CI/CD Integration Notes
 
 ### GitHub Actions Example
 
@@ -1148,7 +1213,7 @@ jobs:
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 ### Backend
 
