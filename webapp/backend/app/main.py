@@ -52,6 +52,8 @@ def create_app() -> FastAPI:
     from fastapi.exceptions import RequestValidationError
     from app.utils.exceptions import AppException
     from app.schemas.response import error_response
+    import sqlalchemy.exc
+    import redis.exceptions
 
     @app.exception_handler(AppException)
     async def app_exception_handler(request, exc: AppException):
@@ -73,6 +75,20 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=500,
             content=error_response(message="Internal server error")
+        )
+
+    @app.exception_handler(sqlalchemy.exc.OperationalError)
+    async def db_connection_exception_handler(request, exc: sqlalchemy.exc.OperationalError):
+        return JSONResponse(
+            status_code=503,
+            content=error_response(message="Service Unavailable: Database connection failed")
+        )
+
+    @app.exception_handler(redis.exceptions.ConnectionError)
+    async def redis_connection_exception_handler(request, exc: redis.exceptions.ConnectionError):
+        return JSONResponse(
+            status_code=503,
+            content=error_response(message="Service Unavailable: Cache connection failed")
         )
 
     @app.get("/health", tags=["healthcheck"])

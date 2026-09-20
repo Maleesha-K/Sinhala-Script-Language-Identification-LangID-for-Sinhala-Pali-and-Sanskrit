@@ -1039,13 +1039,26 @@ cd webapp/testing/stress
 bash scripts/teardown.sh
 ```
 
-### 5.3 Test Scenarios
+### 5.3 Test Scenarios & Workloads
 
-Stress test files are stored in `webapp/testing/stress/locustfiles/`:
-- `mixed_workload.py`: The main E2E test balancing read-heavy users (50%), classification power-users (30%), and document uploaders (20%).
-- `auth_load.py`: Isolated testing of the authentication endpoints.
-- `classification_load.py`: Tests the ML async pipeline and Celery queue saturation.
-- `document_load.py`: Tests MinIO upload throughput and concurrent database writes.
+Our load testing focuses heavily on simulating a realistic production traffic pattern. The stress test files are stored in `webapp/testing/stress/locustfiles/`:
+
+**1. Mixed Workload Scenario (`mixed_workload.py`)**
+This is the primary E2E load simulation. It utilizes a `StepLoadShape` to ramp traffic in stages (e.g., 10 users -> 50 normal peak -> 200 spike) to observe how the system degrades under pressure. The simulated traffic is distributed as follows:
+- **Read-Heavy Users (50%)**: Simulates standard browsing behavior. Heavily tests the PostgreSQL `SELECT` performance and FastAPI's authentication middleware overhead.
+- **Classification Users (30%)**: Simulates power users. Submits texts for ML classification and polls for results. Heavily stresses the Celery worker CPU and Redis broker queues.
+- **Uploader Users (20%)**: Simulates users uploading PDFs. Heavily tests MinIO network I/O throughput and concurrent Postgres writes.
+
+**2. Isolated Component Tests**
+- `auth_load.py`: Isolated testing of the authentication endpoints (brute force, login storms). CPU-light, highly I/O bound.
+- `classification_load.py`: Saturation testing specifically for the Celery ML pipeline queue.
+- `document_load.py`: Throughput testing for MinIO object storage.
+
+### 5.4 Failover & Resilience
+
+Alongside pure throughput testing, the stress test environment is used to verify the system's failover recovery:
+- **Automated Resilience (Pytest)**: We run integration tests (`test_resilience.py`) that mock database and cache outages to ensure the API gracefully returns HTTP `503 Service Unavailable` instead of crashing.
+- **Manual Chaos Testing**: While the Locust `mixed_workload.py` is running, we intentionally kill critical infrastructure (`docker stop stress_redis` or `docker stop stress_postgres`). We monitor Locust to verify that failure rates jump to 100% immediately, and upon restarting the containers, the system recovers automatically without requiring a FastAPI reboot.
 
 ---
 
@@ -1152,8 +1165,8 @@ Use this checklist to track which areas of the RUP template have been covered by
 
 | Scenario | Test File | Status |
 |---|---|---|
-| API returns 503 when DB is unavailable | `integration/test_resilience.py` | ⬜ |
-| API returns 503 when Redis is unavailable | `integration/test_resilience.py` | ⬜ |
+| API returns 503 when DB is unavailable | `integration/test_resilience.py` | ✅ |
+| API returns 503 when Redis is unavailable | `integration/test_resilience.py` | ✅ |
 | Celery task retries on transient DB failure | `unit/test_ocr_task.py` | ⬜ |
 | FastAPI startup does not crash if MinIO is unreachable | Covered by MinIO mock in `conftest.py` | ✅ |
 
