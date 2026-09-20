@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
@@ -10,6 +10,7 @@ from app.db.models.classification_job import ClassificationJob, JobStatus
 from app.db.models.classified_segment import ClassifiedSegment
 from app.dependencies import get_db, get_current_user
 from app.schemas.response import BaseResponse, success_response
+from app.utils.exceptions import NotFoundException
 from app.workers.tasks.classification_tasks import process_classification_job
 from pydantic import BaseModel, Field
 
@@ -87,7 +88,7 @@ async def get_classification_job(
     job = result.scalar_one_or_none()
     
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise NotFoundException(item="Job")
         
     response_data = {
         "id": job.id,

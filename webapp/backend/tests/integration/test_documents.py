@@ -98,13 +98,7 @@ async def test_upload_queues_ocr_task(
 async def test_upload_rejects_non_pdf(
     async_client, auth_headers, mock_storage, mock_ocr_task
 ):
-    """Only PDFs are accepted, so a .txt upload is refused.
-
-    NOTE: documents.py raises a bare HTTPException, so the body is FastAPI's
-    {"detail": ...} rather than the {status, message, data} envelope every
-    other router returns via AppException. This asserts current behaviour;
-    see test_error_envelope_is_inconsistent_with_other_routers below.
-    """
+    """Only PDFs are accepted, so a .txt upload is refused."""
     response = await async_client.post(
         f"{API}/documents/upload",
         headers=auth_headers,
@@ -112,7 +106,7 @@ async def test_upload_rejects_non_pdf(
     )
 
     assert response.status_code == 400, response.text
-    assert "Only PDF" in response.json()["detail"]
+    assert "Only PDF" in response.json()["message"]
 
 
 @pytest.mark.asyncio
@@ -166,33 +160,32 @@ async def test_upload_without_token_returns_401(async_client, mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_error_envelope_is_inconsistent_with_other_routers(
+async def test_errors_use_the_same_envelope_as_other_routers(
     async_client, auth_headers, mock_storage, mock_ocr_task
 ):
-    """Documents errors use FastAPI's shape; auth errors use the app envelope.
+    """Document errors carry the {status, message, data} envelope.
 
-    This is a real inconsistency in the API, not a test artefact: documents.py
-    raises bare HTTPException while the rest of the app raises AppException,
-    which the handler in main.py renders as {status, message, data}. A client
-    reading `message` on a document error gets nothing. Pinning it here so the
-    difference is visible, and so this test fails if the routers are unified
-    (at which point the assertions above should move to `message`).
+    Regression guard: documents.py used to raise bare HTTPException, so its
+    errors came back as FastAPI's {"detail": ...} while every other router
+    returned the envelope through AppException. A client reading `message` on
+    a failed upload got nothing.
+
+    (A *missing* token remains a separate shape: FastAPI's security scheme
+    returns {"detail": "Not authenticated"} before any handler runs, which is
+    why this compares against a bad token rather than no token.)
     """
     document_error = await async_client.post(
         f"{API}/documents/upload",
         headers=auth_headers,
         files={"file": ("notes.txt", BytesIO(b"plain text"), "text/plain")},
     )
-    # A bad token raises AppException inside the dependency, so it is rendered
-    # by the handler. (A *missing* token is a third shape again: FastAPI's
-    # security scheme returns {"detail": "Not authenticated"} before any
-    # handler runs, which is why this compares against a bad token instead.)
     app_error = await async_client.get(
         f"{API}/users/me", headers={"Authorization": "Bearer not-a-real-token"}
     )
 
     assert document_error.status_code == 400
-    assert set(document_error.json()) == {"detail"}
+    assert set(document_error.json()) == {"status", "message", "data"}
+    assert document_error.json()["status"] == "failed"
 
     assert app_error.status_code == 401
     assert set(app_error.json()) == {"status", "message", "data"}

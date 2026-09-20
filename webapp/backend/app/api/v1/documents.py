@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, status, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
@@ -12,6 +12,7 @@ from app.schemas.response import BaseResponse, success_response
 from app.schemas.document import DocumentResponse
 from app.services.storage_service import storage_service
 from app.workers.tasks.ocr_tasks import process_document_ocr
+from app.utils.exceptions import AppException, BadRequestException, NotFoundException
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -24,7 +25,7 @@ async def upload_document(
     """Uploads a PDF document to MinIO and queues an OCR/Text Extraction task."""
     
     if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are currently supported")
+        raise BadRequestException(message="Only PDF files are currently supported")
 
     # Read file content
     content = await file.read()
@@ -36,7 +37,7 @@ async def upload_document(
     # Upload to MinIO
     upload_success = storage_service.upload_document(object_name, content, file.content_type)
     if not upload_success:
-        raise HTTPException(status_code=500, detail="Failed to upload document to storage")
+        raise AppException(message="Failed to upload document to storage", status_code=500)
 
     # Create DB Record
     new_doc = Document(
@@ -78,7 +79,7 @@ async def get_document(
     doc = result.scalar_one_or_none()
     
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise NotFoundException(item="Document")
         
     # We could attach the presigned URL here, or have a separate endpoint for it.
     # For now, we just return the document metadata.
@@ -95,11 +96,11 @@ async def get_document_download_url(
     doc = result.scalar_one_or_none()
     
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise NotFoundException(item="Document")
         
     url = storage_service.get_presigned_url(doc.minio_key)
     if not url:
-        raise HTTPException(status_code=500, detail="Failed to generate download link")
+        raise AppException(message="Failed to generate download link", status_code=500)
         
     return success_response(data={"download_url": url}, message="Download URL generated")
 
@@ -114,7 +115,7 @@ async def delete_document(
     doc = result.scalar_one_or_none()
     
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise NotFoundException(item="Document")
         
     # Delete from MinIO
     if doc.minio_key:
@@ -141,7 +142,7 @@ async def get_document_pages(
     doc = doc_result.scalar_one_or_none()
     
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise NotFoundException(item="Document")
         
     # Fetch pages
     pages_result = await db.execute(

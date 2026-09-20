@@ -6,40 +6,24 @@ Two routers are covered:
                     ``admin_service``
 * ``/admin-rates`` - a second, self-contained model-rate CRUD router
 
-Three defects are pinned by tests below rather than worked around. Each is
-marked BUG and asserts today's behaviour, so the test fails once the code is
-fixed and the assertion can be tightened:
+Three defects found while writing these tests are now fixed, and the tests
+below are the regression guards for them:
 
-1. ``POST /admin/model-rates`` cannot succeed at all - its schema omits the
+1. ``POST /admin/model-rates`` could never succeed - its schema omitted the
    non-null ``model_type`` column.
-2. ``admin_service`` raises ``AppException(detail=...)`` but the constructor
-   takes ``message``, so every "not found" path 500s instead of 404ing.
-3. The two routers disagree on error shape, as documented in test_documents.
+2. ``admin_service`` raised ``AppException(detail=...)`` while the constructor
+   takes ``message``, so every "not found" path 500d instead of 404ing.
+3. A second zero-price tier was accepted, which then broke signup for every
+   new user.
 """
 import uuid
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 
 from app.config import settings
-from app.main import app
 
 API = settings.API_V1_STR
-
-
-@pytest_asyncio.fixture
-async def tolerant_client():
-    """A client that returns unhandled server errors instead of re-raising.
-
-    ASGITransport re-raises exceptions from the app by default, which would
-    surface the known 500s as test errors rather than as responses.
-    """
-    async with AsyncClient(
-        transport=ASGITransport(app=app, raise_app_exceptions=False),
-        base_url="http://test",
-    ) as client:
-        yield client
 
 
 def unique_name(prefix: str) -> str:
@@ -199,28 +183,27 @@ async def test_free_tier_cannot_be_deleted(
 
 
 @pytest.mark.asyncio
-async def test_second_free_tier_breaks_signup(
+async def test_signup_survives_a_second_free_tier(
     async_client, temporary_free_tier
 ):
-    """BUG: a second zero-price tier makes every new signup fail.
+    """Signup keeps working when more than one zero-price tier exists.
 
-    user_service.create_user looks up the free tier with
-    `select(...).where(price_usd == 0)` followed by scalar_one_or_none(), which
-    raises MultipleResultsFound once two such tiers exist. The admin API
-    happily creates the second one (201), so an admin can lock every new user
-    out of registration. A uniqueness guard on the default tier, or
-    `.limit(1)`, would prevent it.
+    Regression guard: create_user resolved the free tier with
+    scalar_one_or_none(), which raised MultipleResultsFound as soon as a
+    second zero-price tier was created. Since the admin API accepts such a
+    tier (201), an admin could lock every new user out of registration. The
+    lookup is now ordered and limited to one row.
     """
-    from sqlalchemy.exc import MultipleResultsFound
+    response = await async_client.post(
+        f"{API}/auth/signup",
+        json={
+            "email": f"after_free_{uuid.uuid4().hex[:10]}@test.com",
+            "password": "StrongPass123!",
+        },
+    )
 
-    with pytest.raises(MultipleResultsFound):
-        await async_client.post(
-            f"{API}/auth/signup",
-            json={
-                "email": f"blocked_{uuid.uuid4().hex[:10]}@test.com",
-                "password": "StrongPass123!",
-            },
-        )
+    assert response.status_code == 201, response.text
+    assert float(response.json()["data"]["credits_balance"]) > 0
 
 
 @pytest.mark.asyncio
@@ -233,31 +216,32 @@ async def test_create_tier_with_missing_fields_returns_422(async_client, admin_h
 
 
 @pytest.mark.asyncio
-async def test_update_missing_tier_500s_instead_of_404(tolerant_client, admin_headers):
-    """BUG: a missing tier raises TypeError inside the service.
+async def test_update_missing_tier_returns_404(async_client, admin_headers):
+    """A missing tier is a 404, not a 500.
 
-    admin_service builds AppException(status_code=..., detail=...), but
-    AppException.__init__ takes `message`. The TypeError escapes to the global
-    handler, so a client sees 500 "Internal server error" instead of the
-    intended 404. Same defect in delete_tier and update_model_rate.
+    Regression guard: admin_service used to build
+    AppException(status_code=..., detail=...) while the constructor takes
+    `message`, so the TypeError escaped to the global handler as a 500.
     """
-    response = await tolerant_client.put(
+    response = await async_client.put(
         f"{API}/admin/tiers/{uuid.uuid4()}",
         headers=admin_headers,
         json={"price_usd": 1.0},
     )
 
-    assert response.status_code == 500, response.text  # should be 404
+    assert response.status_code == 404, response.text
+    assert response.json()["message"] == "Tier not found"
 
 
 @pytest.mark.asyncio
-async def test_delete_missing_tier_500s_instead_of_404(tolerant_client, admin_headers):
-    """BUG: same AppException(detail=...) defect on the delete path."""
-    response = await tolerant_client.delete(
+async def test_delete_missing_tier_returns_404(async_client, admin_headers):
+    """The delete path carries the same fix as the update path."""
+    response = await async_client.delete(
         f"{API}/admin/tiers/{uuid.uuid4()}", headers=admin_headers
     )
 
-    assert response.status_code == 500, response.text  # should be 404
+    assert response.status_code == 404, response.text
+    assert response.json()["message"] == "Tier not found"
 
 
 # --- system config ---------------------------------------------------------
@@ -373,7 +357,7 @@ async def test_create_duplicate_rate_returns_400(async_client, admin_headers):
     )
 
     assert response.status_code == 400, response.text
-    assert "already exists" in response.json()["detail"]
+    assert "already exists" in response.json()["message"]
 
 
 @pytest.mark.asyncio
@@ -494,22 +478,43 @@ async def test_admin_can_list_model_rates_via_admin_router(
 
 
 @pytest.mark.asyncio
-async def test_create_model_rate_via_admin_router_is_broken(
-    tolerant_client, admin_headers
-):
-    """BUG: POST /admin/model-rates cannot succeed for any input.
+async def test_create_model_rate_via_admin_router(async_client, admin_headers):
+    """POST /admin/model-rates creates a rate.
 
-    Its ModelRateCreate schema has no model_type field, but model_rates.
-    model_type is NOT NULL, so the insert always raises IntegrityError and the
-    client gets a 500. Use POST /admin-rates instead, which accepts the type.
+    Regression guard: ModelRateBase had no model_type field while
+    model_rates.model_type is NOT NULL, so every insert raised IntegrityError
+    and the endpoint could not succeed for any input.
     """
-    response = await tolerant_client.post(
+    name = unique_name("viaadmin")
+
+    response = await async_client.post(
         f"{API}/admin/model-rates",
         headers=admin_headers,
-        json={"model_name": unique_name("broken"), "credits_per_token": 0.5},
+        json={
+            "model_type": "ocr",
+            "model_name": name,
+            "credits_per_page": 0.25,
+        },
     )
 
-    assert response.status_code == 500, response.text  # should be 201
+    assert response.status_code == 201, response.text
+    data = response.json()["data"]
+    assert data["model_name"] == name
+    assert data["model_type"] == "ocr"
+    assert data["credits_per_page"] == pytest.approx(0.25)
+
+
+@pytest.mark.asyncio
+async def test_create_model_rate_via_admin_router_requires_type(
+    async_client, admin_headers
+):
+    """model_type is required, so the NOT NULL column can always be filled."""
+    response = await async_client.post(
+        f"{API}/admin/model-rates",
+        headers=admin_headers,
+        json={"model_name": unique_name("typeless"), "credits_per_token": 0.5},
+    )
+    assert response.status_code == 422, response.text
 
 
 # --- access control --------------------------------------------------------

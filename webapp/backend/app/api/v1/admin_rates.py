@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
@@ -9,13 +9,14 @@ from app.db.models.user import User, UserRole
 from app.db.models.model_rate import ModelRate, ModelType
 from app.dependencies import get_db, get_current_user
 from app.schemas.response import BaseResponse, success_response
+from app.utils.exceptions import BadRequestException, ForbiddenException, NotFoundException
 
 router = APIRouter(prefix="/admin-rates", tags=["admin-rates"])
 
 # Dependency to check for admin
 async def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
+        raise ForbiddenException(message="Admin privileges required")
     return current_user
 
 # Schemas
@@ -69,7 +70,7 @@ async def create_rate(
     # Check if exists
     result = await db.execute(select(ModelRate).where(ModelRate.model_name == request.model_name))
     if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Rate for this model name already exists")
+        raise BadRequestException(message="Rate for this model name already exists")
         
     rate = ModelRate(**request.model_dump())
     db.add(rate)
@@ -89,7 +90,7 @@ async def update_rate(
     rate = result.scalar_one_or_none()
     
     if not rate:
-        raise HTTPException(status_code=404, detail="Model rate not found")
+        raise NotFoundException(item="Model rate")
         
     update_data = request.model_dump(exclude_unset=True)
     for key, value in update_data.items():
@@ -110,7 +111,7 @@ async def delete_rate(
     rate = result.scalar_one_or_none()
     
     if not rate:
-        raise HTTPException(status_code=404, detail="Model rate not found")
+        raise NotFoundException(item="Model rate")
         
     await db.delete(rate)
     await db.commit()

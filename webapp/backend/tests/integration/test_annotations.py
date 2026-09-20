@@ -135,7 +135,7 @@ async def test_create_duplicate_annotation_returns_400(
     )
 
     assert response.status_code == 400, response.text
-    assert "already submitted" in response.json()["detail"]
+    assert "already submitted" in response.json()["message"]
 
 
 @pytest.mark.asyncio
@@ -170,7 +170,7 @@ async def test_create_annotation_for_missing_segment_returns_404(
     )
 
     assert response.status_code == 404, response.text
-    assert "Segment not found" in response.json()["detail"]
+    assert "Segment not found" in response.json()["message"]
 
 
 @pytest.mark.asyncio
