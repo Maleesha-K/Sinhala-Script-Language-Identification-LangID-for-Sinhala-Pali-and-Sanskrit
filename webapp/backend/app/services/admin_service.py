@@ -24,7 +24,7 @@ class AdminService:
         result = await db.execute(select(TierDefinition).where(TierDefinition.id == tier_id))
         tier = result.scalar_one_or_none()
         if not tier:
-            raise AppException(status_code=status.HTTP_404_NOT_FOUND, detail="Tier not found")
+            raise AppException(message="Tier not found", status_code=status.HTTP_404_NOT_FOUND)
         
         update_data = tier_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
@@ -38,7 +38,7 @@ class AdminService:
         result = await db.execute(select(TierDefinition).where(TierDefinition.id == tier_id))
         tier = result.scalar_one_or_none()
         if not tier:
-            raise AppException(status_code=status.HTTP_404_NOT_FOUND, detail="Tier not found")
+            raise AppException(message="Tier not found", status_code=status.HTTP_404_NOT_FOUND)
             
         if tier.price_usd == 0:
             from app.utils.exceptions import BadRequestException
@@ -89,7 +89,7 @@ class AdminService:
         result = await db.execute(select(ModelRate).where(ModelRate.id == rate_id))
         rate = result.scalar_one_or_none()
         if not rate:
-            raise AppException(status_code=status.HTTP_404_NOT_FOUND, detail="Model rate not found")
+            raise AppException(message="Model rate not found", status_code=status.HTTP_404_NOT_FOUND)
             
         update_data = rate_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():

@@ -2,6 +2,8 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from uuid import UUID
 
+from app.db.models.model_rate import ModelType
+
 class TierBase(BaseModel):
     name: str
     price_usd: float
@@ -32,6 +34,7 @@ class SystemConfigResponse(SystemConfigBase):
     pass
 
 class ModelRateBase(BaseModel):
+    model_type: ModelType
     model_name: str
     credits_per_token: Optional[float] = 0.0
     credits_per_page: Optional[float] = 0.0

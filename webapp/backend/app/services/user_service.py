@@ -24,7 +24,14 @@ class UserService:
         
         # Get or create Free Tier
         from app.db.models.tier import TierDefinition
-        result = await db.execute(select(TierDefinition).where(TierDefinition.price_usd == 0))
+        # Ordered + limited so that a second zero-price tier cannot break signup:
+        # scalar_one_or_none() raises MultipleResultsFound once two exist.
+        result = await db.execute(
+            select(TierDefinition)
+            .where(TierDefinition.price_usd == 0)
+            .order_by(TierDefinition.created_at)
+            .limit(1)
+        )
         free_tier = result.scalar_one_or_none()
         
         if not free_tier:

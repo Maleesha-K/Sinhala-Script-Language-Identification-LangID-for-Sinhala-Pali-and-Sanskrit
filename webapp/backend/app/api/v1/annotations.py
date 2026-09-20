@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
@@ -11,6 +11,7 @@ from app.db.models.annotation import Annotation
 from app.db.models.classified_segment import ClassifiedSegment
 from app.dependencies import get_db, get_current_user, require_admin
 from app.schemas.response import BaseResponse, success_response
+from app.utils.exceptions import BadRequestException, NotFoundException
 from app.schemas.annotation import AnnotationCreate, AnnotationReview, AnnotationResponse, AnnotationAdminResponse
 
 router = APIRouter(prefix="/annotations", tags=["annotations"])
@@ -28,7 +29,7 @@ async def create_annotation(
     result = await db.execute(select(ClassifiedSegment).where(ClassifiedSegment.id == request.segment_id))
     segment = result.scalar_one_or_none()
     if not segment:
-        raise HTTPException(status_code=404, detail="Segment not found")
+        raise NotFoundException(item="Segment")
         
     # Check if user already annotated this segment
     existing = await db.execute(select(Annotation).where(
@@ -36,7 +37,7 @@ async def create_annotation(
         Annotation.user_id == current_user.id
     ))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="You have already submitted a correction for this segment")
+        raise BadRequestException(message="You have already submitted a correction for this segment")
         
     annotation = Annotation(
         segment_id=request.segment_id,
@@ -96,7 +97,7 @@ async def review_annotation(
     annotation = result.scalar_one_or_none()
     
     if not annotation:
-        raise HTTPException(status_code=404, detail="Annotation not found")
+        raise NotFoundException(item="Annotation")
         
     annotation.admin_reviewed = True
     annotation.reviewed_by = admin_user.id
