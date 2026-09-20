@@ -1053,7 +1053,7 @@ Stress test files are stored in `webapp/testing/stress/locustfiles/`:
 
 Use this checklist to track which areas of the RUP template have been covered by actual test cases.
 
-### 5.1 Function Testing
+### 6.1 Function Testing
 
 | Feature / Use Case | Test File | Test Level | Status |
 |---|---|---|---|
@@ -1081,7 +1081,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 | Admin: Update User Tier | `integration/test_admin.py` | Integration | ⬜ |
 | Admin: Create Model Rate | `integration/test_admin.py` | Integration | ⬜ |
 
-### 5.2 Data & Database Integrity Testing
+### 6.2 Data & Database Integrity Testing
 
 | Test Scenario | Test File | Status |
 |---|---|---|
@@ -1094,7 +1094,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 | Alembic migrations apply cleanly | `conftest.py` (auto-run) | ✅ |
 | DB session returns async connection | `unit/test_config.py` | ⬜ |
 
-### 5.3 User Interface Testing (Frontend)
+### 6.3 User Interface Testing (Frontend)
 
 | UI Scenario | Test File | Tool | Status |
 |---|---|---|---|
@@ -1111,7 +1111,23 @@ Use this checklist to track which areas of the RUP template have been covered by
 | Admin can view users table | `tests/e2e/admin.spec.ts` | Playwright | ⬜ |
 | Regular user is denied access to admin UI | `tests/e2e/admin.spec.ts` | Playwright | ⬜ |
 
-### 5.4 Security & Access Control Testing
+### 6.4 Performance Profiling
+
+| Scenario | Test File | Tool | Status |
+|---|---|---|---|
+| Single user response time baseline (all endpoints) | `stress/locustfiles/mixed_workload.py` (1 user) | Locust | ✅ |
+| End-to-end async classification time | `stress/locustfiles/classification_load.py` | Locust | ✅ |
+| Document upload throughput to MinIO | `stress/locustfiles/document_load.py` | Locust | ✅ |
+
+### 6.5 Load Testing
+
+| Scenario | Test File | Tool | Status |
+|---|---|---|---|
+| Authentication login storm (spike test) | `stress/locustfiles/auth_load.py` | Locust | ✅ |
+| Peak mixed workload (ramping to 200 users) | `stress/locustfiles/mixed_workload.py` | Locust | ✅ |
+| Celery ML worker saturation test | `stress/locustfiles/classification_load.py` | Locust | ✅ |
+
+### 6.6 Security & Access Control Testing
 
 | Scenario | Test File | Status |
 |---|---|---|
@@ -1123,7 +1139,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 | User cannot view another user's documents | `integration/test_documents.py` | ⬜ |
 | User cannot delete another user's annotations | `integration/test_annotations.py` | ⬜ |
 
-### 5.5 Configuration Testing
+### 6.7 Configuration Testing
 
 | Scenario | Test File | Status |
 |---|---|---|
@@ -1132,7 +1148,7 @@ Use this checklist to track which areas of the RUP template have been covered by
 | REDIS_URL is correctly formed | `unit/test_config.py` | ⬜ |
 | Missing required env var raises error at startup | `unit/test_config.py` | ⬜ |
 
-### 5.6 Failover & Recovery Testing
+### 6.8 Failover & Recovery Testing
 
 | Scenario | Test File | Status |
 |---|---|---|
