@@ -1,0 +1,350 @@
+warning: `VIRTUAL_ENV=d:\Projects\ML Projects\LangID - DSE project\venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+   Building langid-backend @ file:///D:/Projects/ML%20Projects/LangID%20-%20DSE%20project/webapp/backend
+      Built langid-backend @ file:///D:/Projects/ML%20Projects/LangID%20-%20DSE%20project/webapp/backend
+Uninstalled 1 package in 0.73ms
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 1 package in 3ms
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0 -- D:\Projects\ML Projects\LangID - DSE project\webapp\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\Projects\ML Projects\LangID - DSE project\webapp\backend
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.14.2, asyncio-1.4.0, cov-7.1.0, mock-3.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 215 items
+
+tests/integration/test_admin.py::test_admin_can_list_tiers PASSED        [  0%]
+tests/integration/test_admin.py::test_admin_can_create_tier PASSED       [  0%]
+tests/integration/test_admin.py::test_created_tier_appears_in_listing PASSED [  1%]
+tests/integration/test_admin.py::test_admin_can_update_tier PASSED       [  1%]
+tests/integration/test_admin.py::test_admin_can_delete_paid_tier PASSED  [  2%]
+tests/integration/test_admin.py::test_free_tier_cannot_be_deleted PASSED [  2%]
+tests/integration/test_admin.py::test_signup_survives_a_second_free_tier PASSED [  3%]
+tests/integration/test_admin.py::test_create_tier_with_missing_fields_returns_422 PASSED [  3%]
+tests/integration/test_admin.py::test_update_missing_tier_returns_404 PASSED [  4%]
+tests/integration/test_admin.py::test_delete_missing_tier_returns_404 PASSED [  4%]
+tests/integration/test_admin.py::test_admin_can_read_config PASSED       [  5%]
+tests/integration/test_admin.py::test_admin_can_update_config PASSED     [  5%]
+tests/integration/test_admin.py::test_config_update_persists PASSED      [  6%]
+tests/integration/test_admin.py::test_config_update_requires_rate PASSED [  6%]
+tests/integration/test_admin.py::test_admin_can_list_available_models PASSED [  6%]
+tests/integration/test_admin.py::test_admin_can_create_rate PASSED       [  7%]
+tests/integration/test_admin.py::test_admin_can_list_rates PASSED        [  7%]
+tests/integration/test_admin.py::test_create_duplicate_rate_returns_400 PASSED [  8%]
+tests/integration/test_admin.py::test_admin_can_update_rate PASSED       [  8%]
+tests/integration/test_admin.py::test_admin_can_deactivate_rate PASSED   [  9%]
+tests/integration/test_admin.py::test_admin_can_delete_rate PASSED       [  9%]
+tests/integration/test_admin.py::test_update_missing_rate_returns_404 PASSED [ 10%]
+tests/integration/test_admin.py::test_delete_missing_rate_returns_404 PASSED [ 10%]
+tests/integration/test_admin.py::test_create_rate_with_negative_credits_returns_422 PASSED [ 11%]
+tests/integration/test_admin.py::test_create_rate_with_unknown_type_returns_422 PASSED [ 11%]
+tests/integration/test_admin.py::test_admin_can_list_model_rates_via_admin_router PASSED [ 12%]
+tests/integration/test_admin.py::test_create_model_rate_via_admin_router PASSED [ 12%]
+tests/integration/test_admin.py::test_create_model_rate_via_admin_router_requires_type PASSED [ 13%]
+tests/integration/test_admin.py::test_regular_user_cannot_read_admin_routes[/admin/tiers] PASSED [ 13%]
+tests/integration/test_admin.py::test_regular_user_cannot_read_admin_routes[/admin/config] PASSED [ 13%]
+tests/integration/test_admin.py::test_regular_user_cannot_read_admin_routes[/admin/model-rates] PASSED [ 14%]
+tests/integration/test_admin.py::test_regular_user_cannot_read_admin_routes[/admin-rates] PASSED [ 14%]
+tests/integration/test_admin.py::test_regular_user_cannot_read_admin_routes[/admin-rates/available-models] PASSED [ 15%]
+tests/integration/test_admin.py::test_admin_routes_require_a_token[/admin/tiers] PASSED [ 15%]
+tests/integration/test_admin.py::test_admin_routes_require_a_token[/admin/config] PASSED [ 16%]
+tests/integration/test_admin.py::test_admin_routes_require_a_token[/admin/model-rates] PASSED [ 16%]
+tests/integration/test_admin.py::test_admin_routes_require_a_token[/admin-rates] PASSED [ 17%]
+tests/integration/test_admin.py::test_admin_routes_require_a_token[/admin-rates/available-models] PASSED [ 17%]
+tests/integration/test_admin.py::test_regular_user_cannot_create_tier PASSED [ 18%]
+tests/integration/test_admin.py::test_regular_user_cannot_update_config PASSED [ 18%]
+tests/integration/test_admin.py::test_regular_user_cannot_create_rate PASSED [ 19%]
+tests/integration/test_admin.py::test_regular_user_cannot_delete_rate PASSED [ 19%]
+tests/integration/test_admin.py::test_forbidden_config_update_changes_nothing PASSED [ 20%]
+tests/integration/test_annotations.py::test_create_annotation PASSED     [ 20%]
+tests/integration/test_annotations.py::test_create_annotation_starts_unreviewed PASSED [ 20%]
+tests/integration/test_annotations.py::test_create_annotation_lowercases_language PASSED [ 21%]
+tests/integration/test_annotations.py::test_create_annotation_without_comment PASSED [ 21%]
+tests/integration/test_annotations.py::test_create_duplicate_annotation_returns_400 PASSED [ 22%]
+tests/integration/test_annotations.py::test_duplicate_check_is_per_user PASSED [ 22%]
+tests/integration/test_annotations.py::test_create_annotation_for_missing_segment_returns_404 PASSED [ 23%]
+tests/integration/test_annotations.py::test_create_annotation_with_malformed_segment_id_returns_422 PASSED [ 23%]
+tests/integration/test_annotations.py::test_create_annotation_without_language_returns_422 PASSED [ 24%]
+tests/integration/test_annotations.py::test_create_annotation_without_token_returns_401 PASSED [ 24%]
+tests/integration/test_annotations.py::test_admin_can_list_annotations PASSED [ 25%]
+tests/integration/test_annotations.py::test_admin_list_includes_review_context PASSED [ 25%]
+tests/integration/test_annotations.py::test_admin_list_defaults_to_pending_only PASSED [ 26%]
+tests/integration/test_annotations.py::test_admin_list_can_include_reviewed PASSED [ 26%]
+tests/integration/test_annotations.py::test_admin_list_respects_limit PASSED [ 26%]
+tests/integration/test_annotations.py::test_admin_list_rejects_out_of_range_limit PASSED [ 27%]
+tests/integration/test_annotations.py::test_regular_user_cannot_list_annotations PASSED [ 27%]
+tests/integration/test_annotations.py::test_list_annotations_without_token_returns_401 PASSED [ 28%]
+tests/integration/test_annotations.py::test_admin_can_approve_annotation PASSED [ 28%]
+tests/integration/test_annotations.py::test_admin_can_reject_annotation PASSED [ 29%]
+tests/integration/test_annotations.py::test_review_persists PASSED       [ 29%]
+tests/integration/test_annotations.py::test_review_can_be_changed PASSED [ 30%]
+tests/integration/test_annotations.py::test_review_missing_annotation_returns_404 PASSED [ 30%]
+tests/integration/test_annotations.py::test_review_without_decision_returns_422 PASSED [ 31%]
+tests/integration/test_annotations.py::test_regular_user_cannot_review PASSED [ 31%]
+tests/integration/test_annotations.py::test_rejected_review_leaves_annotation_unreviewed PASSED [ 32%]
+tests/integration/test_annotations.py::test_review_without_token_returns_401 PASSED [ 32%]
+tests/integration/test_auth.py::test_signup_creates_user PASSED          [ 33%]
+tests/integration/test_auth.py::test_signup_grants_free_tier_credits PASSED [ 33%]
+tests/integration/test_auth.py::test_signup_with_duplicate_email_returns_400 PASSED [ 33%]
+tests/integration/test_auth.py::test_signup_with_invalid_email_returns_422 PASSED [ 34%]
+tests/integration/test_auth.py::test_signup_with_short_password_returns_422 PASSED [ 34%]
+tests/integration/test_auth.py::test_login_returns_tokens PASSED         [ 35%]
+tests/integration/test_auth.py::test_login_with_wrong_password_returns_401 PASSED [ 35%]
+tests/integration/test_auth.py::test_login_with_unknown_email_returns_401 PASSED [ 36%]
+tests/integration/test_auth.py::test_login_does_not_reveal_whether_email_exists PASSED [ 36%]
+tests/integration/test_auth.py::test_login_for_inactive_user_returns_401 PASSED [ 37%]
+tests/integration/test_auth.py::test_refresh_returns_new_tokens PASSED   [ 37%]
+tests/integration/test_auth.py::test_refreshed_access_token_is_usable PASSED [ 38%]
+tests/integration/test_auth.py::test_refresh_with_malformed_token_returns_401 PASSED [ 38%]
+tests/integration/test_auth.py::test_refresh_rejects_an_access_token PASSED [ 39%]
+tests/integration/test_auth.py::test_refresh_token_cannot_be_used_as_access_token PASSED [ 39%]
+tests/integration/test_auth.py::test_protected_route_without_token_returns_401 PASSED [ 40%]
+tests/integration/test_auth.py::test_protected_route_with_garbage_token_returns_401 PASSED [ 40%]
+tests/integration/test_auth.py::test_expired_access_token_returns_401 PASSED [ 40%]
+tests/integration/test_auth.py::test_token_signed_with_wrong_secret_returns_401 PASSED [ 41%]
+tests/integration/test_classification.py::test_create_job_returns_201_queued PASSED [ 41%]
+tests/integration/test_classification.py::test_create_job_queues_celery_task PASSED [ 42%]
+tests/integration/test_classification.py::test_create_job_persists_input_and_model PASSED [ 42%]
+tests/integration/test_classification.py::test_create_job_is_owned_by_the_caller PASSED [ 43%]
+tests/integration/test_classification.py::test_create_job_accepts_each_valid_strategy[sentence] PASSED [ 43%]
+tests/integration/test_classification.py::test_create_job_accepts_each_valid_strategy[paragraph] PASSED [ 44%]
+tests/integration/test_classification.py::test_create_job_accepts_each_valid_strategy[full_text] PASSED [ 44%]
+tests/integration/test_classification.py::test_create_job_accepts_each_valid_strategy[auto] PASSED [ 45%]
+tests/integration/test_classification.py::test_create_job_with_empty_text_returns_422 PASSED [ 45%]
+tests/integration/test_classification.py::test_create_job_with_missing_text_returns_422 PASSED [ 46%]
+tests/integration/test_classification.py::test_create_job_with_bad_strategy_returns_422 PASSED [ 46%]
+tests/integration/test_classification.py::test_create_job_strategy_is_case_sensitive PASSED [ 46%]
+tests/integration/test_classification.py::test_create_job_rejects_strategy_substring PASSED [ 47%]
+tests/integration/test_classification.py::test_create_job_without_token_returns_401 PASSED [ 47%]
+tests/integration/test_classification.py::test_get_job_while_queued PASSED [ 48%]
+tests/integration/test_classification.py::test_get_completed_job_returns_segments PASSED [ 48%]
+tests/integration/test_classification.py::test_get_completed_job_orders_segments PASSED [ 49%]
+tests/integration/test_classification.py::test_get_job_omits_segments_until_completed PASSED [ 49%]
+tests/integration/test_classification.py::test_get_missing_job_returns_404 PASSED [ 50%]
+tests/integration/test_classification.py::test_get_another_users_job_returns_404 PASSED [ 50%]
+tests/integration/test_classification.py::test_another_users_completed_segments_are_not_readable PASSED [ 51%]
+tests/integration/test_classification.py::test_get_job_with_malformed_id_returns_422 PASSED [ 51%]
+tests/integration/test_classification.py::test_get_job_without_token_returns_401 PASSED [ 52%]
+tests/integration/test_db_integrity.py::test_user_email_is_unique PASSED [ 52%]
+tests/integration/test_db_integrity.py::test_model_rate_name_is_unique PASSED [ 53%]
+tests/integration/test_db_integrity.py::test_user_requires_a_password_hash PASSED [ 53%]
+tests/integration/test_db_integrity.py::test_model_rate_requires_a_type PASSED [ 53%]
+tests/integration/test_db_integrity.py::test_document_requires_a_size PASSED [ 54%]
+tests/integration/test_db_integrity.py::test_document_requires_an_existing_user PASSED [ 54%]
+tests/integration/test_db_integrity.py::test_classification_job_requires_an_existing_user PASSED [ 55%]
+tests/integration/test_db_integrity.py::test_segment_requires_an_existing_job PASSED [ 55%]
+tests/integration/test_db_integrity.py::test_annotation_requires_an_existing_segment PASSED [ 56%]
+tests/integration/test_db_integrity.py::test_document_page_requires_an_existing_document PASSED [ 56%]
+tests/integration/test_db_integrity.py::test_usage_record_requires_an_existing_user PASSED [ 57%]
+tests/integration/test_db_integrity.py::test_usage_record_job_id_is_not_a_foreign_key PASSED [ 57%]
+tests/integration/test_db_integrity.py::test_deleting_a_document_deletes_its_pages PASSED [ 58%]
+tests/integration/test_db_integrity.py::test_deleting_a_job_deletes_its_segments PASSED [ 58%]
+tests/integration/test_db_integrity.py::test_deleting_a_segment_deletes_its_annotations PASSED [ 59%]
+tests/integration/test_db_integrity.py::test_user_with_documents_cannot_be_deleted PASSED [ 59%]
+tests/integration/test_db_integrity.py::test_user_defaults PASSED        [ 60%]
+tests/integration/test_db_integrity.py::test_job_defaults_to_queued PASSED [ 60%]
+tests/integration/test_db_integrity.py::test_annotation_defaults_to_unreviewed PASSED [ 60%]
+tests/integration/test_db_integrity.py::test_enum_columns_round_trip PASSED [ 61%]
+tests/integration/test_db_integrity.py::test_segment_probabilities_round_trip_as_json PASSED [ 61%]
+tests/integration/test_db_integrity.py::test_timestamps_update_on_write PASSED [ 62%]
+tests/integration/test_db_integrity.py::test_numeric_precision_is_preserved PASSED [ 62%]
+tests/integration/test_db_integrity.py::test_system_config_is_keyed_by_string PASSED [ 63%]
+tests/integration/test_db_integrity.py::test_expected_tables_exist PASSED [ 63%]
+tests/integration/test_db_integrity.py::test_completed_at_is_timezone_aware PASSED [ 64%]
+tests/integration/test_documents.py::test_upload_document PASSED         [ 64%]
+tests/integration/test_documents.py::test_upload_sends_file_to_storage PASSED [ 65%]
+tests/integration/test_documents.py::test_upload_queues_ocr_task PASSED  [ 65%]
+tests/integration/test_documents.py::test_upload_rejects_non_pdf PASSED  [ 66%]
+tests/integration/test_documents.py::test_upload_rejects_non_pdf_before_touching_storage PASSED [ 66%]
+tests/integration/test_documents.py::test_upload_accepts_uppercase_pdf_extension PASSED [ 66%]
+tests/integration/test_documents.py::test_upload_returns_500_when_storage_fails PASSED [ 67%]
+tests/integration/test_documents.py::test_upload_without_token_returns_401 PASSED [ 67%]
+tests/integration/test_documents.py::test_errors_use_the_same_envelope_as_other_routers PASSED [ 68%]
+tests/integration/test_documents.py::test_list_documents_empty_for_new_user PASSED [ 68%]
+tests/integration/test_documents.py::test_list_documents_returns_uploads PASSED [ 69%]
+tests/integration/test_documents.py::test_list_documents_excludes_other_users PASSED [ 69%]
+tests/integration/test_documents.py::test_list_documents_without_token_returns_401 PASSED [ 70%]
+tests/integration/test_documents.py::test_get_document PASSED            [ 70%]
+tests/integration/test_documents.py::test_get_missing_document_returns_404 PASSED [ 71%]
+tests/integration/test_documents.py::test_get_another_users_document_returns_404 PASSED [ 71%]
+tests/integration/test_documents.py::test_get_document_with_malformed_id_returns_422 PASSED [ 72%]
+tests/integration/test_documents.py::test_get_document_without_token_returns_401 PASSED [ 72%]
+tests/integration/test_documents.py::test_get_download_url PASSED        [ 73%]
+tests/integration/test_documents.py::test_download_url_returns_500_when_signing_fails PASSED [ 73%]
+tests/integration/test_documents.py::test_download_url_for_another_users_document_returns_404 PASSED [ 73%]
+tests/integration/test_documents.py::test_download_url_without_token_returns_401 PASSED [ 74%]
+tests/integration/test_documents.py::test_get_pages_empty_before_ocr_runs PASSED [ 74%]
+tests/integration/test_documents.py::test_get_pages_returns_pages_in_order PASSED [ 75%]
+tests/integration/test_documents.py::test_get_pages_for_missing_document_returns_404 PASSED [ 75%]
+tests/integration/test_documents.py::test_get_pages_for_another_users_document_returns_404 PASSED [ 76%]
+tests/integration/test_documents.py::test_get_pages_without_token_returns_401 PASSED [ 76%]
+tests/integration/test_documents.py::test_delete_document PASSED         [ 77%]
+tests/integration/test_documents.py::test_deleted_document_is_gone PASSED [ 77%]
+tests/integration/test_documents.py::test_delete_removes_object_from_storage PASSED [ 78%]
+tests/integration/test_documents.py::test_delete_cascades_to_pages PASSED [ 78%]
+tests/integration/test_documents.py::test_delete_missing_document_returns_404 PASSED [ 79%]
+tests/integration/test_documents.py::test_delete_another_users_document_returns_404 PASSED [ 79%]
+tests/integration/test_documents.py::test_delete_without_token_returns_401 PASSED [ 80%]
+tests/integration/test_fixture_smoke.py::test_auth_headers_reach_protected_route PASSED [ 80%]
+tests/integration/test_fixture_smoke.py::test_second_user_is_distinct PASSED [ 80%]
+tests/integration/test_fixture_smoke.py::test_admin_headers_pass_require_admin PASSED [ 81%]
+tests/integration/test_fixture_smoke.py::test_regular_user_forbidden_on_admin_route PASSED [ 81%]
+tests/integration/test_fixture_smoke.py::test_fixtures_are_reusable_across_tests PASSED [ 82%]
+tests/integration/test_integration.py::test_health_endpoint PASSED       [ 82%]
+tests/integration/test_usage.py::test_breakdown_is_empty_for_new_user PASSED [ 83%]
+tests/integration/test_usage.py::test_breakdown_reports_current_balance PASSED [ 83%]
+tests/integration/test_usage.py::test_breakdown_includes_classification_job PASSED [ 84%]
+tests/integration/test_usage.py::test_classification_name_holds_a_text_snippet PASSED [ 84%]
+tests/integration/test_usage.py::test_long_classification_text_is_truncated PASSED [ 85%]
+tests/integration/test_usage.py::test_breakdown_includes_queued_jobs PASSED [ 85%]
+tests/integration/test_usage.py::test_breakdown_includes_document PASSED [ 86%]
+tests/integration/test_usage.py::test_document_without_usage_record_costs_zero PASSED [ 86%]
+tests/integration/test_usage.py::test_ocr_cost_sums_multiple_records PASSED [ 86%]
+tests/integration/test_usage.py::test_non_ocr_records_are_not_counted_as_ocr_cost PASSED [ 87%]
+tests/integration/test_usage.py::test_breakdown_merges_both_activity_types PASSED [ 87%]
+tests/integration/test_usage.py::test_activities_are_sorted_newest_first PASSED [ 88%]
+tests/integration/test_usage.py::test_breakdown_excludes_other_users_activity PASSED [ 88%]
+tests/integration/test_usage.py::test_another_users_ocr_cost_does_not_leak PASSED [ 89%]
+tests/integration/test_usage.py::test_breakdown_without_token_returns_401 PASSED [ 89%]
+tests/integration/test_usage.py::test_breakdown_with_invalid_token_returns_401 PASSED [ 90%]
+tests/integration/test_users.py::test_get_me_returns_current_user PASSED [ 90%]
+tests/integration/test_users.py::test_get_me_never_exposes_password_hash PASSED [ 91%]
+tests/integration/test_users.py::test_get_me_includes_account_usage_fields PASSED [ 91%]
+tests/integration/test_users.py::test_get_me_is_scoped_to_the_token PASSED [ 92%]
+tests/integration/test_users.py::test_update_display_name PASSED         [ 92%]
+tests/integration/test_users.py::test_update_display_name_persists PASSED [ 93%]
+tests/integration/test_users.py::test_update_with_empty_body_leaves_profile_unchanged PASSED [ 93%]
+tests/integration/test_users.py::test_update_password_allows_login_with_new_password PASSED [ 93%]
+tests/integration/test_users.py::test_update_password_invalidates_the_old_password PASSED [ 94%]
+tests/integration/test_users.py::test_update_never_returns_the_new_password PASSED [ 94%]
+tests/integration/test_users.py::test_update_with_short_password_returns_422 PASSED [ 95%]
+tests/integration/test_users.py::test_update_with_overlong_display_name_returns_422 PASSED [ 95%]
+tests/integration/test_users.py::test_update_ignores_privileged_fields PASSED [ 96%]
+tests/integration/test_users.py::test_update_does_not_affect_other_users PASSED [ 96%]
+tests/integration/test_users.py::test_get_me_without_token_returns_401 PASSED [ 97%]
+tests/integration/test_users.py::test_patch_me_without_token_returns_401 PASSED [ 97%]
+tests/integration/test_users.py::test_get_me_with_invalid_token_returns_401 PASSED [ 98%]
+tests/integration/test_users.py::test_patch_me_with_invalid_token_returns_401 PASSED [ 98%]
+tests/integration/test_users.py::test_patch_me_with_refresh_token_returns_401 PASSED [ 99%]
+tests/integration/test_users.py::test_deactivated_user_cannot_read_profile PASSED [ 99%]
+tests/unit/test_unit.py::test_basic_unit PASSED                          [100%]
+
+============================== warnings summary ===============================
+.venv\Lib\site-packages\testcontainers\core\waiting_utils.py:215
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\.venv\Lib\site-packages\testcontainers\core\waiting_utils.py:215: DeprecationWarning: The @wait_container_is_ready decorator is deprecated and will be removed in a future version. Use structured wait strategies instead: container.waiting_for(HttpWaitStrategy(8080).for_status_code(200)) or container.waiting_for(LogMessageWaitStrategy('ready'))
+    @wait_container_is_ready()
+
+.venv\Lib\site-packages\testcontainers\postgres\__init__.py:90
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\.venv\Lib\site-packages\testcontainers\postgres\__init__.py:90: DeprecationWarning: The @wait_container_is_ready decorator is deprecated and will be removed in a future version. Use structured wait strategies instead: container.waiting_for(HttpWaitStrategy(8080).for_status_code(200)) or container.waiting_for(LogMessageWaitStrategy('ready'))
+    @wait_container_is_ready()
+
+.venv\Lib\site-packages\testcontainers\redis\__init__.py:46
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\.venv\Lib\site-packages\testcontainers\redis\__init__.py:46: DeprecationWarning: The @wait_container_is_ready decorator is deprecated and will be removed in a future version. Use structured wait strategies instead: container.waiting_for(HttpWaitStrategy(8080).for_status_code(200)) or container.waiting_for(LogMessageWaitStrategy('ready'))
+    @wait_container_is_ready(redis.exceptions.ConnectionError)
+
+app\schemas\user.py:17
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\app\schemas\user.py:17: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class UserResponse(UserBase):
+
+.venv\Lib\site-packages\joblib\numpy_pickle.py:207
+.venv\Lib\site-packages\joblib\numpy_pickle.py:207
+.venv\Lib\site-packages\joblib\numpy_pickle.py:207
+.venv\Lib\site-packages\joblib\numpy_pickle.py:207
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\.venv\Lib\site-packages\joblib\numpy_pickle.py:207: DeprecationWarning: Setting the shape on a NumPy array has been deprecated in NumPy 2.5.
+  As an alternative, you can create a new view using np.reshape (with copy=False if needed).
+    array.shape = self.shape
+
+.venv\Lib\site-packages\sklearn\base.py:525
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\.venv\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator LogisticRegression from version 1.7.1 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+  https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+    warnings.warn(
+
+.venv\Lib\site-packages\sklearn\base.py:525
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\.venv\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfTransformer from version 1.7.1 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+  https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+    warnings.warn(
+
+.venv\Lib\site-packages\sklearn\base.py:525
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\.venv\Lib\site-packages\sklearn\base.py:525: InconsistentVersionWarning: Trying to unpickle estimator TfidfVectorizer from version 1.7.1 when using version 1.9.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+  https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+    warnings.warn(
+
+app\schemas\annotation.py:14
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\app\schemas\annotation.py:14: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class AnnotationResponse(BaseModel):
+
+app\schemas\annotation.py:29
+  D:\Projects\ML Projects\LangID - DSE project\webapp\backend\app\schemas\annotation.py:29: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class AnnotationAdminResponse(AnnotationResponse):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.12.10-final-0 _______________
+
+Name                                        Stmts   Miss  Cover   Missing
+-------------------------------------------------------------------------
+app\__init__.py                                 0      0   100%
+app\api\__init__.py                             0      0   100%
+app\api\router.py                               4      0   100%
+app\api\v1\__init__.py                         20      0   100%
+app\api\v1\admin.py                            46      2    96%   97-98
+app\api\v1\admin_rates.py                      71      0   100%
+app\api\v1\annotations.py                      58      0   100%
+app\api\v1\auth.py                             24      0   100%
+app\api\v1\classification.py                   55      0   100%
+app\api\v1\documents.py                        75      0   100%
+app\api\v1\usage.py                            46      0   100%
+app\api\v1\users.py                            15      0   100%
+app\api\v1\websockets.py                       32     21    34%   19-51
+app\config.py                                  31      0   100%
+app\db\__init__.py                              0      0   100%
+app\db\base.py                                 16      1    94%   16
+app\db\models\__init__.py                      13      0   100%
+app\db\models\annotation.py                    20      0   100%
+app\db\models\classification_job.py            28      0   100%
+app\db\models\classified_segment.py            18      0   100%
+app\db\models\document.py                      21      0   100%
+app\db\models\document_page.py                 25      0   100%
+app\db\models\model_rate.py                    17      0   100%
+app\db\models\subscription.py                  21      0   100%
+app\db\models\system_config.py                 11      0   100%
+app\db\models\tier.py                          14      0   100%
+app\db\models\usage_record.py                  20      0   100%
+app\db\models\user.py                          19      0   100%
+app\db\session.py                               4      0   100%
+app\dependencies.py                            56     19    66%   41, 48-67
+app\main.py                                    44     11    75%   15-29, 73
+app\ml\__init__.py                              0      0   100%
+app\ml\base.py                                  9      2    78%   20, 33
+app\ml\sklearn_langid.py                       53     29    45%   28, 30, 35-37, 40-48, 51-81
+app\schemas\__init__.py                         0      0   100%
+app\schemas\admin.py                           40      0   100%
+app\schemas\annotation.py                      29      0   100%
+app\schemas\auth.py                            13      0   100%
+app\schemas\document.py                        28      0   100%
+app\schemas\response.py                        11      0   100%
+app\schemas\user.py                            22      0   100%
+app\services\__init__.py                        0      0   100%
+app\services\admin_service.py                  82     12    85%   68-69, 89-100
+app\services\auth_service.py                   40      2    95%   46, 48
+app\services\credit_service.py                 53     53     0%   1-113
+app\services\storage_service.py                50     33    34%   20-23, 27-39, 43-52, 56-66, 70-75
+app\services\user_service.py                   47      1    98%   63
+app\storage\__init__.py                         0      0   100%
+app\utils\__init__.py                           0      0   100%
+app\utils\exceptions.py                        17      0   100%
+app\utils\pdf_extractor.py                     17     17     0%   1-27
+app\utils\redis_client.py                      10      4    60%   20-27
+app\utils\security.py                          22      0   100%
+app\workers\__init__.py                         0      0   100%
+app\workers\celery_app.py                       5      0   100%
+app\workers\tasks\__init__.py                   0      0   100%
+app\workers\tasks\classification_tasks.py      85     68    20%   22-66, 69-141, 145-146
+app\workers\tasks\ocr_tasks.py                 56     46    18%   11-76, 84-90
+-------------------------------------------------------------------------
+TOTAL                                        1513    321    79%
+Coverage HTML written to dir reports/coverage_html
+================= 215 passed, 13 warnings in 90.90s (0:01:30) =================
