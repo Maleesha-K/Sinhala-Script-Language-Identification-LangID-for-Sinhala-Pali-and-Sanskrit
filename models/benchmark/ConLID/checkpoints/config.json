@@ -1,0 +1,10 @@
+{
+  "aggr": "mean",
+  "embedding_size": 256,
+  "num_classes": 2099,
+  "vocab_size": 1119862,
+  "bucket": 1000000,
+  "min_count": 1000,
+  "minn": 2,
+  "maxn": 5
+}

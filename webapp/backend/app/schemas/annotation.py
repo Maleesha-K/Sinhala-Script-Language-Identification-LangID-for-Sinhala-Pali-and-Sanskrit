@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
@@ -23,13 +23,11 @@ class AnnotationResponse(BaseModel):
     created_at: datetime
     reviewed_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AnnotationAdminResponse(AnnotationResponse):
     original_text: str
     predicted_language: str
     user_email: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

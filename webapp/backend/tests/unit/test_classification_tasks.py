@@ -38,6 +38,7 @@ def test_process_classification_job_success():
         )
         
         mock_session = AsyncMock()
+        mock_session.add = MagicMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_job
         mock_session.execute.return_value = mock_result

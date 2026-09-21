@@ -19,8 +19,8 @@ class StorageService:
             if not self.client.bucket_exists(self.bucket_name):
                 self.client.make_bucket(self.bucket_name)
                 print(f"Created MinIO bucket: {self.bucket_name}")
-        except S3Error as e:
-            print(f"MinIO Initialization Error: {e}")
+        except Exception as e:
+            print(f"MinIO Initialization Warning: {e}")
 
     def upload_document(self, object_name: str, data: bytes, content_type: str = "application/pdf"):
         """Uploads a document to MinIO."""
