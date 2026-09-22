@@ -1,0 +1,11 @@
+__label__arb_Arab
+__label__ben_Beng
+__label__deu_Latn
+__label__eng_Latn
+__label__fra_Latn
+__label__hin_Deva
+__label__pli_Sinh
+__label__san_Deva
+__label__san_Sinh
+__label__sin_Sinh
+__label__tam_Taml

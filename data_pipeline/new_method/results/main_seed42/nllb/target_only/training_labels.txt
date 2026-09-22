@@ -1,0 +1,3 @@
+__label__pli_Sinh
+__label__san_Sinh
+__label__sin_Sinh

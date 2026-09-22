@@ -1,0 +1,70 @@
+{
+  "signature": "cb3d691f1b5b5856980e7417c8a91af73ca298122bd47d69ff7f75b32b6a2438",
+  "benchmark_sha256": {
+    "commonlid": "f1bed8a4f19e496ade5a71bedd62825e4dac661f1204751958f764097bc92464",
+    "flores_plus": "de240ee8ac85cb84626228e0f79ec3497d4752053f998ae9f703e5084c6b4cd0",
+    "wili_2018": "5d489ed972bed90a4681f7a4cc769ee1111b43e87f3e4971189b0d8fae6e12ea"
+  },
+  "benchmark_summaries": {
+    "commonlid": {
+      "accuracy": 0.6980241469366785,
+      "macro_f1_11": 0.9183170122873033,
+      "macro_f1_target3": 0.9632578691740514,
+      "macro_f1_replay8": 0.9014641909547728,
+      "outside_11_predictions": 27774,
+      "n_test": 93428,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; ara_Arab mapped to arb_Arab"
+    },
+    "flores_plus": {
+      "accuracy": 0.8854843701640359,
+      "macro_f1_11": 0.9317879314977655,
+      "macro_f1_target3": 0.9642637815195041,
+      "macro_f1_replay8": 0.9196094877396134,
+      "outside_11_predictions": 1649,
+      "n_test": 16155,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; ara_Arab mapped to arb_Arab"
+    },
+    "wili_2018": {
+      "accuracy": 0.9322722429408631,
+      "macro_f1_11": 0.9432997757614128,
+      "macro_f1_target3": 0.9626706022221584,
+      "macro_f1_replay8": 0.9360357158386332,
+      "outside_11_predictions": 710,
+      "n_test": 15016,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; ara_Arab mapped to arb_Arab"
+    }
+  },
+  "base_checkpoint_sha256": {
+    "model.safetensors": "d1776e21354f9cc4a0c0de7c079b904f6ad79423a4ede2d41c525650478ccd8d",
+    "config.json": "cf90f89d242e3c3d94e50b7684db89a24d63c7134c61365e6adfec811bc45ca8",
+    "labels.json": "28d888d9bae9906252a5b29440a21d053b234460b1e97d607033fcbd2ea8ecb1",
+    "vocab.json": "52477bb3a39c01d2a4a51a60911523d0196b9994193784d606220608d6c80883"
+  },
+  "checkpoint_sha256": {
+    "model.safetensors": "c3c1e449268ec4ba5903bf34675f10429f279e42f2d0f26a4c1815716584cce2",
+    "config.json": "83ac92e14e107d34a66d3586f91afb7b2ea0108061add0f912425de400d6a8ba",
+    "labels.json": "7dd39a991eabf677200880e0112ef5b595e3834a3cc8231d0421453e3c169426",
+    "vocab.json": "8c6ffe3af141b18fe38b68f8702e662f5316449b8befa617e055a0fa79f91866"
+  },
+  "training": {
+    "initialization": "D:\\Projects\\ML Projects\\LangID - DSE project\\data_pipeline\\new_method\\results\\main_seed42\\conlid\\initialized",
+    "examples_seen": 180855,
+    "unique_training_rows": 60285,
+    "nominal_passes_over_arm_data": 3.0,
+    "learning_rate": 0.05,
+    "seed": 42,
+    "class_counts": {
+      "sin_Sinh": 26675,
+      "pli_Sinh": 23490,
+      "san_Sinh": 10120
+    },
+    "replay_fraction_in_pool": 0.0,
+    "loss": "cross_entropy over full output space",
+    "selection": "fixed budget; no test-based selection",
+    "seconds": 188.11471128463745
+  },
+  "n_original_labels": 2099,
+  "n_final_labels": 2101,
+  "phase": "target_only",
+  "replay_start": "base"
+}

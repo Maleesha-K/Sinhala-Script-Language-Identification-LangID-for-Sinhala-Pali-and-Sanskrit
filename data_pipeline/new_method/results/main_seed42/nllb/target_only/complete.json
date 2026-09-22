@@ -1,0 +1,60 @@
+{
+  "signature": "257941e4f929a064986310967adf37d17f0a190fca02f98d2577d86845dd0902",
+  "benchmark_sha256": {
+    "commonlid": "f1bed8a4f19e496ade5a71bedd62825e4dac661f1204751958f764097bc92464",
+    "flores_plus": "de240ee8ac85cb84626228e0f79ec3497d4752053f998ae9f703e5084c6b4cd0",
+    "wili_2018": "5d489ed972bed90a4681f7a4cc769ee1111b43e87f3e4971189b0d8fae6e12ea"
+  },
+  "benchmark_summaries": {
+    "commonlid": {
+      "accuracy": 0.9287151603373721,
+      "macro_f1_11": 0.9580600765596443,
+      "macro_f1_target3": 0.9737135059903338,
+      "macro_f1_replay8": 0.9521900405231357,
+      "outside_11_predictions": 5483,
+      "n_test": 93428,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; ara_Arab mapped to arb_Arab"
+    },
+    "flores_plus": {
+      "accuracy": 0.9344475394614671,
+      "macro_f1_11": 0.9670284881264017,
+      "macro_f1_target3": 0.9961583082449187,
+      "macro_f1_replay8": 0.9561048055819579,
+      "outside_11_predictions": 1019,
+      "n_test": 16155,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; ara_Arab mapped to arb_Arab"
+    },
+    "wili_2018": {
+      "accuracy": 0.9851491742141716,
+      "macro_f1_11": 0.9844698665440789,
+      "macro_f1_target3": 0.9944858708396068,
+      "macro_f1_replay8": 0.9807138649332559,
+      "outside_11_predictions": 74,
+      "n_test": 15016,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; ara_Arab mapped to arb_Arab"
+    }
+  },
+  "base_checkpoint_sha256": "8ded5749a2ad79ae9ab7c9190c7c8b97ff20d54ad8b9527ffa50107238fc7f6a",
+  "checkpoint_sha256": "6f298ea21a4c98f609b5bdc8727d439488e5952b1b942254ef3b604185757ca0",
+  "training": {
+    "initialization": "D:\\Projects\\ML Projects\\LangID - DSE project\\data_pipeline\\new_method\\results\\main_seed42\\nllb\\initialized\\model.bin",
+    "examples_seen": 180855,
+    "unique_training_rows": 60285,
+    "nominal_passes_over_arm_data": 3.0,
+    "learning_rate": 0.05,
+    "seed": 42,
+    "class_counts": {
+      "sin_Sinh": 26675,
+      "pli_Sinh": 23490,
+      "san_Sinh": 10120
+    },
+    "replay_fraction_in_pool": 0.0,
+    "loss": "cross_entropy over full output space",
+    "selection": "fixed budget; no test-based selection",
+    "seconds": 69.24548602104187
+  },
+  "n_original_labels": 218,
+  "n_final_labels": 220,
+  "phase": "target_only",
+  "replay_start": "base"
+}

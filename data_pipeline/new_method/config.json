@@ -1,0 +1,56 @@
+{
+  "data": {
+    "train": "data/train.csv",
+    "validation": "data/val.csv",
+    "target_test": "data/test.csv",
+    "mixed_train": "data/train_mixed_11groups.jsonl",
+    "mixed_validation": "data/val_mixed_11groups.jsonl",
+    "benchmarks": {
+      "commonlid": "data/preprocessed/commonlid.jsonl",
+      "flores_plus": "data/preprocessed/flores_plus.jsonl",
+      "wili_2018": "data/preprocessed/wili-2018.jsonl"
+    },
+    "dataset_report": "data/dataset_11groups_report.json"
+  },
+  "columns": {
+    "text": "text",
+    "label": "label",
+    "group": "group",
+    "doc_id": "group_id"
+  },
+  "normalization": "NFC",
+  "require_document_ids": false,
+  "strict_script_check": false,
+  "label_aliases": {},
+  "output_dir": "results/main_seed42",
+  "seed": 42,
+  "target_passes": 3,
+  "replay_start": "base",
+  "device": "auto",
+  "conlid_batch_size": 32,
+  "models": {
+    "nllb": {
+      "repo_id": "facebook/fasttext-language-identification",
+      "filename": "model.bin",
+      "revision": null,
+      "local_path": null,
+      "lr": 0.05,
+      "existing_zero_predictions": null
+    },
+    "glotlid": {
+      "repo_id": "cis-lmu/glotlid",
+      "filename": "model_v3.bin",
+      "revision": null,
+      "local_path": null,
+      "lr": 0.05,
+      "existing_zero_predictions": null
+    },
+    "conlid": {
+      "repo_id": "epfl-nlp/ConLID",
+      "revision": null,
+      "local_path": null,
+      "lr": 0.05,
+      "existing_zero_predictions": null
+    }
+  }
+}
