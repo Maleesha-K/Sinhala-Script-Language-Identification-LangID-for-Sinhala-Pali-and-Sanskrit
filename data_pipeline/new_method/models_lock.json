@@ -1,0 +1,26 @@
+{
+  "nllb": {
+    "request": {
+      "repo_id": "facebook/fasttext-language-identification",
+      "revision": null,
+      "filename": "model.bin"
+    },
+    "resolved_revision": "3af127d4124fc58b75666f3594bb5143b9757e78"
+  },
+  "glotlid": {
+    "request": {
+      "repo_id": "cis-lmu/glotlid",
+      "revision": null,
+      "filename": "model_v3.bin"
+    },
+    "resolved_revision": "85cd6716494360367b75f642b5bc78667605d0b4"
+  },
+  "conlid": {
+    "request": {
+      "repo_id": "epfl-nlp/ConLID",
+      "revision": null,
+      "filename": null
+    },
+    "resolved_revision": "bb370277ea6ebb4f801868db5a4d3dbb3f2e7fd6"
+  }
+}

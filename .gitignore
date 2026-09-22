@@ -9,3 +9,11 @@ data/processed/
 .ipynb_checkpoints/
 .venv/
 third_party/
+
+# Large ML artifacts: regenerable, kept out of git
+*.safetensors
+*.ftz
+data_pipeline/new_method/data/
+data_pipeline/new_method/bin/
+data_pipeline/new_method/results/**/predictions.csv
+data_pipeline/new_method/results/**/evaluation_index_*.csv
