@@ -22,7 +22,7 @@
   "require_document_ids": false,
   "strict_script_check": false,
   "label_aliases": {},
-  "output_dir": "results/main_seed42",
+  "output_dir": "results/main_seed42_arbonly",
   "seed": 42,
   "target_passes": 3,
   "replay_start": "base",
@@ -52,5 +52,10 @@
       "lr": 0.05,
       "existing_zero_predictions": null
     }
+  },
+  "benchmark_absent_categories": {
+    "wili_2018": [
+      "arb_Arab"
+    ]
   }
 }

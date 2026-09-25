@@ -1,0 +1,47 @@
+{
+  "signature": "ef042182063a86f3f755650772f8135ee50a0c17d427e72172d00885d58f72d9",
+  "benchmark_sha256": {
+    "commonlid": "f1bed8a4f19e496ade5a71bedd62825e4dac661f1204751958f764097bc92464",
+    "flores_plus": "de240ee8ac85cb84626228e0f79ec3497d4752053f998ae9f703e5084c6b4cd0",
+    "wili_2018": "5d489ed972bed90a4681f7a4cc769ee1111b43e87f3e4971189b0d8fae6e12ea"
+  },
+  "benchmark_summaries": {
+    "commonlid": {
+      "accuracy": 0.8519688679972258,
+      "macro_f1_11": 0.7444789592239336,
+      "macro_f1_target3": 0.18168634762792624,
+      "macro_f1_replay8": 0.9555261885724363,
+      "categories_scored": 11,
+      "outside_11_predictions": 6826,
+      "n_test": 77862,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    },
+    "flores_plus": {
+      "accuracy": 0.6981455817329901,
+      "macro_f1_11": 0.7686840176457678,
+      "macro_f1_target3": 0.18168634762792624,
+      "macro_f1_replay8": 0.9888081439024581,
+      "categories_scored": 11,
+      "outside_11_predictions": 230,
+      "n_test": 15153,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    },
+    "wili_2018": {
+      "accuracy": 0.6603410144824142,
+      "macro_f1_11": 0.7302870328846885,
+      "macro_f1_target3": 0.18168634762792624,
+      "macro_f1_replay8": 0.9654016122804437,
+      "categories_scored": 10,
+      "outside_11_predictions": 288,
+      "n_test": 14017,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    }
+  },
+  "base_checkpoint_sha256": "a818b6bd42a628ab47d3dfc1578c7ea615c45381f3494c42535e31e8c4cafc9e",
+  "checkpoint_sha256": "a818b6bd42a628ab47d3dfc1578c7ea615c45381f3494c42535e31e8c4cafc9e",
+  "training": null,
+  "n_original_labels": 2102,
+  "n_final_labels": 2102,
+  "phase": "zero_shot",
+  "replay_start": "base"
+}

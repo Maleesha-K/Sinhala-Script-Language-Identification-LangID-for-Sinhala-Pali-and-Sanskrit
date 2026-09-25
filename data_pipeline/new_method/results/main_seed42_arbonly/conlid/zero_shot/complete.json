@@ -1,0 +1,57 @@
+{
+  "signature": "7324fba460668080a5f9eb8e9eec225ff3cb4fa0119bddc7d93d235c7f3bdae3",
+  "benchmark_sha256": {
+    "commonlid": "f1bed8a4f19e496ade5a71bedd62825e4dac661f1204751958f764097bc92464",
+    "flores_plus": "de240ee8ac85cb84626228e0f79ec3497d4752053f998ae9f703e5084c6b4cd0",
+    "wili_2018": "5d489ed972bed90a4681f7a4cc769ee1111b43e87f3e4971189b0d8fae6e12ea"
+  },
+  "benchmark_summaries": {
+    "commonlid": {
+      "accuracy": 0.6940998176260563,
+      "macro_f1_11": 0.7103917982075832,
+      "macro_f1_target3": 0.18364569155062296,
+      "macro_f1_replay8": 0.9079215882039433,
+      "categories_scored": 11,
+      "outside_11_predictions": 19376,
+      "n_test": 77862,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    },
+    "flores_plus": {
+      "accuracy": 0.670560285092061,
+      "macro_f1_11": 0.7422323879873851,
+      "macro_f1_target3": 0.18364569155062296,
+      "macro_f1_replay8": 0.9517023991511708,
+      "categories_scored": 11,
+      "outside_11_predictions": 759,
+      "n_test": 15153,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    },
+    "wili_2018": {
+      "accuracy": 0.6668331311978312,
+      "macro_f1_11": 0.7374907570228849,
+      "macro_f1_target3": 0.18364569155062296,
+      "macro_f1_replay8": 0.9748529279395685,
+      "categories_scored": 10,
+      "outside_11_predictions": 335,
+      "n_test": 14017,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    }
+  },
+  "base_checkpoint_sha256": {
+    "model.safetensors": "d1776e21354f9cc4a0c0de7c079b904f6ad79423a4ede2d41c525650478ccd8d",
+    "config.json": "cf90f89d242e3c3d94e50b7684db89a24d63c7134c61365e6adfec811bc45ca8",
+    "labels.json": "28d888d9bae9906252a5b29440a21d053b234460b1e97d607033fcbd2ea8ecb1",
+    "vocab.json": "52477bb3a39c01d2a4a51a60911523d0196b9994193784d606220608d6c80883"
+  },
+  "checkpoint_sha256": {
+    "model.safetensors": "d1776e21354f9cc4a0c0de7c079b904f6ad79423a4ede2d41c525650478ccd8d",
+    "config.json": "cf90f89d242e3c3d94e50b7684db89a24d63c7134c61365e6adfec811bc45ca8",
+    "labels.json": "28d888d9bae9906252a5b29440a21d053b234460b1e97d607033fcbd2ea8ecb1",
+    "vocab.json": "52477bb3a39c01d2a4a51a60911523d0196b9994193784d606220608d6c80883"
+  },
+  "training": null,
+  "n_original_labels": 2099,
+  "n_final_labels": 2099,
+  "phase": "zero_shot",
+  "replay_start": "base"
+}

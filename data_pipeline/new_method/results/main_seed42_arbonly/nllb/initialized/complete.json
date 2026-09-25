@@ -1,0 +1,47 @@
+{
+  "signature": "96ef8bb1d3af900c483c17d9764013c5e33699932f17e6c96af0fb3ad7ae7f19",
+  "benchmark_sha256": {
+    "commonlid": "f1bed8a4f19e496ade5a71bedd62825e4dac661f1204751958f764097bc92464",
+    "flores_plus": "de240ee8ac85cb84626228e0f79ec3497d4752053f998ae9f703e5084c6b4cd0",
+    "wili_2018": "5d489ed972bed90a4681f7a4cc769ee1111b43e87f3e4971189b0d8fae6e12ea"
+  },
+  "benchmark_summaries": {
+    "commonlid": {
+      "accuracy": 0.877976419819681,
+      "macro_f1_11": 0.7446262157525126,
+      "macro_f1_target3": 0.1813857290589452,
+      "macro_f1_replay8": 0.9558413982626005,
+      "categories_scored": 11,
+      "outside_11_predictions": 4285,
+      "n_test": 77862,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    },
+    "flores_plus": {
+      "accuracy": 0.7062627862469478,
+      "macro_f1_11": 0.7728992847848243,
+      "macro_f1_target3": 0.1813857290589452,
+      "macro_f1_replay8": 0.9947168681820289,
+      "categories_scored": 11,
+      "outside_11_predictions": 54,
+      "n_test": 15153,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    },
+    "wili_2018": {
+      "accuracy": 0.6711136477134908,
+      "macro_f1_11": 0.7378065719230583,
+      "macro_f1_target3": 0.1813857290589452,
+      "macro_f1_replay8": 0.9762726474362496,
+      "categories_scored": 10,
+      "outside_11_predictions": 110,
+      "n_test": 14017,
+      "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+    }
+  },
+  "base_checkpoint_sha256": "8ded5749a2ad79ae9ab7c9190c7c8b97ff20d54ad8b9527ffa50107238fc7f6a",
+  "checkpoint_sha256": "569db16cfdd810fd39950374cfd3887603af6bb31670df4417e67300f2c9c594",
+  "training": null,
+  "n_original_labels": 218,
+  "n_final_labels": 220,
+  "phase": "initialized",
+  "replay_start": "base"
+}

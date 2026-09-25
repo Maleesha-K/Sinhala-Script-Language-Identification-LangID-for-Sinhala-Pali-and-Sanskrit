@@ -13,7 +13,7 @@ ALIASES={'si':'sin_Sinh','sin':'sin_Sinh','sinhala':'sin_Sinh',
          'en':'eng_Latn','eng':'eng_Latn','ta':'tam_Taml','tam':'tam_Taml',
          'hi':'hin_Deva','hin':'hin_Deva','bn':'ben_Beng','ben':'ben_Beng',
          'ar':'arb_Arab','arb':'arb_Arab','fr':'fra_Latn','fra':'fra_Latn',
-         'de':'deu_Latn','deu':'deu_Latn','ara':'arb_Arab','ara_Arab':'arb_Arab',
+         'de':'deu_Latn','deu':'deu_Latn','arb_Arab':'arb_Arab',
          'Sinhala-Sinh':'sin_Sinh','Pali-Sinh':'pli_Sinh',
          'Sanskrit-Sinh':'san_Sinh','Sanskrit-Deva':'san_Deva',
          'English-Latn':'eng_Latn','Tamil-Taml':'tam_Taml',
@@ -99,6 +99,11 @@ def read_benchmark(c,name,relative_path):
             has_sinh=any(0x0D80<=ord(ch)<=0x0DFF for ch in text)
             has_deva=any(0x0900<=ord(ch)<=0x097F for ch in text)
             mapped='san_Sinh' if has_sinh else 'san_Deva' if has_deva else mapped
+        # FLORES+ tags romanized Arabic as `arb` too; arb_Arab is Arabic script only.
+        if mapped=='arb_Arab' and not any(0x0600<=ord(ch)<=0x06FF or 0x0750<=ord(ch)<=0x077F
+                                          or 0xFB50<=ord(ch)<=0xFDFF or 0xFE70<=ord(ch)<=0xFEFF
+                                          for ch in text):
+            continue
         if mapped in LANGUAGES:
             if not text: empty_selected_removed+=1
             else: rows.append((original_index,text,mapped))
@@ -113,8 +118,17 @@ def read_benchmark(c,name,relative_path):
     out=out.drop_duplicates('text_sha256',keep='first').copy()
     duplicates_removed=before-len(out)
     got=set(out.label)
-    if got!=set(LANGUAGES):
-        raise ValueError(f'{path.name}: expected all eleven groups after ambiguity cleaning; missing {set(LANGUAGES)-got}')
+    # A benchmark may legitimately lack a category: WiLI-2018 carries only the
+    # `ara` macrolanguage, so it has no Modern Standard Arabic rows once
+    # arb_Arab is restricted to `arb`. Such cases must be declared in
+    # config['benchmark_absent_categories'][name]; anything else still aborts,
+    # because a silently vanishing category is normally an alias/script bug.
+    allowed=set((c.get('benchmark_absent_categories') or {}).get(name,[]))
+    missing=set(LANGUAGES)-got
+    if missing-allowed:
+        raise ValueError(f'{path.name}: expected all eleven groups after ambiguity cleaning; missing {missing-allowed}')
+    if missing:
+        print(f'{path.name}: NOTE {sorted(missing)} absent by declaration; scored over {len(got)} categories')
     out['sample_id']=[f'benchmark:{name}:{i}:{h[:16]}' for i,h in zip(out.original_index,out.text_sha256)]
     cleaning={'same_label_duplicates_removed':duplicates_removed,
               'conflicting_text_types_removed':len(conflicts),
