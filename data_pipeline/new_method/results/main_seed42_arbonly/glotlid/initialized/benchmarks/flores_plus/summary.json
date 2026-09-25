@@ -1,0 +1,10 @@
+{
+  "accuracy": 0.6981455817329901,
+  "macro_f1_11": 0.7686840176457678,
+  "macro_f1_target3": 0.18168634762792624,
+  "macro_f1_replay8": 0.9888081439024581,
+  "categories_scored": 11,
+  "outside_11_predictions": 230,
+  "n_test": 15153,
+  "scope": "unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)"
+}

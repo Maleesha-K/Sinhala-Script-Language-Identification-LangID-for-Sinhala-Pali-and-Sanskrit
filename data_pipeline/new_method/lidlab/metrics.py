@@ -31,8 +31,9 @@ def evaluate(df,raw,probs,out,aliases=None):
        'macro_f1_11':float(scores.f1.mean()),
        'macro_f1_target3':float(scores.loc[scores.language.isin(TARGET),'f1'].mean()),
        'macro_f1_replay8':float(scores.loc[scores.language.isin(REPLAY),'f1'].mean()),
+       'categories_scored':int(scores.f1.notna().sum()),
        'outside_11_predictions':sum(s not in LANGUAGES for s in pred),
-       'n_test':len(df),'scope':'unrestricted full-model top-1; no threshold; strict script tags; ara_Arab mapped to arb_Arab'}
+       'n_test':len(df),'scope':'unrestricted full-model top-1; no threshold; strict script tags; arb_Arab means Modern Standard Arabic only (ara macrolanguage NOT mapped in)'}
     (out/'summary.json').write_text(json.dumps(summary,indent=2),encoding='utf8')
     pd.crosstab(pd.Series(df.label.to_list(),name='gold'),pd.Series(pred,name='predicted')).to_csv(out/'confusion.csv')
     return scores,summary
