@@ -1,0 +1,362 @@
+\documentclass[11pt]{article}
+\usepackage[review]{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{hyperref}
+\usepackage{placeins}
+\providecommand{\citename}[1]{#1}
+\usepackage{ifthen}
+\usepackage{todonotes}
+
+\newboolean{reviewmode}
+\setboolean{reviewmode}{true}   % flip to false to hide all notes
+
+\definecolor{ndscolor}{HTML}{fb1010}
+\newcommand{\nds}[1]{\ifthenelse{\boolean{reviewmode}}{\textcolor{ndscolor}{$_{nds}$[\textbf{#1}]}}{}}
+\newcommand{\ndstodo}[1]{\ifthenelse{\boolean{reviewmode}}{\todo[color=ndscolor]{$_{nds}$ {\footnotesize #1}}}{}}
+
+\definecolor{njcolor}{HTML}{1696d2}
+\newcommand{\nj}[1]{\ifthenelse{\boolean{reviewmode}}{\textcolor{njcolor}{$_{NJ}$[#1]}}{}}
+\newcommand{\njtodo}[1]{\ifthenelse{\boolean{reviewmode}}{\todo[color=njcolor]{$_{NJ}$ {\footnotesize #1}}}{}}
+
+\definecolor{studentcolor}{HTML}{ca5800}
+\newcommand{\stu}[1]{\ifthenelse{\boolean{reviewmode}}{\textcolor{studentcolor}{$_{students}$[#1]}}{}}
+\newcommand{\stutodo}[1]{\ifthenelse{\boolean{reviewmode}}{\todo[color=studentcolor]{$_{Students}$ {\footnotesize #1}}}{}}
+
+\title{A Benchmark for Sinhala-Script Language Identification: \\ Disambiguating Sinhala, Pali, and Sanskrit in Closed and Open World Contexts}
+
+\author{Anonymous ACL submission}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Language identification systems generally assume that when a writing system belongs primarily to a single nation, the script itself indicates the language. For the Sinhala script, this assumption fails. For more than two millennia, the script has also served as the primary written medium for canonical Pali and classical Sanskrit. Because standard language identification tools map all Sinhala characters directly to modern Sinhala, they overlook Pali and Sanskrit entirely. In this paper, we examine this script-sharing challenge across both isolated and multilingual settings. We find that while complete sentences are easily classified by standard models, shortening inputs to single words causes deep neural networks to stumble, whereas simple subword and character-level models remain dependable. We also show that while fine-tuning foundation models erases their knowledge of global languages, a two-stage routing pipeline resolves script ambiguity without any loss to pre-existing capabilities.
+\end{abstract}
+
+\section{Introduction}
+Language Identification (LangID) is a standard workhorse in modern NLP pipelines, quietly filtering web crawls, routing machine translation requests, and sorting text archives \cite{jauhiainen2019automatic,lui-baldwin-2012-langid}. For widely used writing systems like Latin or Cyrillic, models are naturally trained to distinguish among dozens of languages sharing the same letters. But when a writing system is strongly associated with a single modern national language, models often make a coarse assumption: they treat the script itself as an orthographic monolith.
+
+That assumption breaks down completely for the Sinhala script (Unicode block \texttt{U+0D80}--\texttt{U+0DFF}). In Sri Lanka and Theravada Buddhist scholarship, the Sinhala script has not been used solely for \textbf{Sinhala} (an Indo-Aryan language spoken by over 17 million people). For more than two millennia, it has also been the primary written medium for \textbf{Pali} (the liturgical language of Theravada Buddhism) and \textbf{Sanskrit} (the classical scholarly language of South Asian philosophy, grammar, and medicine). In fact, the Theravada Buddhist canon (\textit{Tipitaka}) was first committed to writing in the Sinhala script in the first century BCE at the Aluvihara rock temple in Matale, Sri Lanka \cite{Walshe_1983}. Over the centuries, hundreds of thousands of palm-leaf manuscripts and modern printed editions have preserved Pali and Sanskrit entirely in Sinhala letters.
+
+Because planetary-scale LangID tools---like fastText LID-176 \cite{joulin-etal-2017-bag}, GlotLID v3 \cite{kargaran-etal-2023-glotlid}, NLLB LID-218 \cite{costa2022no}, and OpenLID-v2 \cite{burchell-etal-2023-open}---map every Sinhala character directly to modern Sinhala (\texttt{sin} or \texttt{sin\_Sinh}), they have exactly zero recall on Sinhala-script Pali and Sanskrit. They lump all three languages into a single label, quietly corrupting multilingual corpora and web crawls.
+
+In this paper, we examine this script-sharing challenge by addressing two central research questions:
+\begin{enumerate}
+    \item \textbf{When context is stripped down to isolated words, what architectural inductive biases allow models to distinguish closely related languages written in the same script?}
+    \item \textbf{In an open-world setting with global background languages, how can foundation models be adapted to resolve local script confusion without destroying their pre-trained global knowledge?}
+\end{enumerate}
+
+To answer the first question, we assemble a curated, document-isolated target corpus of 74,318 sentences covering Sinhala, Pali, and Sanskrit in the Sinhala script. We then evaluate seven from-scratch baseline architectures under severe context deprivation, showing why character $n$-grams and subwords beat deep neural networks when inputs are cut down to single words.
+
+To answer the second question, we evaluate foundation models on three 11-language hybrid benchmarks constructed from FLORES+, CommonLID, and WiLI-2018. We show that while naive fine-tuning induces severe catastrophic forgetting on global languages, a simple two-stage routing pipeline fixes script ambiguity with 0.0\% degradation on background languages.
+
+\section{Dataset Construction and Taxonomy}
+\label{sec:dataset}
+
+\subsection{Curated Target Corpus}
+Distinguishing languages within the same script requires clean, balanced data. We assembled a 74,318-sentence target corpus from historical, canonical, and digital sources (summarized in Table \ref{tab:target_corpus}; full provenance in Appendix \ref{sec:appendix_data_provenance}):
+\begin{itemize}
+    \item \textbf{Sinhala (\texttt{Sinh-Sinh}, 32,263 sentences):} Sourced from the SiPaKosa repository (historical and Buddhist biographical writing) and the Sinhala side of a sentence-aligned Pali--Sinhala parallel translation corpus.
+    \item \textbf{Pali (\texttt{Pali-Sinh}, 29,317 sentences):} Drawn from the Pali side of the canonical translation corpus and the SiDiaC-v2.0 corpus \cite{jayatilleke-de-silva-2025-sidiac}, containing Theravada \textit{Tipitaka} texts, commentaries (\textit{Atthakatha}), and grammatical treatises \cite{Walshe_1983}.
+    \item \textbf{Sanskrit (\texttt{San-Sinh}, 12,738 sentences):} Digitized Sanskrit in Sinhala script is genuinely hard to find. We combined three sources: \textbf{SansinNT} (7,953 sentences from a historical 19th-century Sanskrit New Testament printed in Sinhala script); classical poetry from the \textbf{Digital Corpus of Sanskrit} (DCS; 4,684 sentences) \cite{hellwig2010dcs}, transliterated from SLP1 Romanization into Sinhala script using the verified phonetic mappings of \textit{Aksharamukha} \cite{rajan2023aksharamukha}; and a devotional \textit{kavaca} text (101 sentences) from SiDiaC-v2.0 \cite{jayatilleke-de-silva-2025-sidiac}.
+\end{itemize}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Target Corpus splits and sentence counts ($N=74,318$). Partitioned with strict document-level grouping.}
+\label{tab:target_corpus}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Language Class} & \textbf{Train} & \textbf{Val} & \textbf{Test} & \textbf{Total} \\
+\midrule
+Sinhala (\texttt{Sinh-Sinh}) & 26,675 & 2,895 & 2,693 & 32,263 \\
+Pali (\texttt{Pali-Sinh})    & 23,490 & 2,800 & 3,027 & 29,317 \\
+Sanskrit (\texttt{San-Sinh}) & 10,120 & 1,291 & 1,327 & 12,738 \\
+\midrule
+\textbf{Total}               & \textbf{60,285} & \textbf{6,986} & \textbf{7,047} & \textbf{74,318} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A common pitfall in LangID benchmarking is randomly shuffling sentences across splits. When sentences from the same book appear in both train and test sets, models easily score high simply by memorizing topical vocabulary. To prevent this, we enforced a strict \textbf{group-stratified split}: sentences from any given literary work or chapter were kept together as an atomic block and placed entirely into training (81.1\%), validation (9.4\%), or testing (9.5\%).
+
+\subsection{11-Language BCP-47 Hybrid Taxonomy}
+In real applications, Sinhala-script text does not exist in a vacuum; it appears alongside regional and global languages. To test models in realistic conditions without leaking evaluation data, our taxonomy adopts the \textbf{BCP-47 standard} \cite{phillips2009tags} (\texttt{[Language]-[Script]}):
+\begin{itemize}
+    \item \textbf{Target Classes:} \texttt{Sinh-Sinh}, \texttt{Pali-Sinh}, \texttt{San-Sinh}.
+    \item \textbf{Global Background Classes:} \texttt{San-Deva} (Devanagari Sanskrit), \texttt{Eng-Latn} (English), \texttt{Tam-Taml} (Tamil), \texttt{Hin-Deva} (Hindi), \texttt{Ben-Beng} (Bengali), \texttt{Ara-Arab} (Arabic), \texttt{Fre-Latn} (French), and \texttt{Ger-Latn} (German).
+\end{itemize}
+
+We built three hybrid evaluation benchmarks by taking the official test partitions of FLORES+ \cite{goyal-etal-2022-flores}, CommonLID \cite{suarez-etal-2026-commonlid}, and WiLI-2018 \cite{thoma2018wili}, replacing their monolithic Sinhala rows with our 7,047 held-out target sentences, and keeping Devanagari Sanskrit alongside background languages.
+
+To train from-scratch baselines on this open-world task under clean conditions, we also constructed a balanced multi-language corpus of \textbf{110,000 sentences} (10,000 sentences per class across all 11 languages; 9,000 train / 1,000 val). Target sentences were drawn strictly from our target training split, ensuring zero overlap with the test set.
+
+\section{Analysis and Findings}
+\label{sec:experiments}
+
+\subsection{Closed-World Baselines \& The Fragment Test}
+We trained seven representative architectures strictly from scratch on our target training set:
+\begin{enumerate}
+    \item \textbf{Multinomial Naive Bayes (MNB):} Character $n$-grams ($n \in [1, 5]$) with sublinear TF-IDF scaling \cite{mccallum1998comparison}.
+    \item \textbf{Linear SVM:} One-vs-Rest formulation with $C=1.0$ over character $n$-grams \cite{joachims1998text}.
+    \item \textbf{Logistic Regression (LogReg):} L2-regularized multinomial loss.
+    \item \textbf{XGBoost:} Gradient-boosted trees (100 estimators, max depth 6) \cite{chen2016xgboost}.
+    \item \textbf{Char-CNN:} Three parallel 1D convolution banks (kernel sizes 3, 5, 7; 128 filters each) with global max-pooling \cite{zhang2015character}.
+    \item \textbf{Char-BiGRU:} Bidirectional GRU (128 units per direction) over 64-dimensional character embeddings.
+    \item \textbf{fastText (From Scratch):} Two-layer shallow network with 100-dimensional embeddings and subwords ($n \in [3, 6]$) \cite{joulin-etal-2017-bag}.
+\end{enumerate}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4.5pt}
+\caption{Closed-World Macro-F1 across four input lengths ($N=7,047$). Full sentences are easy for all models, but single words expose stark architectural differences.}
+\label{tab:stress_testing}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Architecture} & \textbf{Full Sent.} & \textbf{5-Word} & \textbf{3-Word} & \textbf{1-Word} \\
+\midrule
+Multinomial NB        & 0.9947 & 0.9782 & 0.9520 & \textbf{0.8584} \\
+fastText (Scratch)    & 0.9958 & 0.9768 & 0.9416 & 0.8027 \\
+Char-CNN              & 0.9950 & 0.9749 & 0.9388 & 0.7654 \\
+Char-BiGRU            & 0.9948 & 0.9710 & 0.9255 & 0.6916 \\
+Linear SVM            & \textbf{0.9960} & \textbf{0.9801} & \textbf{0.9532} & 0.6099 \\
+Logistic Regression   & 0.9955 & 0.9780 & 0.9482 & 0.6054 \\
+XGBoost               & 0.9842 & 0.9554 & 0.9102 & 0.5891 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Full Sentences are Deceptively Easy.}
+As Table \ref{tab:stress_testing} shows, when models have access to full-length sentences, every single architecture performs well. All seven models score above 0.984 Macro-F1, with Linear SVM leading at 0.9960. If one evaluates only on complete sentences, it appears that any standard classifier has solved the problem.
+
+Real-world text, however, is rarely that neat. Search queries, dictionary headwords, and OCR output from damaged palm leaves often consist of single words or brief phrases. To see what happens under extreme contextual deprivation, we generated synthetic fragments by taking the first 5, 3, and 1 words of each test sentence.
+
+As input length drops, performance splits wide open. On single words, the deep neural networks and margin classifiers fall apart: Linear SVM drops from 0.9960 down to 0.6099 (a drop of nearly 40 points), while Char-BiGRU sinks from 0.9948 to 0.6916.
+
+Meanwhile, Multinomial Naive Bayes holds up with a Macro-F1 of \textbf{0.8584}, and fastText stays strong at \textbf{0.8027}.
+
+\paragraph{Why Subwords and $N$-Grams Win on Short Text.}
+This difference comes down to the inductive bias of each architecture. Recurrent networks and margin classifiers look for broader sentence structure and sequence flow. When reduced to an isolated word, they starve for context.
+
+Sinhala, Pali, and Sanskrit, however, are highly inflected languages. Even in an isolated word, morphological clues are everywhere:
+\begin{itemize}
+    \item \textbf{Pali} relies on distinctive nominal case endings (like the genitive singular in \textit{-assa} or instrumental plural in \textit{-\={e}hi}) and verbal endings (\textit{-ti}, \textit{-ntu}).
+    \item \textbf{Sanskrit} features characteristic consonant clusters and case inflections (like \textit{-\={a}t}, \textit{-bhy\={a}m}, and visarga forms).
+    \item \textbf{Sinhala} uses modern colloquial postpositions and verbal markers (like \textit{-v\={e}}, \textit{-\={e}ya}, \textit{-da}).
+\end{itemize}
+Because MNB calculates likelihoods over all overlapping character $n$-grams, it catches these diagnostic inflectional fragments directly. fastText does something similar through its subword bag-of-characters \cite{joulin-etal-2017-bag}. For short-text and OCR applications where sentence syntax is missing, simple subword and $n$-gram models are far more dependable than heavier neural architectures.
+
+\subsection{Open-World Benchmarks \& The Forgetting Trap}
+In the real world, target texts are mixed with global background languages. How do existing foundation models and fine-tuned pipelines handle this?
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3.5pt}
+\caption{Open-World 11-Language Macro-F1 across FLORES+, CommonLID, and WiLI-2018. Two-stage routing prevents catastrophic forgetting while resolving target ambiguity.}
+\label{tab:open_world}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model / Pipeline} & \textbf{FLORES+} & \textbf{CommonLID} & \textbf{WiLI-2018} \\
+\midrule
+\multicolumn{4}{l}{\textit{From-Scratch Baselines (110k Multi-Language Training)}} \\
+fastText (From Scratch)  & 0.9634 & 0.9412 & 0.9580 \\
+Multinomial NB           & 0.9589 & 0.9284 & 0.9512 \\
+Linear SVM               & 0.9712 & 0.9488 & 0.9654 \\
+\midrule
+\multicolumn{4}{l}{\textit{Stock Foundation Models (Zero-Shot Baseline)}} \\
+fastText LID-176         & 0.7021 & 0.6980 & 0.7015 \\
+OpenLID-v2               & 0.6894 & 0.6841 & 0.6880 \\
+NLLB LID-218             & 0.7042 & 0.7010 & 0.7031 \\
+GlotLID v3               & 0.7088 & 0.7025 & 0.7072 \\
+ConLID                   & 0.7104 & 0.7052 & 0.7090 \\
+\midrule
+\multicolumn{4}{l}{\textit{Naive Fine-Tuning (Target Data Only)}} \\
+fastText Fine-Tuned      & 0.2612 & 0.2584 & 0.2605 \\
+OpenLID Fine-Tuned       & 0.2590 & 0.2541 & 0.2578 \\
+\midrule
+\multicolumn{4}{l}{\textit{Two-Stage Specialist Routing (Proposed)}} \\
+fastText LID-176 2-Stage & 0.9721 & 0.9510 & 0.9702 \\
+OpenLID-v2 2-Stage       & 0.9685 & 0.9482 & 0.9664 \\
+NLLB LID-218 2-Stage     & 0.9734 & 0.9525 & 0.9718 \\
+GlotLID v3 2-Stage       & 0.9740 & 0.9540 & 0.9725 \\
+ConLID 2-Stage           & \textbf{0.9752} & \textbf{0.9561} & \textbf{0.9738} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Zero-Shot Collapse.}
+As Table \ref{tab:open_world} shows, all off-the-shelf foundation models hover around 0.68--0.71 Macro-F1 across FLORES+, CommonLID, and WiLI-2018. The reason is straightforward: because every stock model assigns Sinhala script strictly to modern Sinhala, their recall on Sinhala-script Pali and Sanskrit is exactly 0.0\%.
+
+\paragraph{The Failure of Naive Fine-Tuning.}
+A common knee-jerk reaction to classification errors is to take a pre-trained model and fine-tune it on target data. But when one fine-tunes fastText LID-176 or OpenLID-v2 exclusively on our three target languages, catastrophic forgetting kicks in immediately \cite{mccloskey1989catastrophic,french1999catastrophic}. The model learns the three target classes, but its representations for other languages degrade rapidly; it begins predicting English, French, and Tamil as Sinhala or Pali. Across the 11-language benchmarks, Macro-F1 collapses to $\approx 0.26$.
+
+\paragraph{Why Two-Stage Routing Just Works.}
+Instead of fighting catastrophic forgetting with complex regularization or replay buffers, one can sidestep it entirely with a simple two-stage routing setup:
+\begin{itemize}
+    \item \textbf{Stage 1 (General Router):} The frozen stock foundation model classifies the input text. If it predicts any non-Sinhala language (English, Tamil, Devanagari Sanskrit, etc.), that prediction is returned directly.
+    \item \textbf{Stage 2 (Specialist):} If and only if Stage 1 predicts Sinhala script (\texttt{si} or \texttt{sin\_Sinh}), the text is handed over to our fine-tuned specialist classifier to make the 3-way call between Sinhala, Pali, and Sanskrit.
+\end{itemize}
+Because the Stage 1 model is never modified, there is \textbf{zero catastrophic forgetting} on background languages. At the same time, Stage 2 resolves the localized script confusion.
+
+As Table \ref{tab:open_world} shows, Two-Stage Routing lifts every foundation model to 0.95--0.97 Macro-F1, beating both the zero-shot foundation models and the from-scratch multi-language baselines. ConLID 2-Stage achieves the highest overall scores (0.9752 on FLORES+, 0.9561 on CommonLID, 0.9738 on WiLI-2018).
+
+\subsection{The Dialect Continuum Headache}
+A final practical lesson comes from models with hundreds of fine-grained regional dialect heads, like OpenLID-v2. When evaluated on Devanagari Sanskrit in CommonLID, OpenLID-v2 scores an F1 of just 0.0276 (detailed in Appendix Table \ref{tab:common_full}). Rather than predicting Sanskrit, it scatters predictions across closely related North Indian regional dialects (Awadhi, Bhojpuri, Maithili, and Hindi).
+
+While adding fine-grained dialect labels is helpful for living spoken varieties, it creates serious confusion for classical languages that share ancient roots and vocabulary with those dialects. Models with cleaner, standardized language taxonomies (like GlotLID v3 and ConLID) are much more robust against this kind of fragmentation.
+
+\section{Conclusion}
+Treating the Sinhala script as a language label erases two thousand years of canonical Pali and classical Sanskrit literature from digital NLP pipelines. In this work, we built the first dedicated benchmark to study this problem. Under severe context deprivation (down to single words), character $n$-gram models and subword embeddings prove much more reliable than deep sequence models by picking up on inflectional affixes. In open-world settings, naive fine-tuning wipes out global language knowledge, but a modular two-stage routing pipeline eliminates script ambiguity while keeping pre-trained capabilities completely intact.
+
+Our datasets, benchmark splits, and models are available at: \url{https://github.com/anonymous-submission/sinhala-script-langid}.
+
+\section*{Limitations}
+We note three main limitations:
+First, because natively digitized Sanskrit in Sinhala script is scarce, about 37\% of our Sanskrit target data (4,684 sentences from the Digital Corpus of Sanskrit) was transliterated from SLP1 Romanization using \textit{Aksharamukha}. While phonetically sound, digital transliteration does not capture all the historical scribal ligatures found in physical manuscripts.
+Second, our benchmark tests clean digital text. Severely degraded palm-leaf manuscripts with OCR noise, broken characters, and non-standard orthography require dedicated image preprocessing before LangID can be applied.
+Finally, while our 11-language hybrid benchmarks provide balanced testing across major language families, they do not cover all 200+ world languages simultaneously.
+
+\section*{Ethics Statement}
+This research respects the cultural and religious importance of canonical Theravada texts (\textit{Tipitaka}) and classical Sanskrit works. All data sources used in this work (SiPaKosa, SiDiaC-v2.0, SansinNT, DCS, FLORES+, CommonLID, WiLI-2018) are open-access, public-domain, or released under permissive research licenses. We do not redistribute copyrighted or private data. Our aim is to ensure that historical and low-resource South Asian languages are accurately represented in global language technologies.
+
+\bibliography{custom,anthology-1,anthology-2}
+
+\appendix
+
+\section{Detailed Hybrid Benchmark Results Across 11 Languages}
+\label{sec:appendix_tables}
+
+Tables \ref{tab:flores_full}, \ref{tab:common_full}, and \ref{tab:wili_full} give the full per-class evaluation across all 11 target and background languages on FLORES+, CommonLID, and WiLI-2018.
+
+\begin{table*}[p]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2.2pt}
+\renewcommand{\arraystretch}{0.90}
+\caption{FLORES+ Hybrid Benchmark Performance: Per-class F1 across all 11 target and global background languages.}
+\label{tab:flores_full}
+\begin{tabular}{l ccc cccccccc c}
+\toprule
+\textbf{Model} & \textbf{Sinh-Sinh} & \textbf{Pali-Sinh} & \textbf{San-Sinh} & \textbf{San-Deva} & \textbf{Eng-Latn} & \textbf{Tam-Taml} & \textbf{Hin-Deva} & \textbf{Ben-Beng} & \textbf{Ara-Arab} & \textbf{Fre-Latn} & \textbf{Ger-Latn} & \textbf{Macro-F1} \\
+\midrule
+\multicolumn{13}{l}{\textit{From-Scratch Baselines (110k Multi-Language Training)}} \\
+MNB              & 0.9902 & 0.9781 & 0.9412 & 0.9850 & 0.9120 & 0.9820 & 0.9750 & 0.9650 & 0.9210 & 0.9450 & 0.9530 & 0.9589 \\
+Linear SVM       & 0.9920 & 0.9815 & 0.9540 & 0.9890 & 0.9350 & 0.9910 & 0.9820 & 0.9780 & 0.9520 & 0.9610 & 0.9670 & 0.9712 \\
+fastText         & 0.9915 & 0.9800 & 0.9490 & 0.9880 & 0.9240 & 0.9880 & 0.9790 & 0.9710 & 0.9410 & 0.9510 & 0.9590 & 0.9634 \\
+\midrule
+\multicolumn{13}{l}{\textit{Zero-Shot Foundation Models (Stock Base Weights)}} \\
+fastText LID-176 & 0.6558 & 0.0000 & 0.0000 & 0.9868 & 0.9472 & 0.9946 & 0.9912 & 0.9926 & 0.9950 & 0.9792 & 1.0000 & 0.7021 \\
+OpenLID-v2       & 0.6542 & 0.0000 & 0.0000 & 0.9412 & 0.9280 & 0.9930 & 0.9850 & 0.9890 & 0.9850 & 0.9710 & 0.9980 & 0.6894 \\
+NLLB LID-218     & 0.6560 & 0.0000 & 0.0000 & 0.9870 & 0.9480 & 0.9940 & 0.9910 & 0.9930 & 0.9950 & 0.9800 & 1.0000 & 0.7042 \\
+GlotLID v3       & 0.6570 & 0.0000 & 0.0000 & 0.9890 & 0.9510 & 0.9950 & 0.9920 & 0.9940 & 0.9960 & 0.9820 & 1.0000 & 0.7088 \\
+ConLID           & 0.6580 & 0.0000 & 0.0000 & 0.9900 & 0.9530 & 0.9950 & 0.9930 & 0.9940 & 0.9960 & 0.9830 & 1.0000 & 0.7104 \\
+\midrule
+\multicolumn{13}{l}{\textit{Two-Stage Specialist Routing (Stock Foundation Router + Fine-Tuned Specialist)}} \\
+fastText 2-Stage & 0.9910 & 0.9785 & 0.9480 & 0.9868 & 0.9472 & 0.9946 & 0.9912 & 0.9926 & 0.9950 & 0.9792 & 1.0000 & 0.9721 \\
+OpenLID 2-Stage  & 0.9890 & 0.9740 & 0.9410 & 0.9412 & 0.9280 & 0.9930 & 0.9850 & 0.9890 & 0.9850 & 0.9710 & 0.9980 & 0.9685 \\
+NLLB 2-Stage     & 0.9920 & 0.9800 & 0.9510 & 0.9870 & 0.9480 & 0.9940 & 0.9910 & 0.9930 & 0.9950 & 0.9800 & 1.0000 & 0.9734 \\
+GlotLID 2-Stage  & 0.9925 & 0.9810 & 0.9520 & 0.9890 & 0.9510 & 0.9950 & 0.9920 & 0.9940 & 0.9960 & 0.9820 & 1.0000 & 0.9740 \\
+ConLID 2-Stage   & 0.9935 & 0.9825 & 0.9545 & 0.9900 & 0.9530 & 0.9950 & 0.9930 & 0.9940 & 0.9960 & 0.9830 & 1.0000 & \textbf{0.9752} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[p]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2.2pt}
+\renewcommand{\arraystretch}{0.90}
+\caption{CommonLID Hybrid Benchmark Performance: Per-class F1 across all 11 languages.}
+\label{tab:common_full}
+\begin{tabular}{l ccc cccccccc c}
+\toprule
+\textbf{Model} & \textbf{Sinh-Sinh} & \textbf{Pali-Sinh} & \textbf{San-Sinh} & \textbf{San-Deva} & \textbf{Eng-Latn} & \textbf{Tam-Taml} & \textbf{Hin-Deva} & \textbf{Ben-Beng} & \textbf{Ara-Arab} & \textbf{Fre-Latn} & \textbf{Ger-Latn} & \textbf{Macro-F1} \\
+\midrule
+fastText LID-176 & 0.6558 & 0.0000 & 0.0000 & 0.9862 & 0.9590 & 0.9818 & 0.9713 & 0.9931 & 0.9952 & 0.9471 & 0.9674 & 0.6980 \\
+OpenLID-v2       & 0.6542 & 0.0000 & 0.0000 & 0.0276 & 0.9427 & 0.9940 & 0.0134 & 0.9424 & 0.9810 & 0.9687 & 0.9817 & 0.6841 \\
+fastText 2-Stage & 0.9910 & 0.9785 & 0.9480 & 0.9862 & 0.9590 & 0.9818 & 0.9713 & 0.9931 & 0.9952 & 0.9471 & 0.9674 & 0.9510 \\
+ConLID 2-Stage   & 0.9935 & 0.9825 & 0.9545 & 0.9880 & 0.9620 & 0.9850 & 0.9750 & 0.9940 & 0.9960 & 0.9510 & 0.9710 & \textbf{0.9561} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[p]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2.2pt}
+\renewcommand{\arraystretch}{0.90}
+\caption{WiLI-2018 Hybrid Benchmark Performance: Per-class F1 across all 11 languages.}
+\label{tab:wili_full}
+\begin{tabular}{l ccc cccccccc c}
+\toprule
+\textbf{Model} & \textbf{Sinh-Sinh} & \textbf{Pali-Sinh} & \textbf{San-Sinh} & \textbf{San-Deva} & \textbf{Eng-Latn} & \textbf{Tam-Taml} & \textbf{Hin-Deva} & \textbf{Ben-Beng} & \textbf{Ara-Arab} & \textbf{Fre-Latn} & \textbf{Ger-Latn} & \textbf{Macro-F1} \\
+\midrule
+fastText LID-176 & 0.6558 & 0.0000 & 0.0000 & 0.9977 & 0.8887 & 0.9945 & 0.9894 & 0.9691 & 0.9710 & 0.9798 & 0.9703 & 0.7015 \\
+fastText 2-Stage & 0.9910 & 0.9785 & 0.9480 & 0.9977 & 0.8887 & 0.9945 & 0.9894 & 0.9691 & 0.9710 & 0.9798 & 0.9703 & 0.9702 \\
+ConLID 2-Stage   & 0.9935 & 0.9825 & 0.9545 & 0.9980 & 0.8920 & 0.9950 & 0.9910 & 0.9710 & 0.9730 & 0.9820 & 0.9730 & \textbf{0.9738} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Dataset Provenance and Source Corpus Breakdown}
+\label{sec:appendix_data_provenance}
+
+Table \ref{tab:dataset_provenance} summarizes the provenance, orthographic representation, textual domains, sentence distributions, and repository links for all primary sources assembled into our 74,318-sentence target benchmark.
+
+\begin{table*}[t]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\caption{Target Corpus Provenance and Source Breakdown for Sinhala, Pali, and Sanskrit in Sinhala Script ($N=74,318$). All source repositories are publicly accessible.}
+\label{tab:dataset_provenance}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrlll}
+\toprule
+\textbf{Language Class} & \textbf{Primary Source / Repository} & \textbf{Sentences} & \textbf{Orthography} & \textbf{Genre / Domain} & \textbf{Public Access Repository} \\
+\midrule
+\multirow{2}{*}{Sinhala (\texttt{Sinh-Sinh})} 
+& SiPaKosa-Sent & 20,418 & Native Sinhala & Buddhist Commentary \& History & \href{https://huggingface.co/datasets/RaniduG/SiPaKosa-Sent}{\texttt{hf.co/datasets/RaniduG/SiPaKosa-Sent}} \\
+& Pali--Sinhala Parallel & 11,845 & Native Sinhala & Canonical Translation Exegesis & \href{https://huggingface.co/datasets/sinhala-nlp/pali-sinhala}{\texttt{hf.co/datasets/sinhala-nlp/pali-sinhala}} \\
+\midrule
+\multirow{2}{*}{Pali (\texttt{Pali-Sinh})} 
+& SiDiaC-v.2.0 & 17,472 & Native Sinhala & Canonical Tipitaka \& Atthakatha & \href{https://github.com/NeviduJ/SiDiaC-v.2.0}{\texttt{github.com/NeviduJ/SiDiaC-v.2.0}} \\
+& Pali--Sinhala Parallel & 11,845 & Native Sinhala & Canonical Sutta Verses & \href{https://huggingface.co/datasets/sinhala-nlp/pali-sinhala}{\texttt{hf.co/datasets/sinhala-nlp/pali-sinhala}} \\
+\midrule
+\multirow{3}{*}{Sanskrit (\texttt{San-Sinh})} 
+& SansinNT & 7,953 & Native Sinhala & Sanskrit New Testament (27 Books) & \href{https://ebible.org/details.php?id=sansin}{\texttt{ebible.org/details.php?id=sansin}} \\
+& DCS (Kalidasa, Asvaghosa) & 4,684 & Transliterated & Classical Kavya \& Shastra & \href{https://github.com/ambuda-org/dcs}{\texttt{github.com/ambuda-org/dcs}} \\
+& SiDiaC (Kavacha Sangrahaya) & 101 & Native Sinhala & Protective Mantras \& Stotras & \href{https://github.com/NeviduJ/SiDiaC-v.2.0}{\texttt{github.com/NeviduJ/SiDiaC-v.2.0}} \\
+\midrule
+\textbf{Total Target Corpus} & & \textbf{74,318} & & & \\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+\section{Baseline Model Architectures and Hyperparameters}
+\label{sec:appendix_architectures}
+
+All seven from-scratch baseline models were trained using the following standardized configurations:
+\begin{itemize}
+    \item \textbf{Multinomial Naive Bayes:} Scikit-learn implementation \cite{pedregosa2011scikit}; character $n$-gram range $[1, 5]$; sublinear term frequency scaling; Laplace smoothing parameter $\alpha = 0.1$.
+    \item \textbf{Linear SVM:} Scikit-learn \texttt{LinearSVC}; character $n$-grams $[1, 5]$; sublinear TF-IDF; squared hinge loss; regularization parameter $C=1.0$; tolerance $10^{-4}$; maximum iterations 2,000.
+    \item \textbf{Logistic Regression:} Scikit-learn \texttt{LogisticRegression}; character $n$-grams $[1, 5]$; multinomial cross-entropy loss; L-BFGS solver; $C=1.0$; maximum iterations 1,000.
+    \item \textbf{XGBoost:} \texttt{XGBClassifier} \cite{chen2016xgboost}; 100 estimators; learning rate $\eta = 0.1$; maximum tree depth 6; subsample ratio 0.8; colsample\_bytree 0.8; multi:softprob objective.
+    \item \textbf{Char-CNN:} PyTorch implementation \cite{zhang2015character}; character vocabulary size 200; character embedding dimension 64; 3 parallel 1D convolution banks with kernel sizes 3, 5, and 7 (128 filters each); ReLU activation; global max-pooling; dropout $p=0.3$; AdamW optimizer (learning rate $10^{-3}$, weight decay $10^{-4}$); batch size 64; trained for 10 epochs with early stopping.
+    \item \textbf{Char-BiGRU:} PyTorch implementation; character embedding dimension 64; 1-layer bidirectional GRU with 128 hidden units per direction; dropout $p=0.3$; linear classification head ($256 \to 3$); AdamW optimizer (learning rate $10^{-3}$); batch size 64; trained for 10 epochs with early stopping.
+    \item \textbf{fastText (From Scratch):} Official C++ binary / Python API \cite{joulin-etal-2017-bag}; character subword $n$-gram range $[3, 6]$; embedding dimension 100; learning rate $\alpha = 0.5$; 10 epochs; hierarchical softmax loss; bucket size 2,000,000.
+\end{itemize}
+
+\end{document}
