@@ -1,0 +1,64 @@
+{
+  "passed": true,
+  "examples": 794,
+  "top1_matches": 794,
+  "tokens_with_exact_feature_ids": 3000,
+  "compared_native_scores": 24054,
+  "max_hidden_absolute_error": 2.384185791015625e-07,
+  "max_score_absolute_error": 2.980232238769531e-07,
+  "input_weights_identical": true,
+  "output_weights_identical": true,
+  "note": "Native epsilon scores compared, including its threshold pruning behavior.",
+  "expanded_labels": 177,
+  "expansion_invariants_passed": true,
+  "checkpoint_roundtrip_passed": true,
+  "gradient_check": {
+    "inherited_input_rows_changed": true,
+    "inherited_decision_rows_changed": true,
+    "new_pali_node_changed": true,
+    "all_parameters_trainable": true,
+    "finite_loss": 0.709628701210022
+  },
+  "base_sha256": "7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e",
+  "torch_version": "2.5.1+cpu",
+  "scope": "Implementation integrity checks only; not research evaluation.",
+  "parity_examples": "32 samples from each of 24 labels in the earlier uploaded train_mixed.jsonl plus 26 probes.",
+  "training_integrity": {
+    "train_examples": 176,
+    "validation_examples": 44,
+    "groups": 11,
+    "epochs": 2,
+    "device": "cpu",
+    "resumed_weights_bitwise_equal_to_uninterrupted": true,
+    "resumed_history_identical": true,
+    "native_evaluation_cli_passed": true,
+    "custom_evaluation_cli_passed": true,
+    "data_note": "Older uploaded examples plus synthetic Sanskrit-Devanagari fixtures. No performance claims."
+  },
+  "notebook": {
+    "format_validation_passed": true,
+    "all_code_cells_syntax_valid": true,
+    "executed_in_colab": false
+  },
+  "not_executed": [
+    "Full new 77473/8887 dataset experiment",
+    "CUDA runtime",
+    "Hugging Face remote checkpoint loading"
+  ],
+  "python_version": "3.12.14",
+  "numpy_version": "1.26.4",
+  "fasttext_wheel_version": "0.9.2",
+  "file_sha256": {
+    "FASTTEXT_CONTINUATION.md": "39a7ffe9dba2ef29d89d555d0bb7fdb55cd6228fab3544b5522f3b34ffb684f8",
+    "data_pipeline/fasttext_continual/THIRD_PARTY_NOTICES.txt": "60af790b9353d7b7c2e5e7e69dc27a1c7d0c8a4ec806265f2f272c58e99ff416",
+    "data_pipeline/fasttext_continual/__init__.py": "ee757f1bea3a1e24fb6423328e7cab292005743c32dbd8a03dddc92dbbbd2d94",
+    "data_pipeline/fasttext_continual/data.py": "311698af4fc957f281d2447a918241a652ffc3865fd8c195015a79d02032561b",
+    "data_pipeline/fasttext_continual/evaluate.py": "3f8b4c782ce9e83e04df6d7d3caba7edf0a878038ff2d4cfedc86a309e831bbf",
+    "data_pipeline/fasttext_continual/features.py": "af2d0f80c2e31dcfd4af6b59e27a6d877575bc31104027de98903dca431aae1d",
+    "data_pipeline/fasttext_continual/model.py": "7dca578b26a12929acc073fb23e8fa4d1f3259d584cb3b2ec2586860b3e17ca6",
+    "data_pipeline/fasttext_continual/requirements.txt": "b807111c073f5aca071b6fb79196c55e903553f89f42411224a0307a1d75b39f",
+    "data_pipeline/fasttext_continual/train.py": "01d8fa8bd9ee60a03ab4d52ee162e25c166c054c169cd9cf1a82cbe4c8394361",
+    "data_pipeline/fasttext_continual/verify.py": "4702607cdfc06690643e66d49e674a233f42da0340125977e6415049bffdae36",
+    "data_pipeline/scripts/06.finetune_models/fastText_LID_176_continued.ipynb": "d316d3e272a09252474296dc3fc4a55c04cdd70c14c601768208f61b631811f6"
+  }
+}

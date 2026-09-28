@@ -1,0 +1,184 @@
+{
+  "files": {
+    "train": {
+      "sha256": "714e6df2d5cbcf54a74d9fb6851cc8c76cd70441bb6dc0ec6ba36a71a1f31a02",
+      "rows": 60285,
+      "counts": {
+        "sin_Sinh": 26675,
+        "pli_Sinh": 23490,
+        "san_Sinh": 10120
+      },
+      "document_ids_present": true
+    },
+    "validation": {
+      "sha256": "226bc6ccac463a462b8f4166d2110ab15a579c0130a337b392d969fddaa350ee",
+      "rows": 6986,
+      "counts": {
+        "sin_Sinh": 2895,
+        "pli_Sinh": 2800,
+        "san_Sinh": 1291
+      },
+      "document_ids_present": true
+    },
+    "target_test": {
+      "sha256": "e8ff5efb050c395448d32af335507c5616d8bca0ef0c410d7f1f136ab0d9fd54",
+      "rows": 7047,
+      "counts": {
+        "pli_Sinh": 3027,
+        "sin_Sinh": 2693,
+        "san_Sinh": 1327
+      },
+      "document_ids_present": true
+    },
+    "mixed_train": {
+      "sha256": "678ea0c59ed56c4e7682709a2b1a030645c9238ff039b0cc7b63c3db3c232574",
+      "rows": 77473,
+      "counts": {
+        "sin_Sinh": 26321,
+        "pli_Sinh": 23486,
+        "san_Sinh": 10119,
+        "tam_Taml": 4500,
+        "san_Deva": 4500,
+        "arb_Arab": 3034,
+        "eng_Latn": 2681,
+        "ben_Beng": 988,
+        "fra_Latn": 959,
+        "hin_Deva": 724,
+        "deu_Latn": 161
+      },
+      "document_ids_present": true
+    },
+    "mixed_validation": {
+      "sha256": "da354c6d46a541ca0559690a33e5aaada3d240814f68d80a6b653666393022ab",
+      "rows": 8887,
+      "counts": {
+        "sin_Sinh": 2847,
+        "pli_Sinh": 2799,
+        "san_Sinh": 1291,
+        "tam_Taml": 500,
+        "san_Deva": 500,
+        "arb_Arab": 337,
+        "eng_Latn": 298,
+        "ben_Beng": 110,
+        "fra_Latn": 107,
+        "hin_Deva": 80,
+        "deu_Latn": 18
+      },
+      "document_ids_present": true
+    },
+    "benchmark_commonlid": {
+      "sha256": "f1bed8a4f19e496ade5a71bedd62825e4dac661f1204751958f764097bc92464",
+      "rows": 93428,
+      "original_rows": 380277,
+      "counts": {
+        "arb_Arab": 41634,
+        "eng_Latn": 27443,
+        "deu_Latn": 7549,
+        "hin_Deva": 3665,
+        "fra_Latn": 3230,
+        "pli_Sinh": 3027,
+        "sin_Sinh": 2693,
+        "ben_Beng": 1884,
+        "san_Sinh": 1333,
+        "san_Deva": 889,
+        "tam_Taml": 81
+      },
+      "same_label_duplicates_removed": 814,
+      "conflicting_text_types_removed": 17,
+      "conflicting_rows_removed": 34,
+      "empty_rows_removed": 4,
+      "document_ids_present": false
+    },
+    "benchmark_flores_plus": {
+      "sha256": "de240ee8ac85cb84626228e0f79ec3497d4752053f998ae9f703e5084c6b4cd0",
+      "rows": 16155,
+      "original_rows": 229687,
+      "counts": {
+        "pli_Sinh": 3027,
+        "sin_Sinh": 2693,
+        "arb_Arab": 2024,
+        "san_Sinh": 1327,
+        "ben_Beng": 1012,
+        "deu_Latn": 1012,
+        "eng_Latn": 1012,
+        "fra_Latn": 1012,
+        "hin_Deva": 1012,
+        "san_Deva": 1012,
+        "tam_Taml": 1012
+      },
+      "same_label_duplicates_removed": 0,
+      "conflicting_text_types_removed": 0,
+      "conflicting_rows_removed": 0,
+      "empty_rows_removed": 0,
+      "document_ids_present": false
+    },
+    "benchmark_wili_2018": {
+      "sha256": "5d489ed972bed90a4681f7a4cc769ee1111b43e87f3e4971189b0d8fae6e12ea",
+      "rows": 15016,
+      "original_rows": 241047,
+      "counts": {
+        "pli_Sinh": 3027,
+        "sin_Sinh": 2693,
+        "san_Sinh": 1340,
+        "eng_Latn": 1000,
+        "ben_Beng": 1000,
+        "deu_Latn": 1000,
+        "hin_Deva": 999,
+        "arb_Arab": 999,
+        "fra_Latn": 992,
+        "tam_Taml": 983,
+        "san_Deva": 983
+      },
+      "same_label_duplicates_removed": 31,
+      "conflicting_text_types_removed": 0,
+      "conflicting_rows_removed": 0,
+      "empty_rows_removed": 0,
+      "document_ids_present": false
+    }
+  },
+  "checks": [
+    "train/validation: WARNING 1 shared group IDs (strict group check disabled)",
+    "train/validation: no exact normalized text overlap",
+    "train/target_test: WARNING 1 shared group IDs (strict group check disabled)",
+    "train/target_test: no exact normalized text overlap",
+    "train/mixed_train: same-role overlap allowed (59926 exact texts)",
+    "train/mixed_validation: WARNING 1 shared group IDs (strict group check disabled)",
+    "train/mixed_validation: no exact normalized text overlap",
+    "validation/target_test: WARNING 1 shared group IDs (strict group check disabled)",
+    "validation/target_test: no exact normalized text overlap",
+    "validation/mixed_train: WARNING 1 shared group IDs (strict group check disabled)",
+    "validation/mixed_train: no exact normalized text overlap",
+    "validation/mixed_validation: same-role overlap allowed (6937 exact texts)",
+    "target_test/mixed_train: WARNING 1 shared group IDs (strict group check disabled)",
+    "target_test/mixed_train: no exact normalized text overlap",
+    "target_test/mixed_validation: WARNING 1 shared group IDs (strict group check disabled)",
+    "target_test/mixed_validation: no exact normalized text overlap",
+    "mixed_train/mixed_validation: WARNING 1 shared group IDs (strict group check disabled)",
+    "mixed_train/mixed_validation: no exact normalized text overlap",
+    "benchmark:commonlid: removed 814 repeated texts with the same label",
+    "benchmark:commonlid: removed all 34 rows belonging to 17 texts with conflicting labels",
+    "benchmark:commonlid: removed 4 empty/format-only rows",
+    "train/benchmark:commonlid: no exact normalized text overlap",
+    "validation/benchmark:commonlid: dropped 1 rows sharing text with the benchmark",
+    "mixed_train/benchmark:commonlid: no exact normalized text overlap",
+    "mixed_validation/benchmark:commonlid: no exact normalized text overlap",
+    "train/benchmark:flores_plus: no exact normalized text overlap",
+    "validation/benchmark:flores_plus: no exact normalized text overlap",
+    "mixed_train/benchmark:flores_plus: no exact normalized text overlap",
+    "mixed_validation/benchmark:flores_plus: no exact normalized text overlap",
+    "benchmark:wili_2018: removed 31 repeated texts with the same label",
+    "train/benchmark:wili_2018: no exact normalized text overlap",
+    "validation/benchmark:wili_2018: no exact normalized text overlap",
+    "mixed_train/benchmark:wili_2018: no exact normalized text overlap",
+    "mixed_validation/benchmark:wili_2018: no exact normalized text overlap",
+    "train: WARNING 354 sin_Sinh rows have no characters from the expected script",
+    "train: WARNING 11 pli_Sinh rows have no characters from the expected script",
+    "train: WARNING 1 san_Sinh rows have no characters from the expected script",
+    "validation: WARNING 47 sin_Sinh rows have no characters from the expected script",
+    "validation: WARNING 1 pli_Sinh rows have no characters from the expected script",
+    "target_test: WARNING 62 sin_Sinh rows have no characters from the expected script",
+    "target_test: WARNING 1 pli_Sinh rows have no characters from the expected script",
+    "mixed_train: WARNING 7 pli_Sinh rows have no characters from the expected script"
+  ],
+  "normalization": "NFC"
+}

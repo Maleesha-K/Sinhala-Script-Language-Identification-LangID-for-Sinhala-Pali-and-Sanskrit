@@ -10,8 +10,9 @@ from app.db.models.classification_job import ClassificationJob, JobStatus
 from app.db.models.classified_segment import ClassifiedSegment
 from app.dependencies import get_db, get_current_user
 from app.schemas.response import BaseResponse, success_response
-from app.utils.exceptions import NotFoundException
+from app.utils.exceptions import NotFoundException, BadRequestException
 from app.workers.tasks.classification_tasks import process_classification_job
+from app.ml.registry import MODELS, BASELINE_MODEL, list_models
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/classification", tags=["classification"])
@@ -19,6 +20,17 @@ router = APIRouter(prefix="/classification", tags=["classification"])
 class JobCreateRequest(BaseModel):
     input_text: str = Field(..., min_length=1)
     segmentation_strategy: str = Field("sentence", pattern="^(sentence|paragraph|full_text|auto)$")
+    model_name: str = Field(BASELINE_MODEL, description="Classification model id")
+
+
+class ModelInfoResponse(BaseModel):
+    id: str
+    label: str
+    description: str
+    family: str
+    is_baseline: bool
+    available: bool
+    correction_languages: List[str]
 
 class SegmentResponse(BaseModel):
     id: UUID
@@ -33,6 +45,7 @@ class SegmentResponse(BaseModel):
 class JobResponse(BaseModel):
     id: UUID
     status: JobStatus
+    model_name: str
     segmentation_strategy: str
     total_tokens: int
     created_at: datetime
@@ -47,12 +60,17 @@ async def create_classification_job(
 ):
     """Submit text for language classification."""
     
+    if request.model_name not in MODELS:
+        raise BadRequestException(
+            f"Unknown model '{request.model_name}'. Available: {', '.join(sorted(MODELS))}"
+        )
+
     # 1. Deduct credits logic (Mocked for now, assuming sufficient credits)
     # 2. Create Job
     job = ClassificationJob(
         user_id=current_user.id,
         input_text=request.input_text,
-        model_name="sklearn_langid",
+        model_name=request.model_name,
         segmentation_strategy=request.segmentation_strategy,
         status=JobStatus.QUEUED
     )
@@ -68,6 +86,7 @@ async def create_classification_job(
         data={
             "id": job.id,
             "status": job.status,
+            "model_name": job.model_name,
             "segmentation_strategy": job.segmentation_strategy,
             "total_tokens": job.total_tokens,
             "created_at": job.created_at,
@@ -93,6 +112,7 @@ async def get_classification_job(
     response_data = {
         "id": job.id,
         "status": job.status,
+        "model_name": job.model_name,
         "segmentation_strategy": job.segmentation_strategy,
         "total_tokens": job.total_tokens,
         "created_at": job.created_at,
@@ -121,3 +141,9 @@ async def get_classification_job(
         ]
         
     return success_response(data=response_data)
+
+
+@router.get("/models", response_model=BaseResponse[List[ModelInfoResponse]])
+async def get_available_models(current_user: User = Depends(get_current_user)):
+    """List the classification models a user can choose between."""
+    return success_response(data=list_models())

@@ -8,7 +8,7 @@ from app.workers.celery_app import celery_app
 from app.db.session import async_session_maker
 from app.db.models.classification_job import ClassificationJob, JobStatus
 from app.db.models.classified_segment import ClassifiedSegment
-from app.ml.sklearn_langid import langid_classifier
+from app.ml.registry import get_classifier
 from app.utils.redis_client import publish_job_event
 import logging
 
@@ -89,17 +89,24 @@ async def _process_classification_job_async(job_id_str: str):
             # 1. Segmentation
             segments_info = _segment_text(text_to_process, job.segmentation_strategy)
             
-            # 2. Batch Classification
+            # 2. Batch Classification with the model chosen for this job.
             texts = [s["text"].strip() for s in segments_info]
-            predictions = langid_classifier.predict_batch(texts)
+            classifier = get_classifier(job.model_name)
+            publish_job_event(job_id_str, "processing", 40, f"Classifying with {job.model_name}...")
+            predictions = classifier.predict_batch(texts)
             
             # 3. Create ClassifiedSegment records
             for i, (seg_info, pred) in enumerate(zip(segments_info, predictions)):
+                # Outside the three target categories, record the language the
+                # model actually detected rather than a bare "other".
+                language = pred["language"]
+                if language == "other" and pred.get("detected_language"):
+                    language = pred["detected_language"][:32]
                 segment_record = ClassifiedSegment(
                     job_id=job.id,
                     segment_index=i,
                     text=seg_info["text"],
-                    predicted_language=pred["language"],
+                    predicted_language=language,
                     confidence=pred["confidence"],
                     probabilities=pred["probabilities"],
                     start_char_offset=seg_info["start"],

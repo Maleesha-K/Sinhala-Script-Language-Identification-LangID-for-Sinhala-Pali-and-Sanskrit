@@ -1,0 +1,9 @@
+{
+  "accuracy": 0.9945988522561044,
+  "macro_f1_11": 0.9927815354979792,
+  "macro_f1_target3": 0.9942945260739307,
+  "macro_f1_replay8": 0.9922141640319976,
+  "outside_11_predictions": 8,
+  "n_test": 8887,
+  "scope": "unrestricted full-model top-1; no threshold; strict script tags; ara_Arab mapped to arb_Arab"
+}

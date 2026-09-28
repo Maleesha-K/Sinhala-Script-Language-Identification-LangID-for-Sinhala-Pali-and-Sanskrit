@@ -26,9 +26,19 @@ type Segment = {
   probabilities?: Record<string, number>;
 };
 
+// Fallback until the model list loads; the three categories every model reports.
+const DEFAULT_CORRECTION_LANGUAGES = ["sinhala", "pali", "sanskrit"];
+
+const MODEL_LABELS: Record<string, string> = {
+  sklearn_langid: "Baseline (TF-IDF)",
+  nllb_finetuned: "NLLB LID-218 (fine-tuned)",
+  glotlid_finetuned: "GlotLID v3 (fine-tuned)",
+};
+
 type JobData = {
   id: string;
   status: "queued" | "processing" | "completed" | "failed";
+  model_name?: string;
   segmentation_strategy: string;
   total_tokens: number;
   segments?: Segment[];
@@ -51,6 +61,7 @@ export default function ClassificationResultPage() {
   const router = useRouter();
   const { token } = useAuth();
   const [job, setJob] = useState<JobData | null>(null);
+  const [correctionLanguages, setCorrectionLanguages] = useState<string[]>(DEFAULT_CORRECTION_LANGUAGES);
   const [loading, setLoading] = useState(true);
 
   const fetchJob = useCallback(async () => {
@@ -70,6 +81,29 @@ export default function ClassificationResultPage() {
   useEffect(() => {
     fetchJob();
   }, [fetchJob]);
+
+  // The correction options depend on the model that produced this job: the
+  // baseline is three-way, the fine-tuned checkpoints also know the replay
+  // languages.
+  useEffect(() => {
+    if (!job?.model_name) return;
+    let cancelled = false;
+    axios
+      .get("/api/classification/models")
+      .then((res) => {
+        if (cancelled) return;
+        const match = (res.data?.data ?? []).find((m: { id: string }) => m.id === job.model_name);
+        if (match?.correction_languages?.length) {
+          setCorrectionLanguages(match.correction_languages);
+        }
+      })
+      .catch(() => {
+        /* keep the three-category default */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [job?.model_name]);
 
   // WebSocket for live updates
   useEffect(() => {
@@ -121,7 +155,8 @@ export default function ClassificationResultPage() {
         <div className="flex-1">
           <h1 className="text-xl font-bold tracking-tight">Classification Results</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Strategy: <span className="font-medium capitalize">{job.segmentation_strategy}</span>
+            Model: <span className="font-medium">{MODEL_LABELS[job.model_name ?? ""] ?? job.model_name ?? "—"}</span>
+            {" · "}Strategy: <span className="font-medium capitalize">{job.segmentation_strategy}</span>
             {job.total_tokens > 0 && (
               <> · <span className="font-medium">{job.total_tokens}</span> tokens</>
             )}
@@ -184,6 +219,7 @@ export default function ClassificationResultPage() {
                   key={seg.segment_index} 
                   segment={seg} 
                   token={token}
+                  correctionLanguages={correctionLanguages}
                   isFirstInGroup={isFirstInGroup}
                   isLastInGroup={isLastInGroup}
                 />
@@ -199,11 +235,13 @@ export default function ClassificationResultPage() {
 function SegmentFeedback({
   segment,
   token,
+  correctionLanguages,
   isFirstInGroup = true,
   isLastInGroup = true,
 }: {
   segment: Segment;
   token: string | null;
+  correctionLanguages: string[];
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
 }) {
@@ -299,9 +337,11 @@ function SegmentFeedback({
                 <SelectValue placeholder="Select correct language…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="sinhala">Sinhala</SelectItem>
-                <SelectItem value="pali">Pali</SelectItem>
-                <SelectItem value="sanskrit">Sanskrit</SelectItem>
+                {correctionLanguages.map((lang) => (
+                  <SelectItem key={lang} value={lang} className="capitalize">
+                    {lang}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
