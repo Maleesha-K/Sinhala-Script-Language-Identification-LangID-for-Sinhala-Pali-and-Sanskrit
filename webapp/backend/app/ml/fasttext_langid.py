@@ -136,6 +136,73 @@ class FastTextLangIDClassifier(BaseClassifier):
         return results
 
 
+class FastTextHeadClassifier(FastTextLangIDClassifier):
+    """A pretrained fastText encoder with a separately fine-tuned linear head.
+
+    Produced by data_pipeline/scripts/06.finetune_models/finetune_OpenLID_expansion:
+    the base model's sentence vector is frozen and only a bias-free
+    nn.Linear(dim, n_labels) is trained. Its labels are the base labels in
+    order, followed by the NEW_LABELS the base model did not already have.
+    """
+
+    # Order matters: it must match DATASET_TO_OPENLID_MAP in the training notebook.
+    NEW_LABELS = [
+        "eng_Latn", "sin_Sinh", "san_Sinh", "pli_Sinh", "tam_Taml", "hin_Deva",
+        "ben_Beng", "ara_Arab", "fra_Latn", "deu_Latn", "jpn_Jpan", "nld_Latn",
+        "pol_Latn", "ita_Latn", "por_Latn", "tur_Latn", "spa_Latn", "ell_Grek",
+        "urd_Arab", "bul_Cyrl", "cmn_Hans", "rus_Cyrl", "tha_Thai", "swh_Latn",
+        "vie_Latn",
+    ]
+
+    def __init__(self, model_path: str, head_path: str, display_name: str):
+        super().__init__(model_path, display_name)
+        self.head_path = head_path
+
+    @property
+    def available(self) -> bool:
+        if not (os.path.exists(self.model_path) and os.path.exists(self.head_path)):
+            return False
+        try:
+            import torch  # noqa: F401
+        except ImportError:
+            return False
+        return True
+
+    def _ensure_loaded(self):
+        if self._model is not None:
+            return
+        with self._lock:
+            if self._model is not None:
+                return
+            for path in (self.model_path, self.head_path):
+                if not os.path.exists(path):
+                    raise FileNotFoundError(
+                        f"{self.display_name} file not found at {path}. "
+                        "Set OPENLID_MODEL_PATH / OPENLID_HEAD_PATH."
+                    )
+            import fasttext
+            import numpy as np
+            import torch
+
+            logger.info("Loading %s from %s + %s", self.display_name, self.model_path, self.head_path)
+            model = fasttext.load_model(self.model_path)
+            labels = [l.removeprefix("__label__") for l in model.get_labels()]
+            labels += [l for l in self.NEW_LABELS if l not in labels]
+
+            state = torch.load(self.head_path, map_location="cpu", weights_only=True)
+            output = state["weight"].numpy()
+            if output.shape != (len(labels), model.get_dimension()):
+                raise ValueError(
+                    f"{self.display_name} head is {output.shape}, expected "
+                    f"({len(labels)}, {model.get_dimension()})"
+                )
+            # head(x) = W @ x, so the inherited softmax over output @ hidden applies as is.
+            self._labels = labels
+            self._output = np.asarray(output)
+            self._model = model
+            logger.info("Loaded %s (%d labels)", self.display_name, len(self._labels))
+
+
 def _default_path(model_dir: str) -> str:
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
     return os.path.join(
@@ -152,4 +219,16 @@ nllb_classifier = FastTextLangIDClassifier(
 glotlid_classifier = FastTextLangIDClassifier(
     os.environ.get("GLOTLID_MODEL_PATH") or _default_path("glotlid"),
     "GlotLID v3 (fine-tuned)",
+)
+
+_MODELS_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../../../../data_pipeline/models")
+)
+
+openlid_classifier = FastTextHeadClassifier(
+    os.environ.get("OPENLID_MODEL_PATH")
+    or os.path.join(_MODELS_ROOT, "pretrained", "openlid", "openlid-v3.bin"),
+    os.environ.get("OPENLID_HEAD_PATH")
+    or os.path.join(_MODELS_ROOT, "finetuned", "openlid", "openlid_head_with_rehearsal.pt"),
+    "OpenLID v3 (fine-tuned)",
 )

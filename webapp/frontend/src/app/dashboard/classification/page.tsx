@@ -116,7 +116,7 @@ export default function ClassificationPage() {
             <p className="text-sm font-semibold text-foreground">Model</p>
             {modelsLoading && <span className="text-xs text-muted-foreground">Loading models…</span>}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {models.map((m) => {
               const Icon = m.is_baseline ? Cpu : Sparkles;
               const selected = modelName === m.id;

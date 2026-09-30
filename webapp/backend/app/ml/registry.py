@@ -67,6 +67,16 @@ def _load_glotlid() -> BaseClassifier:
     return glotlid_classifier
 
 
+def _load_openlid() -> BaseClassifier:
+    from app.ml.fasttext_langid import openlid_classifier
+    return openlid_classifier
+
+
+def _load_lid176() -> BaseClassifier:
+    from app.ml.continual_langid import lid176_classifier
+    return lid176_classifier
+
+
 MODELS: Dict[str, ModelInfo] = {
     BASELINE_MODEL: ModelInfo(
         id=BASELINE_MODEL,
@@ -91,6 +101,22 @@ MODELS: Dict[str, ModelInfo] = {
         family="fasttext",
         is_baseline=False,
         loader=_load_glotlid,
+    ),
+    "openlid_finetuned": ModelInfo(
+        id="openlid_finetuned",
+        label="OpenLID v3 (fine-tuned)",
+        description="OpenLID v3 encoder with a new linear head trained with rehearsal. 197 labels.",
+        family="fasttext",
+        is_baseline=False,
+        loader=_load_openlid,
+    ),
+    "lid176_leaf_surgery": ModelInfo(
+        id="lid176_leaf_surgery",
+        label="fastText LID-176 (fine-tuned)",
+        description="Meta's LID-176 with its Sinhala leaf split into Sinhala/Pali. 177 labels.",
+        family="fasttext",
+        is_baseline=False,
+        loader=_load_lid176,
     ),
 }
 
