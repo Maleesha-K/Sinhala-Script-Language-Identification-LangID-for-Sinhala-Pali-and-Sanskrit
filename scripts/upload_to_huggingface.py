@@ -1,113 +1,134 @@
+"""Upload Continual FastText Leaf Surgery model to Hugging Face Hub.
+
+Target organization: https://huggingface.co/script-langid
+Example usage:
+    python scripts/upload_to_huggingface.py --repo-name fasttext-leaf-surgery-11lang --token <YOUR_HF_TOKEN>
+"""
+
 import os
 import sys
+import argparse
+from pathlib import Path
 from huggingface_hub import HfApi, create_repo
 
-def upload_to_huggingface():
-    # 1. Check for Hugging Face token in environment
-    hf_token = os.environ.get("HF_TOKEN")
-    if not hf_token:
-        print("Error: HF_TOKEN environment variable not set.")
-        print("Please set your Hugging Face token before running this script.")
-        print("Example (Windows PowerShell): $env:HF_TOKEN='your_hf_token'")
+DEFAULT_MODEL_DIR = "data_pipeline/models/continual/11lang_rehearsal_exp/best"
+DEFAULT_ORG = "script-langid"
+DEFAULT_REPO_NAME = "fasttext-leaf-surgery-11lang"
+
+README_TEMPLATE = """---
+language:
+- sin
+- pli
+- san
+- en
+- ta
+- hi
+- bn
+- ar
+- fr
+- de
+license: cc-by-4.0
+tags:
+- language-identification
+- fasttext
+- continual-learning
+- leaf-surgery
+- sinhala
+- pali
+- sanskrit
+datasets:
+- script-langid/sinhala-pali-sanskrit-target
+metrics:
+- f1
+- accuracy
+---
+
+# FastText Continual Leaf Surgery (11-Language Rehearsal)
+
+This model is a continual fine-tuning of Meta's `fastText LID-176` utilizing **Hierarchical Softmax Leaf Surgery**.
+
+## Architecture & Innovation
+- **Base Architecture**: Meta `fastText LID-176` (100-dim dense subword embeddings with Huffman tree hierarchical softmax).
+- **Leaf Surgery**: Instead of retraining the classification head from scratch (which shuffles the Huffman tree and causes catastrophic forgetting of 176 pre-trained languages), the original hierarchical softmax binary decision paths are preserved. The Sinhala (`si`) leaf node is surgically split into an internal decision node branching into modern Sinhala and canonical Pali, with Sanskrit adaptation.
+- **Continual Rehearsal**: Trained on the 11-language uniform rehearsal buffer (`train_11lang_uniform.csv`) balancing the 3 target languages in Sinhala script with 8 global and regional anchor languages (English, Tamil, Hindi, Bengali, Arabic, French, German, and Sanskrit in Devanagari).
+
+## Benchmark Performance
+
+| Benchmark | Macro F1 | Sinhala F1 | Pali F1 | Sanskrit F1 | Overall Accuracy |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **WiLI-2018 (11-Lang)** | **0.9811** | 0.9766 | 0.9881 | 0.9895 | **98.00%** |
+| **CommonLID (11-Lang)** | **0.9486** | 0.9766 | 0.9881 | 0.9695 | **96.82%** |
+| **FLORES+ (11-Lang)** | **0.9395** | 0.9766 | 0.9881 | 0.9817 | **92.71%** |
+
+## How to Load in Python
+
+```python
+from data_pipeline.fasttext_continual.model import ContinualLID
+
+# Loads config.json, vocab.json, and weights.pt automatically from Hugging Face
+model = ContinualLID.from_pretrained("script-langid/fasttext-leaf-surgery-11lang")
+
+# Inference example:
+text = "නමෝ තස්ස භගවතෝ අරහතෝ සම්මා සම්බුද්ධස්ස"
+prediction = model.predict(text)
+print(prediction)  # 'pi' (Pali)
+```
+
+## Repository & Research
+- **GitHub**: [Sinhala-Script-Language-Identification-LangID-for-Sinhala-Pali-and-Sanskrit](https://github.com/Maleesha-K/Sinhala-Script-Language-Identification-LangID-for-Sinhala-Pali-and-Sanskrit)
+- **Research**: University of Moratuwa, Department of Computer Science & Engineering.
+"""
+
+def main():
+    parser = argparse.ArgumentParser(description="Upload Continual FastText model to Hugging Face")
+    parser.add_argument("--model-dir", default=DEFAULT_MODEL_DIR, help="Local model directory containing config.json, vocab.json, weights.pt")
+    parser.add_argument("--org", default=DEFAULT_ORG, help="Hugging Face organization")
+    parser.add_argument("--repo-name", default=DEFAULT_REPO_NAME, help="Hugging Face repository name")
+    parser.add_argument("--token", default=None, help="Hugging Face write token (or set HF_TOKEN env var)")
+    parser.add_argument("--private", action="store_true", help="Make repository private")
+    args = parser.parse_args()
+
+    model_dir = Path(args.model_dir)
+    if not model_dir.exists():
+        print(f"Error: Model directory not found at {model_dir}")
         sys.exit(1)
 
-    print("Authenticating with Hugging Face Hub...")
-    api = HfApi(token=hf_token)
-    username = api.whoami()["name"]
-    print(f"Logged in as: {username}")
+    required_files = ["config.json", "vocab.json", "weights.pt"]
+    for f in required_files:
+        if not (model_dir / f).exists():
+            print(f"Error: Missing required file '{f}' in {model_dir}")
+            sys.exit(1)
 
-    # Define paths
-    proj_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    datasets_dir = os.path.join(proj_root, "datasets", "preprocessed")
-    models_dir = os.path.join(proj_root, "models")
+    repo_id = f"{args.org}/{args.repo_name}"
+    token = args.token or os.environ.get("HF_TOKEN")
 
-    # 2. Upload Benchmark Datasets
-    dataset_repo_id = f"{username}/Sinhala-Script-LangID-Benchmark"
-    print(f"\n--- Uploading Datasets to {dataset_repo_id} ---")
-    
-    try:
-        create_repo(repo_id=dataset_repo_id, repo_type="dataset", exist_ok=True, private=False)
-        print(f"Dataset repository '{dataset_repo_id}' is ready.")
-        
-        # Upload all JSONL files in the preprocessed directory
-        if os.path.exists(datasets_dir):
-            for filename in os.listdir(datasets_dir):
-                if filename.endswith(".jsonl"):
-                    file_path = os.path.join(datasets_dir, filename)
-                    print(f"Uploading {filename}...")
-                    api.upload_file(
-                        path_or_fileobj=file_path,
-                        path_in_repo=f"data/{filename}",
-                        repo_id=dataset_repo_id,
-                        repo_type="dataset"
-                    )
-            print("Preprocessed JSONL dataset upload complete!")
-        else:
-            print(f"Warning: Dataset directory {datasets_dir} not found. Skipping dataset upload.")
-            
-        # Upload Nadil's custom CSV datasets
-        nadil_data_dir = os.path.join(proj_root, "data", "Nadil")
-        if os.path.exists(nadil_data_dir):
-            for filename in ["train.csv", "val.csv", "test.csv"]:
-                file_path = os.path.join(nadil_data_dir, filename)
-                if os.path.exists(file_path):
-                    print(f"Uploading custom dataset {filename}...")
-                    api.upload_file(
-                        path_or_fileobj=file_path,
-                        path_in_repo=f"data/Nadil/{filename}",
-                        repo_id=dataset_repo_id,
-                        repo_type="dataset"
-                    )
-            print("Custom CSV dataset upload complete!")
-        else:
-            print(f"Warning: Custom dataset directory {nadil_data_dir} not found.")
+    print(f"Connecting to Hugging Face Hub...")
+    api = HfApi(token=token)
 
-    except Exception as e:
-        print(f"Failed to upload datasets: {e}")
+    print(f"Ensuring repository exists: https://huggingface.co/{repo_id}")
+    create_repo(repo_id=repo_id, token=token, repo_type="model", exist_ok=True, private=args.private)
 
-    # 3. Upload Fine-Tuned Models
-    model_repo_id = f"{username}/FastText-Sinhala-Script-LID"
-    print(f"\n--- Uploading Models to {model_repo_id} ---")
-    
-    try:
-        create_repo(repo_id=model_repo_id, repo_type="model", exist_ok=True, private=False)
-        print(f"Model repository '{model_repo_id}' is ready.")
-        
-        # Dynamically find all model weights in the models directory
-        valid_extensions = (".bin", ".pt", ".safetensors", ".pkl", ".vec")
-        models_uploaded = 0
-        
-        if os.path.exists(models_dir):
-            for root_dir, _, files in os.walk(models_dir):
-                for filename in files:
-                    if filename.endswith(valid_extensions):
-                        file_path = os.path.join(root_dir, filename)
-                        # Maintain folder structure relative to models_dir
-                        rel_path = os.path.relpath(file_path, models_dir)
-                        
-                        print(f"Uploading {rel_path}...")
-                        api.upload_file(
-                            path_or_fileobj=file_path,
-                            path_in_repo=rel_path,
-                            repo_id=model_repo_id,
-                            repo_type="model"
-                        )
-                        models_uploaded += 1
-                        
-            if models_uploaded > 0:
-                print(f"Model upload complete! ({models_uploaded} files uploaded)")
-            else:
-                print("No model files found to upload in the models directory.")
-        else:
-            print(f"Warning: Models directory {models_dir} not found. Skipping model upload.")
-            
-    except Exception as e:
-        print(f"Failed to upload models: {e}")
+    # Write temporary README.md into directory for model card
+    readme_path = model_dir / "README.md"
+    readme_created = False
+    if not readme_path.exists():
+        readme_path.write_text(README_TEMPLATE, encoding="utf-8")
+        readme_created = True
 
-    print("\n=======================================================")
-    print("All tasks completed! Check your Hugging Face profile at:")
-    print(f"https://huggingface.co/{username}")
-    print("=======================================================")
+    print(f"Uploading files from {model_dir} to {repo_id}...")
+    api.upload_folder(
+        folder_path=str(model_dir),
+        repo_id=repo_id,
+        repo_type="model",
+        token=token
+    )
+
+    if readme_created and readme_path.exists():
+        readme_path.unlink()
+
+    print(f"\nSuccessfully uploaded model to: https://huggingface.co/{repo_id}")
+    print(f"Team members can now load this model in code using:")
+    print(f'  model = ContinualLID.from_pretrained("{repo_id}")')
 
 if __name__ == "__main__":
-    upload_to_huggingface()
+    main()
