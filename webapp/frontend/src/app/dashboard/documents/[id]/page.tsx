@@ -5,11 +5,28 @@ import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
 import {
-  Loader2, ArrowLeft, Languages, FileText, Download,
+  Loader2, ArrowLeft, Languages, FileText, Download, ChevronDown, Cpu, Sparkles,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
+
+type ModelInfo = {
+  id: string;
+  label: string;
+  description: string;
+  family: string;
+  is_baseline: boolean;
+  available: boolean;
+};
 
 type Document = {
   id: string;
@@ -37,6 +54,26 @@ export default function DocumentDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<number>(1);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get("/api/classification/models")
+      .then((res) => {
+        if (!cancelled) setModels(res.data?.data ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Could not load the model list.");
+      })
+      .finally(() => {
+        if (!cancelled) setModelsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -64,7 +101,7 @@ export default function DocumentDetailsPage() {
     }
   }, [documentId, router]);
 
-  const handleIdentifyLanguage = async () => {
+  const handleIdentifyLanguage = async (modelName: string) => {
     // Combine text from all pages
     const fullText = pages
       .map(p => p.extracted_text || "")
@@ -80,13 +117,14 @@ export default function DocumentDetailsPage() {
     try {
       const res = await axios.post("/api/classification/jobs", {
         input_text: fullText,
-        segmentation_strategy: "sentence" // Default strategy
+        segmentation_strategy: "sentence", // Default strategy
+        model_name: modelName,
       });
-      
+
       toast.success("Classification job created!");
       router.push(`/dashboard/classification/${res.data.data.id}`);
-    } catch (err) {
-      toast.error("Failed to start language identification");
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || "Failed to start language identification");
       setSubmitting(false);
     }
   };
@@ -144,14 +182,57 @@ export default function DocumentDetailsPage() {
               <Download className="h-4 w-4" />
               Download Original
             </Button>
-            <Button 
-              onClick={handleIdentifyLanguage} 
-              disabled={submitting || pages.length === 0} 
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4" />}
-              Identify Language
-            </Button>
+            {/* base-ui DropdownMenu doesn't use asChild */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                disabled={submitting || pages.length === 0}
+                className={cn(buttonVariants(), "gap-2 bg-emerald-600 hover:bg-emerald-700")}
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4" />}
+                Identify Language
+                <ChevronDown className="h-4 w-4 opacity-80" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Choose a model</DropdownMenuLabel>
+                  {modelsLoading && (
+                    <div className="flex items-center gap-2 px-1.5 py-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading models…
+                    </div>
+                  )}
+                  {!modelsLoading && models.length === 0 && (
+                    <div className="px-1.5 py-2 text-xs text-muted-foreground">No models available.</div>
+                  )}
+                  {models.map((m) => {
+                    const Icon = m.is_baseline ? Cpu : Sparkles;
+                    return (
+                      <DropdownMenuItem
+                        key={m.id}
+                        disabled={!m.available}
+                        onClick={() => handleIdentifyLanguage(m.id)}
+                        className="items-start gap-2 py-2 cursor-pointer"
+                      >
+                        <Icon className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="font-medium flex items-center gap-1.5">
+                            {m.label}
+                            {m.is_baseline && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                Baseline
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground whitespace-normal leading-snug">
+                            {m.available ? m.description : "Checkpoint not found on this machine"}
+                          </span>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         }
       />
