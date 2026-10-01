@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, tuple_
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 from datetime import datetime, timezone
@@ -57,27 +57,55 @@ async def get_annotations(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     pending_only: bool = Query(True),
+    approved_only: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_admin)
 ):
     """
     Admin: Get list of annotations (queue for review).
+
+    approved_only=true returns only annotations approved for training and
+    takes precedence over pending_only.
     """
     query = select(Annotation).options(selectinload(Annotation.segment), selectinload(Annotation.user))
     
-    if pending_only:
-        query = query.where(Annotation.admin_reviewed == False)
+    if approved_only:
+        query = query.where(
+            Annotation.admin_reviewed == True,
+            Annotation.is_valid_for_training == True
+        ).order_by(Annotation.reviewed_at.desc())
+    else:
+        if pending_only:
+            query = query.where(Annotation.admin_reviewed == False)
+        query = query.order_by(Annotation.created_at.desc())
         
-    query = query.order_by(Annotation.created_at.desc()).offset(skip).limit(limit)
+    query = query.offset(skip).limit(limit)
     
     result = await db.execute(query)
     annotations = result.scalars().all()
+    
+    # Fetch the neighbouring segments (previous / following phrase) of every
+    # annotated segment in a single query, keyed by (job_id, segment_index).
+    neighbour_keys = set()
+    for ann in annotations:
+        neighbour_keys.add((ann.segment.job_id, ann.segment.segment_index - 1))
+        neighbour_keys.add((ann.segment.job_id, ann.segment.segment_index + 1))
+    
+    neighbours = {}
+    if neighbour_keys:
+        neighbour_result = await db.execute(
+            select(ClassifiedSegment.job_id, ClassifiedSegment.segment_index, ClassifiedSegment.text)
+            .where(tuple_(ClassifiedSegment.job_id, ClassifiedSegment.segment_index).in_(list(neighbour_keys)))
+        )
+        neighbours = {(job_id, index): text for job_id, index, text in neighbour_result.all()}
     
     data = []
     for ann in annotations:
         ann_dict = AnnotationResponse.model_validate(ann).model_dump()
         ann_dict["original_text"] = ann.segment.text
         ann_dict["predicted_language"] = ann.segment.predicted_language
+        ann_dict["previous_text"] = neighbours.get((ann.segment.job_id, ann.segment.segment_index - 1))
+        ann_dict["next_text"] = neighbours.get((ann.segment.job_id, ann.segment.segment_index + 1))
         ann_dict["user_email"] = ann.user.email
         data.append(AnnotationAdminResponse(**ann_dict))
         

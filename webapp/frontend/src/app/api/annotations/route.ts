@@ -5,11 +5,16 @@ import axios from "axios";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const pendingOnly = searchParams.get("pending_only") || "true";
+  const params: Record<string, string> = { pending_only: searchParams.get("pending_only") || "true" };
+  for (const key of ["approved_only", "skip", "limit"]) {
+    const value = searchParams.get(key);
+    if (value !== null) params[key] = value;
+  }
   const token = await getValidToken();
 
   try {
-    const res = await axios.get(`http://localhost:8000/api/v1/annotations?pending_only=${pendingOnly}`, {
+    const res = await axios.get(`http://localhost:8000/api/v1/annotations`, {
+      params,
       headers: { Authorization: `Bearer ${token}` }
     });
     return NextResponse.json(res.data);

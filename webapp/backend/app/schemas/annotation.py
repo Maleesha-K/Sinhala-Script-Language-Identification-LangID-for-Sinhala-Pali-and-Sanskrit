@@ -29,6 +29,8 @@ class AnnotationResponse(BaseModel):
 class AnnotationAdminResponse(AnnotationResponse):
     original_text: str
     predicted_language: str
+    previous_text: Optional[str] = None
+    next_text: Optional[str] = None
     user_email: str
     
     class Config:

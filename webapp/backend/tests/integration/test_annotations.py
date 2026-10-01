@@ -47,6 +47,44 @@ async def create_segment(user_id: str, *, text: str = "ශ්‍රී ලංක
         return str(segment.id)
 
 
+async def create_job_segments(user_id: str, texts: list[str]) -> list[str]:
+    """Seed a completed job with consecutive segments and return their ids."""
+    from app.db.models.classification_job import ClassificationJob, JobStatus
+    from app.db.models.classified_segment import ClassifiedSegment
+    from app.db.session import async_session_maker
+
+    async with async_session_maker() as session:
+        job = ClassificationJob(
+            user_id=uuid.UUID(user_id),
+            input_text=" ".join(texts),
+            model_name="sklearn_langid",
+            segmentation_strategy="sentence",
+            status=JobStatus.COMPLETED,
+            completed_at=datetime.now(timezone.utc),
+        )
+        session.add(job)
+        await session.flush()
+
+        segments = []
+        offset = 0
+        for index, text in enumerate(texts):
+            segment = ClassifiedSegment(
+                job_id=job.id,
+                segment_index=index,
+                text=text,
+                predicted_language="sinhala",
+                confidence=0.91,
+                probabilities={"sinhala": 0.91, "pali": 0.06, "sanskrit": 0.03},
+                start_char_offset=offset,
+                end_char_offset=offset + len(text),
+            )
+            offset += len(text) + 1
+            session.add(segment)
+            segments.append(segment)
+        await session.commit()
+        return [str(segment.id) for segment in segments]
+
+
 async def submit_annotation(client, headers, segment_id: str, **overrides) -> dict:
     """Submit a correction and return the created annotation."""
     payload = {"segment_id": segment_id, "corrected_language": "pali"}
@@ -254,6 +292,64 @@ async def test_admin_list_includes_review_context(
     assert row["predicted_language"] == "sinhala"
     assert row["corrected_language"] == "pali"
     assert row["user_email"] == test_user["email"]
+
+
+@pytest.mark.asyncio
+async def test_admin_list_includes_neighbouring_phrases(
+    async_client, auth_headers, admin_headers, test_user
+):
+    """Each row carries the previous and following phrase from the same job.
+
+    The surrounding text helps an admin judge a correction in context.
+    """
+    first, middle, last = await create_job_segments(
+        test_user["user"]["id"], ["පළමු වාක්‍යය", "ධම්මං සරණං ගච්ඡාමි", "අවසන් වාක්‍යය"]
+    )
+    for segment_id in (first, middle, last):
+        await submit_annotation(async_client, auth_headers, segment_id)
+
+    response = await async_client.get(f"{API}/annotations", headers=admin_headers)
+
+    assert response.status_code == 200, response.text
+    rows = {item["segment_id"]: item for item in response.json()["data"]}
+
+    assert rows[middle]["previous_text"] == "පළමු වාක්‍යය"
+    assert rows[middle]["next_text"] == "අවසන් වාක්‍යය"
+    assert rows[first]["previous_text"] is None
+    assert rows[first]["next_text"] == "ධම්මං සරණං ගච්ඡාමි"
+    assert rows[last]["previous_text"] == "ධම්මං සරණං ගච්ඡාමි"
+    assert rows[last]["next_text"] is None
+
+
+@pytest.mark.asyncio
+async def test_admin_list_approved_only(
+    async_client, auth_headers, admin_headers, test_user
+):
+    """approved_only=true lists only annotations approved for training."""
+    approved_seg, rejected_seg, pending_seg = await create_job_segments(
+        test_user["user"]["id"], ["එක", "දෙක", "තුන"]
+    )
+    approved = await submit_annotation(async_client, auth_headers, approved_seg)
+    rejected = await submit_annotation(async_client, auth_headers, rejected_seg)
+    pending = await submit_annotation(async_client, auth_headers, pending_seg)
+
+    for annotation, decision in ((approved, True), (rejected, False)):
+        review = await async_client.put(
+            f"{API}/annotations/{annotation['id']}/review",
+            headers=admin_headers,
+            json={"is_valid_for_training": decision},
+        )
+        assert review.status_code == 200, review.text
+
+    response = await async_client.get(
+        f"{API}/annotations", headers=admin_headers, params={"approved_only": "true"}
+    )
+
+    assert response.status_code == 200, response.text
+    listed = {item["id"] for item in response.json()["data"]}
+    assert approved["id"] in listed
+    assert rejected["id"] not in listed
+    assert pending["id"] not in listed
 
 
 @pytest.mark.asyncio
