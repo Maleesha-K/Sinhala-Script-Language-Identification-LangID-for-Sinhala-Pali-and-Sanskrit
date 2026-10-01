@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy import String, Boolean, BigInteger, Numeric, Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base, TimestampMixin
 import enum
@@ -20,3 +20,5 @@ class User(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     storage_used_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     credits_balance: Mapped[float] = mapped_column(Numeric(18, 4), default=0.0, nullable=False)
+
+    payments = relationship("PaymentTransaction", back_populates="user", cascade="all, delete-orphan")

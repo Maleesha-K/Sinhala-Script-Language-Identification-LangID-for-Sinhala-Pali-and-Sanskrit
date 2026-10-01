@@ -10,6 +10,7 @@ from app.db.models.document_page import DocumentPage
 from app.db.models.classification_job import ClassificationJob
 from app.db.models.classified_segment import ClassifiedSegment
 from app.db.models.annotation import Annotation
+from app.db.models.payment import PaymentTransaction, PaymentGateway, PaymentStatus
 
 # This exposes all models for Alembic's env.py
 __all__ = [
@@ -25,4 +26,7 @@ __all__ = [
     "ClassificationJob",
     "ClassifiedSegment",
     "Annotation",
+    "PaymentTransaction",
+    "PaymentGateway",
+    "PaymentStatus",
 ]

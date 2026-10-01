@@ -40,7 +40,13 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_SECURE: bool = False
+
+    # PayHere Sri Lanka Gateway
+    PAYHERE_MERCHANT_ID: str = "1211149"
+    PAYHERE_MERCHANT_SECRET: str = "4MzM4NDYyMDUxMzA5OTY3NDI2MzcxNjA3NTIzMTM0MjcyMzI5NA=="
+    PAYHERE_MODE: str = "sandbox"  # 'sandbox' or 'live'
+    FRONTEND_URL: str = "http://localhost:3000"
     
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 settings = Settings()
