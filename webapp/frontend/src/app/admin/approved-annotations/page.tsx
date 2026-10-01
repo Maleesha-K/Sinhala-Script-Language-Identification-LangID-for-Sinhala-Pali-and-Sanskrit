@@ -4,8 +4,11 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, CheckCircle, Download, Inbox, ClipboardCheck } from "lucide-react";
+import { Loader2, CheckCircle, Download, Inbox, ClipboardCheck, Trash2, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +58,34 @@ function exportCsv(rows: ApprovedAnnotation[]) {
 export default function ApprovedAnnotationsPage() {
   const [annotations, setAnnotations] = useState<ApprovedAnnotation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exported, setExported] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+
+  const handleExport = () => {
+    exportCsv(annotations);
+    setExported(true);
+  };
+
+  // Clear exactly the rows on screen, so anything approved after the page
+  // loaded (and therefore not in the export) stays in the table.
+  const handleClear = async (exportFirst: boolean) => {
+    if (exportFirst) handleExport();
+    try {
+      setClearing(true);
+      const res = await axios.post("/api/annotations/clear-approved", {
+        annotation_ids: annotations.map((a) => a.id),
+      });
+      toast.success(res.data.message || "Table cleared");
+      setAnnotations([]);
+      setExported(false);
+      setConfirmOpen(false);
+    } catch {
+      toast.error("Failed to clear the table");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -75,14 +106,25 @@ export default function ApprovedAnnotationsPage() {
         title="Approved Annotations"
         description="Corrections approved as training data. Export them as a CSV for model training."
         actions={
-          <Button
-            className="gap-2"
-            disabled={loading || annotations.length === 0}
-            onClick={() => exportCsv(annotations)}
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="gap-2 border-destructive/20 text-destructive hover:bg-destructive/5"
+              disabled={loading || annotations.length === 0}
+              onClick={() => setConfirmOpen(true)}
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear Table
+            </Button>
+            <Button
+              className="gap-2"
+              disabled={loading || annotations.length === 0}
+              onClick={handleExport}
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         }
       />
 
@@ -138,6 +180,39 @@ export default function ApprovedAnnotationsPage() {
           <span>{annotations.length} approved annotation{annotations.length !== 1 ? "s" : ""}.</span>
         </div>
       )}
+
+      <Dialog open={confirmOpen} onOpenChange={(open) => !clearing && setConfirmOpen(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Clear approved annotations?</DialogTitle>
+            <DialogDescription>
+              This removes {annotations.length} row{annotations.length !== 1 ? "s" : ""} from this table so the next
+              export only contains new approvals. The annotations stay stored as approved training data.
+            </DialogDescription>
+          </DialogHeader>
+          {!exported && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>You haven&apos;t exported this table yet. Export it first if you still need these rows as a CSV.</span>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" disabled={clearing} onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            {!exported && (
+              <Button variant="outline" className="gap-2" disabled={clearing} onClick={() => handleClear(true)}>
+                <Download className="h-4 w-4" />
+                Export &amp; Clear
+              </Button>
+            )}
+            <Button variant="destructive" className="gap-2" disabled={clearing} onClick={() => handleClear(false)}>
+              {clearing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Clear Table
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

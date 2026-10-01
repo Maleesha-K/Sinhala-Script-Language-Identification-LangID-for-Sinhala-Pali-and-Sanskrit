@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 
@@ -10,6 +10,12 @@ class AnnotationCreate(BaseModel):
 
 class AnnotationReview(BaseModel):
     is_valid_for_training: bool = Field(..., description="Whether this annotation is approved as training data")
+
+class AnnotationClear(BaseModel):
+    annotation_ids: List[UUID] = Field(..., min_length=1, description="Approved annotations to clear from the export table")
+
+class AnnotationClearResponse(BaseModel):
+    cleared: int
 
 class AnnotationResponse(BaseModel):
     id: UUID
@@ -22,6 +28,7 @@ class AnnotationResponse(BaseModel):
     is_valid_for_training: bool
     created_at: datetime
     reviewed_at: Optional[datetime]
+    cleared_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

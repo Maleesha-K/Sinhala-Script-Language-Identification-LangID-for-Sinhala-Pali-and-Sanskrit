@@ -17,6 +17,9 @@ class Annotation(Base, TimestampMixin):
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     is_valid_for_training: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set when an admin clears an approved annotation from the export table.
+    # The row is kept as training data; it is only hidden from that table.
+    cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     
     segment = relationship("ClassifiedSegment", back_populates="annotations")
     user = relationship("User", foreign_keys=[user_id])

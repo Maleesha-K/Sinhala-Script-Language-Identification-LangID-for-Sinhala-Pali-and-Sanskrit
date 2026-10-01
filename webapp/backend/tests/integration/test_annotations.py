@@ -442,6 +442,99 @@ async def test_list_annotations_without_token_returns_401(async_client):
     assert response.status_code == 401, response.text
 
 
+# --- admin clear approved ----------------------------------------------------
+
+async def approve(client, admin_headers, annotation_id: str, decision: bool = True):
+    review = await client.put(
+        f"{API}/annotations/{annotation_id}/review",
+        headers=admin_headers,
+        json={"is_valid_for_training": decision},
+    )
+    assert review.status_code == 200, review.text
+
+
+async def approved_ids(client, admin_headers) -> set[str]:
+    response = await client.get(
+        f"{API}/annotations", headers=admin_headers, params={"approved_only": "true"}
+    )
+    assert response.status_code == 200, response.text
+    return {item["id"] for item in response.json()["data"]}
+
+
+@pytest.mark.asyncio
+async def test_clear_approved_hides_from_approved_list(
+    async_client, auth_headers, admin_headers, test_user
+):
+    """Cleared annotations leave the export table but stay in the database."""
+    seg_a, seg_b = await create_job_segments(test_user["user"]["id"], ["එක", "දෙක"])
+    cleared = await submit_annotation(async_client, auth_headers, seg_a)
+    kept = await submit_annotation(async_client, auth_headers, seg_b)
+    await approve(async_client, admin_headers, cleared["id"])
+    await approve(async_client, admin_headers, kept["id"])
+
+    response = await async_client.post(
+        f"{API}/annotations/clear-approved",
+        headers=admin_headers,
+        json={"annotation_ids": [cleared["id"]]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["cleared"] == 1
+
+    listed = await approved_ids(async_client, admin_headers)
+    assert cleared["id"] not in listed
+    assert kept["id"] in listed
+
+    everything = await async_client.get(
+        f"{API}/annotations", headers=admin_headers, params={"pending_only": "false"}
+    )
+    row = next(item for item in everything.json()["data"] if item["id"] == cleared["id"])
+    assert row["is_valid_for_training"] is True
+    assert row["cleared_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_clear_approved_ignores_unapproved(
+    async_client, auth_headers, admin_headers, test_user
+):
+    """Only approved, not-yet-cleared annotations are counted as cleared."""
+    seg_a, seg_b = await create_job_segments(test_user["user"]["id"], ["එක", "දෙක"])
+    pending = await submit_annotation(async_client, auth_headers, seg_a)
+    rejected = await submit_annotation(async_client, auth_headers, seg_b)
+    await approve(async_client, admin_headers, rejected["id"], decision=False)
+
+    response = await async_client.post(
+        f"{API}/annotations/clear-approved",
+        headers=admin_headers,
+        json={"annotation_ids": [pending["id"], rejected["id"], str(uuid.uuid4())]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["cleared"] == 0
+
+
+@pytest.mark.asyncio
+async def test_clear_approved_requires_ids(async_client, admin_headers):
+    """An empty id list is rejected rather than treated as clear-all."""
+    response = await async_client.post(
+        f"{API}/annotations/clear-approved",
+        headers=admin_headers,
+        json={"annotation_ids": []},
+    )
+    assert response.status_code == 422, response.text
+
+
+@pytest.mark.asyncio
+async def test_regular_user_cannot_clear_approved(async_client, auth_headers):
+    """Clearing the export table is admin-only."""
+    response = await async_client.post(
+        f"{API}/annotations/clear-approved",
+        headers=auth_headers,
+        json={"annotation_ids": [str(uuid.uuid4())]},
+    )
+    assert response.status_code == 403, response.text
+
+
 # --- admin review ----------------------------------------------------------
 
 @pytest.mark.asyncio

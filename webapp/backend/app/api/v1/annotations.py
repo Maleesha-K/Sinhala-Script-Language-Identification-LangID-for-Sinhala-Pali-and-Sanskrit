@@ -12,7 +12,10 @@ from app.db.models.classified_segment import ClassifiedSegment
 from app.dependencies import get_db, get_current_user, require_admin
 from app.schemas.response import BaseResponse, success_response
 from app.utils.exceptions import BadRequestException, NotFoundException
-from app.schemas.annotation import AnnotationCreate, AnnotationReview, AnnotationResponse, AnnotationAdminResponse
+from app.schemas.annotation import (
+    AnnotationCreate, AnnotationReview, AnnotationResponse, AnnotationAdminResponse,
+    AnnotationClear, AnnotationClearResponse,
+)
 
 router = APIRouter(prefix="/annotations", tags=["annotations"])
 
@@ -64,15 +67,17 @@ async def get_annotations(
     """
     Admin: Get list of annotations (queue for review).
 
-    approved_only=true returns only annotations approved for training and
-    takes precedence over pending_only.
+    approved_only=true returns only annotations approved for training that
+    have not been cleared from the export table, and takes precedence over
+    pending_only.
     """
     query = select(Annotation).options(selectinload(Annotation.segment), selectinload(Annotation.user))
     
     if approved_only:
         query = query.where(
             Annotation.admin_reviewed == True,
-            Annotation.is_valid_for_training == True
+            Annotation.is_valid_for_training == True,
+            Annotation.cleared_at.is_(None)
         ).order_by(Annotation.reviewed_at.desc())
     else:
         if pending_only:
@@ -110,6 +115,36 @@ async def get_annotations(
         data.append(AnnotationAdminResponse(**ann_dict))
         
     return success_response(data=data)
+
+@router.post("/clear-approved", response_model=BaseResponse[AnnotationClearResponse])
+async def clear_approved_annotations(
+    request: AnnotationClear,
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_admin)
+):
+    """
+    Admin: Clear approved annotations from the export table (e.g. after exporting).
+
+    Only the given ids are cleared, so anything approved after the admin loaded
+    the table is not removed unseen. Rows are kept; cleared_at hides them.
+    """
+    result = await db.execute(
+        update(Annotation)
+        .where(
+            Annotation.id.in_(request.annotation_ids),
+            Annotation.admin_reviewed == True,
+            Annotation.is_valid_for_training == True,
+            Annotation.cleared_at.is_(None)
+        )
+        .values(cleared_at=datetime.now(timezone.utc))
+    )
+    await db.commit()
+    
+    cleared = result.rowcount
+    return success_response(
+        data=AnnotationClearResponse(cleared=cleared),
+        message=f"Cleared {cleared} approved annotation{'s' if cleared != 1 else ''}"
+    )
 
 @router.put("/{annotation_id}/review", response_model=BaseResponse[AnnotationResponse])
 async def review_annotation(
