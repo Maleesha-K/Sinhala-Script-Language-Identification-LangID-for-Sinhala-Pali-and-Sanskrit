@@ -51,28 +51,85 @@ class AdminService:
     async def get_system_config(self, db: AsyncSession):
         result = await db.execute(select(SystemConfig).where(SystemConfig.key == "usd_to_credits"))
         config = result.scalar_one_or_none()
+        from app.schemas.admin import SystemConfigResponse, CreditPackageConfig
+        
         if not config:
-            # Create a default config if none exists
-            config = SystemConfig(key="usd_to_credits", value={"rate": 100.0})
+            rate = 100.0
+            packages = [
+                {"id": "starter", "name": "Student / Starter Pack", "credits": 2500.0, "amount_lkr": 750.00, "popular": False, "description": "Ideal for students and short document experiments."},
+                {"id": "standard", "name": "Standard Researcher Pack", "credits": 10000.0, "amount_lkr": 2500.00, "popular": True, "description": "Best value for continuous classification and multi-page OCR."},
+                {"id": "institution", "name": "Institutional / Corpus Pack", "credits": 50000.0, "amount_lkr": 10000.00, "popular": False, "description": "High-volume tier for large historical archives and deep datasets."},
+            ]
+            config = SystemConfig(
+                key="usd_to_credits", 
+                value={
+                    "rate": rate, 
+                    "usd_to_credits_rate": rate,
+                    "usd_to_lkr_rate": 300.0,
+                    "packages": packages
+                }
+            )
             db.add(config)
             await db.commit()
             await db.refresh(config)
+        
+        rate = float(config.value.get("rate", config.value.get("usd_to_credits_rate", 100.0)))
+        usd_to_lkr = float(config.value.get("usd_to_lkr_rate", 300.0))
+        raw_packages = config.value.get("packages")
+        
+        if not raw_packages:
+            raw_packages = [
+                {"id": "starter", "name": "Student / Starter Pack", "credits": round(25.0 * rate), "amount_lkr": 750.00, "popular": False, "description": "Ideal for students and short document experiments."},
+                {"id": "standard", "name": "Standard Researcher Pack", "credits": round(100.0 * rate), "amount_lkr": 2500.00, "popular": True, "description": "Best value for continuous classification and multi-page OCR."},
+                {"id": "institution", "name": "Institutional / Corpus Pack", "credits": round(500.0 * rate), "amount_lkr": 10000.00, "popular": False, "description": "High-volume tier for large historical archives and deep datasets."},
+            ]
             
-        from app.schemas.admin import SystemConfigResponse
-        return SystemConfigResponse(usd_to_credits_rate=config.value.get("rate", 100.0))
+        packages = [CreditPackageConfig(**p) for p in raw_packages]
+        return SystemConfigResponse(
+            usd_to_credits_rate=rate,
+            usd_to_lkr_rate=usd_to_lkr,
+            packages=packages
+        )
         
     async def update_system_config(self, db: AsyncSession, config_in: SystemConfigUpdate):
         result = await db.execute(select(SystemConfig).where(SystemConfig.key == "usd_to_credits"))
         config = result.scalar_one_or_none()
+        from app.schemas.admin import SystemConfigResponse, CreditPackageConfig
+
+        rate = config_in.usd_to_credits_rate
+        usd_to_lkr = config_in.usd_to_lkr_rate or 300.0
+        
+        if config_in.packages:
+            raw_packages = [p.model_dump() for p in config_in.packages]
+        else:
+            raw_packages = [
+                {"id": "starter", "name": "Student / Starter Pack", "credits": round(25.0 * rate), "amount_lkr": 750.00, "popular": False, "description": "Ideal for students and short document experiments."},
+                {"id": "standard", "name": "Standard Researcher Pack", "credits": round(100.0 * rate), "amount_lkr": 2500.00, "popular": True, "description": "Best value for continuous classification and multi-page OCR."},
+                {"id": "institution", "name": "Institutional / Corpus Pack", "credits": round(500.0 * rate), "amount_lkr": 10000.00, "popular": False, "description": "High-volume tier for large historical archives and deep datasets."},
+            ]
+            
+        val = {
+            "rate": rate,
+            "usd_to_credits_rate": rate,
+            "usd_to_lkr_rate": usd_to_lkr,
+            "packages": raw_packages
+        }
+        
         if not config:
-            config = SystemConfig(key="usd_to_credits", value={"rate": config_in.usd_to_credits_rate})
+            config = SystemConfig(key="usd_to_credits", value=val)
             db.add(config)
         else:
-            config.value = {"rate": config_in.usd_to_credits_rate}
+            config.value = val
         
         await db.commit()
-        from app.schemas.admin import SystemConfigResponse
-        return SystemConfigResponse(usd_to_credits_rate=config.value.get("rate", 100.0))
+        await db.refresh(config)
+        
+        packages = [CreditPackageConfig(**p) for p in raw_packages]
+        return SystemConfigResponse(
+            usd_to_credits_rate=rate,
+            usd_to_lkr_rate=usd_to_lkr,
+            packages=packages
+        )
 
     async def get_model_rates(self, db: AsyncSession):
         result = await db.execute(select(ModelRate))
