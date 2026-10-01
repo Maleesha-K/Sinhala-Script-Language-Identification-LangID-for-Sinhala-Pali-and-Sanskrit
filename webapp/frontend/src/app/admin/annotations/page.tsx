@@ -13,11 +13,29 @@ type Annotation = {
   id: string;
   segment_id: string;
   user_id: string;
-  original_language: string;
+  original_text: string;
+  previous_text?: string | null;
+  next_text?: string | null;
+  predicted_language: string;
   corrected_language: string;
   comment?: string;
   created_at: string;
 };
+
+function Phrase({ text, highlight = false }: { text?: string | null; highlight?: boolean }) {
+  if (!text) return <span className="text-xs italic text-muted-foreground/50">—</span>;
+  return (
+    <p
+      title={text}
+      className={cn(
+        "line-clamp-3 whitespace-normal break-words text-sm leading-relaxed",
+        highlight ? "font-medium text-foreground" : "text-muted-foreground"
+      )}
+    >
+      {text}
+    </p>
+  );
+}
 
 export default function AdminAnnotationsPage() {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -62,23 +80,26 @@ export default function AdminAnnotationsPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="font-semibold min-w-[180px]">Annotated Phrase</TableHead>
+              <TableHead className="font-semibold min-w-[150px]">Previous Phrase</TableHead>
+              <TableHead className="font-semibold min-w-[150px]">Following Phrase</TableHead>
               <TableHead className="font-semibold">Predicted</TableHead>
               <TableHead className="font-semibold">Corrected To</TableHead>
               <TableHead className="font-semibold">Comment</TableHead>
-              <TableHead className="font-semibold">Submitted</TableHead>
+              <TableHead className="font-semibold">Submitted On</TableHead>
               <TableHead className="text-right font-semibold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-36 text-center">
+                <TableCell colSpan={8} className="h-36 text-center">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                 </TableCell>
               </TableRow>
             ) : annotations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-36 text-center">
+                <TableCell colSpan={8} className="h-36 text-center">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <Inbox className="h-8 w-8 opacity-40" />
                     <p className="text-sm">No pending annotations to review.</p>
@@ -87,14 +108,23 @@ export default function AdminAnnotationsPage() {
               </TableRow>
             ) : (
               annotations.map((ann) => (
-                <TableRow key={ann.id} className="hover:bg-muted/30">
+                <TableRow key={ann.id} className="hover:bg-muted/30 align-top">
+                  <TableCell className="max-w-[260px]">
+                    <Phrase text={ann.original_text} highlight />
+                  </TableCell>
+                  <TableCell className="max-w-[200px]">
+                    <Phrase text={ann.previous_text} />
+                  </TableCell>
+                  <TableCell className="max-w-[200px]">
+                    <Phrase text={ann.next_text} />
+                  </TableCell>
                   <TableCell>
                     <span className={cn(
                       "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
                       "bg-destructive/10 text-destructive border border-destructive/20"
                     )}>
                       <XCircle className="h-3 w-3" />
-                      <span className="capitalize">{ann.original_language}</span>
+                      <span className="capitalize">{ann.predicted_language}</span>
                     </span>
                   </TableCell>
                   <TableCell>
@@ -106,10 +136,10 @@ export default function AdminAnnotationsPage() {
                       <span className="capitalize">{ann.corrected_language}</span>
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">
+                  <TableCell className="text-sm text-muted-foreground max-w-[200px] whitespace-normal break-words">
                     {ann.comment || <span className="italic opacity-50">No comment</span>}
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                     {new Date(ann.created_at).toLocaleDateString(undefined, { dateStyle: "medium" })}
                   </TableCell>
                   <TableCell className="text-right">

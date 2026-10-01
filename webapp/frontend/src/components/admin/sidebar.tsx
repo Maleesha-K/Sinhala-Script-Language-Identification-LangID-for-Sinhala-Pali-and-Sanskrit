@@ -7,6 +7,7 @@ import {
   CreditCard,
   Settings,
   Edit3,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ const items = [
   { name: "Model Rates", href: "/admin/rates", icon: CreditCard, exact: false },
   { name: "Configuration", href: "/admin/config", icon: Settings, exact: false },
   { name: "Annotations", href: "/admin/annotations", icon: Edit3, exact: false },
+  { name: "Approved Annotations", href: "/admin/approved-annotations", icon: ClipboardCheck, exact: false },
 ];
 
 export function AdminSidebar() {
