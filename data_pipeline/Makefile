@@ -1,4 +1,4 @@
-.PHONY: all download preprocess check benchmark finetune clean
+.PHONY: all download preprocess check benchmark finetune finetune-rehearsal benchmark-rehearsal clean
 
 
 -include .env
@@ -94,6 +94,8 @@ finetune-dataset:
 			$(PAPERMILL) -k python3 -l python "$$nb" /dev/null; \
 		done \
 	fi
+	@echo "Building 11-group rehearsal dataset..."
+	$(PYTHON) $(SCRIPT_DIR)/05.finetune_dataset/build_11groups.py
 
 finetune-models:
 	@echo "Running fine-tuning models..."
@@ -113,6 +115,14 @@ benchmark-finetuned:
 			$(PAPERMILL) -k python3 -l python "$$nb" /dev/null; \
 		done \
 	fi
+
+# new_method rehearsal fine-tuning (NLLB, GlotLID, ConLID) on its own.
+# Also included in finetune-models / benchmark-finetuned above.
+finetune-rehearsal:
+	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/06.finetune_models/finetune_rehearsal_new_method.ipynb $(DEV_NULL)
+
+benchmark-rehearsal:
+	$(PAPERMILL) -k python3 -l python $(SCRIPT_DIR)/07.benchmark_finetuned/benchmark_rehearsal_new_method.ipynb $(DEV_NULL)
 
 # Clean up datasets (use with caution)
 clean:

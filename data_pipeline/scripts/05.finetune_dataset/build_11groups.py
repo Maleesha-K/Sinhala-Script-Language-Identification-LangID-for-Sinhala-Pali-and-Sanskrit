@@ -401,9 +401,39 @@ def load_aya_records(exclusions: list, script_warnings: list, stats: dict) -> li
 # 3. Sanskrit-Devanagari: independently sourced, same cap and split policy
 # --------------------------------------------------------------------------
 
+def fetch_sanskrit_deva():
+    """Download and extract combined.txt if absent; the zip must match SANSKRIT_DEVA_SHA256."""
+    if os.path.exists(SANSKRIT_DEVA_FILE):
+        return
+    import io
+    import urllib.request
+    import zipfile
+
+    print(f"Downloading Sanskrit-Devanagari corpus from {SANSKRIT_DEVA_URL}...")
+    try:
+        with urllib.request.urlopen(SANSKRIT_DEVA_URL) as resp:
+            payload = resp.read()
+    except OSError as exc:
+        print(f"  WARNING: download failed ({exc}).")
+        return
+    got = hashlib.sha256(payload).hexdigest()
+    if got != SANSKRIT_DEVA_SHA256:
+        raise RuntimeError(
+            f"combined.zip SHA-256 mismatch: expected {SANSKRIT_DEVA_SHA256}, got {got}. "
+            "Upstream changed; verify the file before updating SANSKRIT_DEVA_SHA256."
+        )
+    target_dir = os.path.dirname(SANSKRIT_DEVA_FILE)
+    with zipfile.ZipFile(io.BytesIO(payload)) as zf:
+        member = next(n for n in zf.namelist() if os.path.basename(n) == "combined.txt")
+        os.makedirs(target_dir, exist_ok=True)
+        with zf.open(member) as src, open(SANSKRIT_DEVA_FILE, "wb") as dst:
+            dst.write(src.read())
+
+
 def load_sanskrit_deva_records(exclusions, script_warnings, stats):
     group, iso3, script = SANSKRIT_DEVA_GROUP
 
+    fetch_sanskrit_deva()
     if not os.path.exists(SANSKRIT_DEVA_FILE):
         stats["sanskrit_deva"] = {
             "status": "MISSING",
