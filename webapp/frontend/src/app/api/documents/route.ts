@@ -1,54 +1,11 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getValidToken } from "@/lib/auth-server";
-import axios from "axios";
-
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { forward } from "@/lib/backend";
 
 export async function GET() {
-  try {
-    const token = await getValidToken();
-
-    if (!token) {
-      return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
-    }
-
-    const response = await axios.get(`${apiUrl}/documents`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    return NextResponse.json(response.data.data);
-  } catch (error: any) {
-    return NextResponse.json(
-      { detail: error.response?.data?.message || 'Failed to fetch documents' },
-      { status: error.response?.status || 500 }
-    );
-  }
+  return forward("/documents", { unwrap: true, fallback: "Failed to fetch documents" });
 }
 
 export async function POST(request: Request) {
-  try {
-    const token = await getValidToken();
-
-    if (!token) {
-      return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
-    }
-
-    // We must pass the raw form data directly to axios
-    const formData = await request.formData();
-    
-    const response = await axios.post(`${apiUrl}/documents/upload`, formData, {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    return NextResponse.json(response.data.data);
-  } catch (error: any) {
-    return NextResponse.json(
-      { detail: error.response?.data?.message || 'Failed to upload document' },
-      { status: error.response?.status || 500 }
-    );
-  }
+  // Passed through as FormData so axios sets the multipart boundary itself.
+  const formData = await request.formData();
+  return forward("/documents/upload", { method: "POST", body: formData, unwrap: true, fallback: "Failed to upload document" });
 }

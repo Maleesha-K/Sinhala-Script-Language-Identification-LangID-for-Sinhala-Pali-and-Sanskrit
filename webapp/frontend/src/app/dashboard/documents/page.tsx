@@ -13,9 +13,9 @@ import {
 } from "lucide-react";
 import { UploadModal } from "@/components/documents/upload-modal";
 import { PageHeader } from "@/components/layout/page-header";
-import { cn } from "@/lib/utils";
+import { apiErrorDetail, cn } from "@/lib/utils";
 
-type DocumentStatus = "uploading" | "ready" | "deleted";
+type DocumentStatus = "uploading" | "ready" | "failed" | "deleted";
 
 type Document = {
   id: string;
@@ -28,6 +28,7 @@ type Document = {
 const statusConfig: Record<DocumentStatus, { icon: React.ElementType; label: string; className: string }> = {
   uploading: { icon: Loader2,      label: "Processing", className: "text-primary" },
   ready:     { icon: CheckCircle2, label: "Ready",      className: "text-emerald-600" },
+  failed:    { icon: XCircle,      label: "Failed",     className: "text-destructive" },
   deleted:   { icon: XCircle,      label: "Deleted",    className: "text-destructive" },
 };
 
@@ -77,8 +78,8 @@ export default function DocumentsPage() {
       await axios.delete(`/api/documents/${docId}`);
       toast.success("Document deleted");
       fetchDocuments();
-    } catch {
-      toast.error("Failed to delete document");
+    } catch (error) {
+      toast.error(apiErrorDetail(error, "Failed to delete document"));
     }
   };
 

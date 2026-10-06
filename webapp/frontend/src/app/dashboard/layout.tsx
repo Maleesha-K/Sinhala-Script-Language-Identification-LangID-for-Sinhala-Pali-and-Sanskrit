@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import axios from "axios";
+import { API_URL } from "@/lib/backend";
 
 export default async function DashboardLayout({
   children,
@@ -17,7 +18,7 @@ export default async function DashboardLayout({
   }
 
   try {
-    await axios.get("http://localhost:8000/api/v1/users/me", {
+    await axios.get(`${API_URL}/users/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
   } catch {

@@ -8,6 +8,7 @@ from app.db.base import Base, TimestampMixin
 class UploadStatus(str, enum.Enum):
     UPLOADING = "uploading"
     READY = "ready"
+    FAILED = "failed"
     DELETED = "deleted"
 
 class Document(Base, TimestampMixin):

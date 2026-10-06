@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
@@ -11,7 +11,8 @@ from app.db.models.classified_segment import ClassifiedSegment
 from app.dependencies import get_db, get_current_user
 from app.schemas.response import BaseResponse, success_response
 from app.utils.exceptions import NotFoundException, BadRequestException
-from app.workers.tasks.classification_tasks import process_classification_job
+from app.workers.tasks.classification_tasks import process_classification_job, estimate_tokens
+from app.services.credit_service import credit_service
 from app.ml.registry import MODELS, BASELINE_MODEL, list_models
 from pydantic import BaseModel, Field
 
@@ -65,8 +66,18 @@ async def create_classification_job(
             f"Unknown model '{request.model_name}'. Available: {', '.join(sorted(MODELS))}"
         )
 
-    # 1. Deduct credits logic (Mocked for now, assuming sufficient credits)
-    # 2. Create Job
+    # Credits are charged by the worker once the text is segmented; reject up
+    # front when the balance cannot cover the estimate so the job does not just
+    # fail in the background.
+    estimated_cost = await credit_service.estimate_classification_cost(
+        db, request.model_name, estimate_tokens(request.input_text)
+    )
+    if current_user.credits_balance < estimated_cost:
+        raise BadRequestException(
+            f"Insufficient credits: this text needs about {float(estimated_cost):.4f} credits "
+            f"but your balance is {float(current_user.credits_balance):.4f}. Please top up."
+        )
+
     job = ClassificationJob(
         user_id=current_user.id,
         input_text=request.input_text,
@@ -94,6 +105,32 @@ async def create_classification_job(
         },
         message="Classification job started"
     )
+
+@router.get("/jobs", response_model=BaseResponse[List[JobResponse]])
+async def list_classification_jobs(
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List the current user's most recent classification jobs (without segments)."""
+    result = await db.execute(
+        select(ClassificationJob)
+        .where(ClassificationJob.user_id == current_user.id)
+        .order_by(ClassificationJob.created_at.desc())
+        .limit(limit)
+    )
+    jobs = result.scalars().all()
+    return success_response(data=[
+        {
+            "id": job.id,
+            "status": job.status,
+            "model_name": job.model_name,
+            "segmentation_strategy": job.segmentation_strategy,
+            "total_tokens": job.total_tokens,
+            "created_at": job.created_at,
+            "completed_at": job.completed_at,
+        } for job in jobs
+    ])
 
 @router.get("/jobs/{job_id}", response_model=BaseResponse[JobResponse])
 async def get_classification_job(

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import axios from "axios";
+import { API_URL } from "@/lib/backend";
 
 export default async function AdminLayout({
   children,
@@ -16,16 +17,18 @@ export default async function AdminLayout({
     redirect("/auth/login");
   }
 
+  // redirect() throws, so it must stay outside the try/catch.
+  let role: string | null = null;
   try {
-    const res = await axios.get("http://localhost:8000/api/v1/users/me", {
+    const res = await axios.get(`${API_URL}/users/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const user = res.data.data;
-    if (user.role !== "admin") {
-      redirect("/dashboard");
-    }
+    role = res.data.data.role;
   } catch {
     redirect("/auth/login");
+  }
+  if (role !== "admin") {
+    redirect("/dashboard");
   }
 
   return (

@@ -620,3 +620,50 @@ async def test_forbidden_config_update_changes_nothing(
 
     current = await async_client.get(f"{API}/admin/config", headers=admin_headers)
     assert current.json()["data"]["usd_to_credits_rate"] == pytest.approx(150.0)
+
+
+# --- tier activation / stats ------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_admin_can_deactivate_tier(async_client, admin_headers):
+    """PUT /admin/tiers/{id} persists is_active, which the edit form sends."""
+    tier = await create_tier(async_client, admin_headers)
+
+    response = await async_client.put(
+        f"{API}/admin/tiers/{tier['id']}",
+        headers=admin_headers,
+        json={"is_active": False},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["is_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_admin_can_read_stats(async_client, admin_headers, auth_headers):
+    """GET /admin/stats reports platform counters."""
+    response = await async_client.get(f"{API}/admin/stats", headers=admin_headers)
+
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert data["total_users"] >= 2
+    assert set(data) == {"total_users", "active_subscriptions", "storage_used_bytes", "active_jobs"}
+
+
+@pytest.mark.asyncio
+async def test_regular_user_cannot_read_stats(async_client, auth_headers):
+    response = await async_client.get(f"{API}/admin/stats", headers=auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_available_models_lists_every_registry_model(async_client, admin_headers):
+    """Every selectable classification model can be given a rate."""
+    from app.ml.registry import MODELS
+
+    response = await async_client.get(
+        f"{API}/admin-rates/available-models", headers=admin_headers
+    )
+
+    names = {item["model_name"] for item in response.json()["data"]}
+    assert set(MODELS) <= names

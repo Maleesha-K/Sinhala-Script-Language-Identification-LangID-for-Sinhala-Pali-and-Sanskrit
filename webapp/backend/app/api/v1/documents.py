@@ -50,6 +50,7 @@ async def upload_document(
     )
     
     db.add(new_doc)
+    current_user.storage_used_bytes += file_size
     await db.commit()
     await db.refresh(new_doc)
 
@@ -123,6 +124,7 @@ async def delete_document(
         
     # Delete from DB
     await db.delete(doc)
+    current_user.storage_used_bytes = max(0, current_user.storage_used_bytes - doc.size_bytes)
     await db.commit()
     
     return success_response(message="Document deleted successfully")
