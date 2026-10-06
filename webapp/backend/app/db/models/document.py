@@ -21,6 +21,8 @@ class Document(Base, TimestampMixin):
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     minio_key: Mapped[str | None] = mapped_column(Text)
     upload_status: Mapped[UploadStatus] = mapped_column(SQLEnum(UploadStatus), default=UploadStatus.UPLOADING, nullable=False)
+    # OCR engine chosen at upload; see app.ocr.registry.
+    ocr_engine: Mapped[str] = mapped_column(String(64), default="tesseract", server_default="tesseract", nullable=False)
     
     user = relationship("User")
     pages = relationship("DocumentPage", back_populates="document", cascade="all, delete-orphan")

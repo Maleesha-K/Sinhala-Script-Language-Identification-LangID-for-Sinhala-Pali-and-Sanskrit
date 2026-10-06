@@ -18,8 +18,8 @@ async def _process_document_async(document_id: str):
 
         from app.services.storage_service import storage_service
         import fitz
-        import pytesseract
         from PIL import Image
+        from app.ocr.registry import get_ocr_engine
         import io
         from app.db.models.document_page import DocumentPage, ExtractionMethod, PageStatus
 
@@ -28,6 +28,7 @@ async def _process_document_async(document_id: str):
 
         # Read before any rollback: expired attributes cannot lazy-load in async.
         owner_id = doc.user_id
+        engine_id = doc.ocr_engine
 
         async def mark_failed(message: str, refund: bool = False):
             # Drop any pages added by the failed run before recording the failure.
@@ -48,10 +49,11 @@ async def _process_document_async(document_id: str):
         try:
             pdf_document = fitz.open(stream=doc_bytes, filetype="pdf")
             total_pages = len(pdf_document)
+            ocr_engine = get_ocr_engine(engine_id)
             
-            # Deduct credits
+            # Deduct credits at the chosen engine's per-page rate
             success = await credit_service.charge_ocr_page(
-                session, doc.user_id, doc.id, "tesseract", num_pages=total_pages
+                session, doc.user_id, doc.id, engine_id, num_pages=total_pages
             )
             
             if not success:
@@ -61,18 +63,17 @@ async def _process_document_async(document_id: str):
             for page_num in range(total_pages):
                 page = pdf_document.load_page(page_num)
                 # Render to high-res image for OCR
-                pix = page.get_pixmap(dpi=300)
+                pix = page.get_pixmap(dpi=ocr_engine.render_dpi)
                 img = Image.open(io.BytesIO(pix.tobytes()))
                 
-                # Perform OCR for Sinhala, Sanskrit, and English
-                extracted_text = pytesseract.image_to_string(img, lang="sin+san+eng")
+                extracted_text = ocr_engine.extract_text(img)
                 
                 doc_page = DocumentPage(
                     document_id=doc.id,
                     page_number=page_num + 1,
                     extracted_text=extracted_text.strip(),
                     extraction_method=ExtractionMethod.OCR,
-                    ocr_model="tesseract",
+                    ocr_model=engine_id,
                     status=PageStatus.COMPLETED
                 )
                 session.add(doc_page)
@@ -100,4 +101,17 @@ def process_document_ocr(self, document_id: str):
         return result
     except Exception as exc:
         # Mark as failed in DB on error (omitted for brevity, but should happen in prod)
+        self.retry(exc=exc, countdown=10)
+
+
+@celery_app.task(name="process_document_ocr_surya", bind=True, max_retries=3)
+def process_document_ocr_surya(self, document_id: str):
+    """
+    Same pipeline as process_document_ocr, routed to the dedicated `surya`
+    queue (see celery_app task_routes) so Surya's models are loaded by a single
+    worker process instead of every process in the shared pool.
+    """
+    try:
+        return asyncio.run(_process_document_async(document_id))
+    except Exception as exc:
         self.retry(exc=exc, countdown=10)

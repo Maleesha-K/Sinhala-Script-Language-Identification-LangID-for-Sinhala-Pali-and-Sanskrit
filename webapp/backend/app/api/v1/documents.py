@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from uuid import UUID
@@ -9,16 +9,27 @@ from app.db.models.user import User
 from app.db.models.document import Document, UploadStatus
 from app.dependencies import get_db, get_current_user
 from app.schemas.response import BaseResponse, success_response
-from app.schemas.document import DocumentResponse
+from app.schemas.document import DocumentResponse, OCREngineResponse
 from app.services.storage_service import storage_service
-from app.workers.tasks.ocr_tasks import process_document_ocr
+from app.workers.tasks.ocr_tasks import process_document_ocr, process_document_ocr_surya
+from app.ocr.registry import OCR_ENGINES, DEFAULT_OCR_ENGINE, list_ocr_engines
 from app.utils.exceptions import AppException, BadRequestException, NotFoundException
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+def _ocr_task_for(queue: str | None):
+    """Celery task for an engine's queue; engines without one share the default pool."""
+    return process_document_ocr_surya if queue == "surya" else process_document_ocr
+
+@router.get("/ocr-engines", response_model=BaseResponse[List[OCREngineResponse]])
+async def get_ocr_engines(current_user: User = Depends(get_current_user)):
+    """List the OCR engines a user can choose between when uploading."""
+    return success_response(data=list_ocr_engines())
+
 @router.post("/upload", response_model=BaseResponse[DocumentResponse], status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),
+    ocr_engine: str = Form(DEFAULT_OCR_ENGINE),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> dict:
@@ -26,6 +37,12 @@ async def upload_document(
     
     if not file.filename.lower().endswith(".pdf"):
         raise BadRequestException(message="Only PDF files are currently supported")
+
+    engine = OCR_ENGINES.get(ocr_engine)
+    if engine is None:
+        raise BadRequestException(
+            message=f"Unknown OCR engine '{ocr_engine}'. Available: {', '.join(sorted(OCR_ENGINES))}"
+        )
 
     # Read file content
     content = await file.read()
@@ -46,7 +63,8 @@ async def upload_document(
         size_bytes=file_size,
         mime_type=file.content_type,
         minio_key=object_name,
-        upload_status=UploadStatus.UPLOADING
+        upload_status=UploadStatus.UPLOADING,
+        ocr_engine=engine.id,
     )
     
     db.add(new_doc)
@@ -55,7 +73,7 @@ async def upload_document(
     await db.refresh(new_doc)
 
     # Queue Celery Task
-    process_document_ocr.delay(str(new_doc.id))
+    _ocr_task_for(engine.queue).delay(str(new_doc.id))
 
     return success_response(data=new_doc, message="Document uploaded and processing started")
 

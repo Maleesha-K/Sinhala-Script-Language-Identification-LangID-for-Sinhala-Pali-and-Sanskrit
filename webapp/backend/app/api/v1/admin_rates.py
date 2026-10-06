@@ -49,9 +49,11 @@ async def list_available_models(
         {"model_name": info.id, "model_type": ModelType.CLASSIFICATION.value, "description": info.label}
         for info in MODELS.values()
     ]
-    available_models.append(
-        {"model_name": "tesseract", "model_type": ModelType.OCR.value, "description": "Tesseract OCR engine"}
-    )
+    from app.ocr.registry import OCR_ENGINES
+    available_models += [
+        {"model_name": info.id, "model_type": ModelType.OCR.value, "description": info.label}
+        for info in OCR_ENGINES.values()
+    ]
     return success_response(data=available_models)
 
 @router.get("", response_model=BaseResponse[List[ModelRateResponse]])
