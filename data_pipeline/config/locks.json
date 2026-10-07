@@ -39,8 +39,11 @@
   },
   "target_dataset": {
     "_comment": "Leakage-free Sinhala/Pali/Sanskrit (Sinhala script) release built by scripts/maintainer/resplit_target.py. kind=local_release until published; then set kind=dataset, repo_id and revision (file hashes stay the same).",
-    "kind": "local_release",
-    "path": "datasets/target_release",
+    "kind": "dataset",
+    "repo_id": "{HF_ORG}/{HF_TARGET_DATASET}",
+    "published_repo": "script-langid/sinhala-script-lid",
+    "revision": "12f8cb3cea24e5d8f16b17316d39d9e0e16526b0",
+    "probe_file": "split_report.json",
     "files_sha256": {
       "train.jsonl": "ba705fe787d630d6ed2ed528042a9413d1eddabc48242be823cd03a0d24cf15e",
       "validation.jsonl": "08f3a52fb8d8b1f5036933dbdbbe84f0a4bd543900f2afc3b35b55f05b2a60a7",
