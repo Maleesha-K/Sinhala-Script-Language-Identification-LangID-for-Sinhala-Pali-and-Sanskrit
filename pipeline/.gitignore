@@ -1,0 +1,19 @@
+# Ignore large model checkpoints (download from https://huggingface.co/script-langid)
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.vec
+*.pkl
+
+# Python virtual environments & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
