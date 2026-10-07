@@ -37,6 +37,9 @@ function BillingSuccessContent() {
             setNewBalance(res.data.data.new_balance);
           }
           refreshUser();
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("credits-updated"));
+          }
         }
       } catch (err) {
         // The backend reports an already-fulfilled order as success, so an

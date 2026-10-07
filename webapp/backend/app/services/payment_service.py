@@ -73,7 +73,11 @@ def verify_payhere_ipn_signature(
 
 class PaymentService:
     @staticmethod
-    def get_packages() -> List[Dict[str, Any]]:
+    async def get_packages(db: AsyncSession) -> List[Dict[str, Any]]:
+        from app.services.admin_service import admin_service
+        config = await admin_service.get_system_config(db)
+        if config.packages:
+            return [p.model_dump() for p in config.packages]
         return list(CREDIT_PACKAGES.values())
 
     @staticmethod
@@ -84,17 +88,31 @@ class PaymentService:
         custom_credits: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
-        Creates a PENDING payment transaction and generates PayHere payment parameters.
+        Creates a PENDING payment transaction and generates PayHere payment parameters
+        using dynamic prices and credit issuance from SystemConfig.
         """
-        if package_id in CREDIT_PACKAGES:
-            pkg = CREDIT_PACKAGES[package_id]
-            package_name = pkg["name"]
-            credits_amount = pkg["credits"]
-            amount_lkr = pkg["amount_lkr"]
+        from app.services.admin_service import admin_service
+        config = await admin_service.get_system_config(db)
+        pkg_dict = {p.id: p for p in (config.packages or [])}
+
+        if package_id in pkg_dict:
+            pkg = pkg_dict[package_id]
+            package_name = pkg.name
+            credits_amount = pkg.credits
+            amount_lkr = pkg.amount_lkr
+        elif package_id in CREDIT_PACKAGES:
+            pkg_fallback = CREDIT_PACKAGES[package_id]
+            package_name = pkg_fallback["name"]
+            credits_amount = pkg_fallback["credits"]
+            amount_lkr = pkg_fallback["amount_lkr"]
         elif package_id == "custom" and custom_credits and custom_credits >= 1000:
             credits_amount = float(custom_credits)
-            # Price rate: LKR 0.25 per credit for custom top-ups
-            amount_lkr = round(credits_amount * 0.25, 2)
+            std_pkg = pkg_dict.get("standard") or (config.packages[0] if config.packages else None)
+            if std_pkg and std_pkg.credits > 0:
+                unit_price_lkr = float(std_pkg.amount_lkr) / float(std_pkg.credits)
+            else:
+                unit_price_lkr = 0.25
+            amount_lkr = round(credits_amount * unit_price_lkr, 2)
             package_name = f"Custom Pack ({credits_amount:,.0f} Credits)"
         else:
             raise ValueError(f"Invalid package_id: {package_id}")

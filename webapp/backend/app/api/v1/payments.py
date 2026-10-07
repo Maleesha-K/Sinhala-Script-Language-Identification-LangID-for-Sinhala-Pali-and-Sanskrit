@@ -51,9 +51,9 @@ class ConfirmSandboxRequest(BaseModel):
     order_id: str
 
 @router.get("/packages", response_model=BaseResponse[List[CreditPackageResponse]])
-async def list_packages():
-    """List available credit top-up packages in LKR."""
-    packages = PaymentService.get_packages()
+async def list_packages(db: AsyncSession = Depends(get_db)):
+    """List available credit top-up packages in LKR dynamically derived from system_config."""
+    packages = await PaymentService.get_packages(db)
     return success_response(packages)
 
 @router.post("/payhere/initiate", response_model=BaseResponse[InitiatePaymentResponse])

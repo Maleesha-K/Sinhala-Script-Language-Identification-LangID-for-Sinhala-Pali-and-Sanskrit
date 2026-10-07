@@ -34,7 +34,7 @@ export function UploadModal({ onUploadSuccess }: { onUploadSuccess: () => void }
       .get("/api/documents/ocr-engines")
       .then((res) => {
         if (cancelled) return;
-        const list: OCREngine[] = res.data?.data ?? [];
+        const list: OCREngine[] = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
         setEngines(list);
         const preferred = list.find((e) => e.is_default) ?? list[0];
         if (preferred) setEngineId((current) => (list.some((e) => e.id === current) ? current : preferred.id));

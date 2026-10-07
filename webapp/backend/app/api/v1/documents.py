@@ -22,7 +22,7 @@ def _ocr_task_for(queue: str | None):
     return process_document_ocr_surya if queue == "surya" else process_document_ocr
 
 @router.get("/ocr-engines", response_model=BaseResponse[List[OCREngineResponse]])
-async def get_ocr_engines(current_user: User = Depends(get_current_user)):
+async def get_ocr_engines():
     """List the OCR engines a user can choose between when uploading."""
     return success_response(data=list_ocr_engines())
 

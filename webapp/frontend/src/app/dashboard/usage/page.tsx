@@ -71,6 +71,9 @@ export default function UsagePage() {
       if (paymentsRes.data?.data) {
         setPayments(paymentsRes.data.data);
       }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("credits-updated"));
+      }
     } catch (error) {
       toast.error("Failed to load usage data.");
     } finally {

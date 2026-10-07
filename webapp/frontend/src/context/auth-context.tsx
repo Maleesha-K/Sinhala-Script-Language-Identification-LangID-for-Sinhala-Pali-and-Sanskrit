@@ -52,6 +52,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshUser();
+
+    // Listen for custom credits-updated events across the application
+    const handleCreditsUpdate = () => {
+      refreshUser();
+    };
+
+    window.addEventListener("credits-updated", handleCreditsUpdate);
+    return () => {
+      window.removeEventListener("credits-updated", handleCreditsUpdate);
+    };
   }, [refreshUser]);
 
   const logout = useCallback(async () => {

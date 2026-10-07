@@ -25,11 +25,23 @@ class TierResponse(TierBase):
     is_active: bool
     model_config = ConfigDict(from_attributes=True)
 
+class CreditPackageConfig(BaseModel):
+    id: str
+    name: str
+    credits: float
+    amount_lkr: float
+    popular: bool = False
+    description: str
+
 class SystemConfigBase(BaseModel):
     usd_to_credits_rate: float
+    usd_to_lkr_rate: Optional[float] = 300.0
+    packages: Optional[List[CreditPackageConfig]] = None
 
 class SystemConfigUpdate(BaseModel):
     usd_to_credits_rate: float
+    usd_to_lkr_rate: Optional[float] = 300.0
+    packages: Optional[List[CreditPackageConfig]] = None
 
 class SystemConfigResponse(SystemConfigBase):
     pass
