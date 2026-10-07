@@ -30,6 +30,9 @@ Useful options:
 | `run_pipeline.py --from 05` | resume from a stage |
 | `run_pipeline.py --force` | re-run even if a stage is up to date |
 | `run_pipeline.py --dry-run` | show what would run |
+| `run_pipeline.py --smoke --stages 05-08` | plumbing check in minutes: tiny subsamples, one grid point; writes only under `smoke/` |
+| `run_pipeline.py --only 07 --models nllb_lid218,conlid` | restrict model stages to some models |
+| `run_pipeline.py --only 07 --models xlmr` | train the deferred XLM-R model (hours on a laptop GPU) |
 | `uv run pytest` (`make test`) | unit tests, incl. invariants of the produced data |
 
 ## `.env`
@@ -63,7 +66,10 @@ Useful options:
 | 02 | preprocess | `datasets/hybrid_benchmark/*/{clean,eval}.jsonl` | `datasets/hybrid_benchmark/*/manifest.json` (`summary`) |
 | 03 | prepare datasets | `datasets/hybrid_finetune/replay_mixed/` | `replay_mixed/replay_report.json` |
 | 04 | dataset checking | `datasets/audit/` | **`datasets/audit/audit_report.md`** |
-| 05-08 | baselines, zero-shot, training, evaluation | not implemented yet | |
+| 05 | traditional baselines | `models/00_traditional_ml_baselines`, `datasets/benchmark_results/00_traditional_ml_baselines` | |
+| 06 | zero-shot benchmark | `datasets/benchmark_results/01_zero_shot` | |
+| 07 | fine-tuning | `models/02_target_only_sota`, `models/03_global_rehearsal_sota` (`selection_log.csv`, `chosen.json`, `best/`) | |
+| 08 | evaluation + tables | `datasets/benchmark_results/{02_target_only,03_multilingual_rehearsal,tables}` | **`datasets/benchmark_results/tables/results.md`** |
 
 ### 01 Download
 Every input is pinned in `config/locks.json` (Hugging Face revision or sha256):
@@ -122,6 +128,39 @@ to `datasets/audit/audit_report.md`. Any `FAIL` stops the pipeline. Checks:
   training or validation set (exact); no replay text near-duplicating a
   benchmark eval text (re-computed); target test disjoint from benchmarks.
 
+### Evaluation (stages 05, 06, 08): one evaluator, one scorer
+Every model is scored by `lidpipe/evaluate.py` on the same four sets: the target
+test split and the 11-label eval subsets of FLORES+, WiLI-2018 and CommonLID.
+- Predictions are unrestricted and mapped by `canonical_prediction`
+  (`lidpipe/labels.py`); a script-less output (`sa`) takes the input's script.
+- One-vs-rest F1 per label; labels absent from a set are NaN and excluded from
+  macro averages (never counted as 0); `macro_target3` (target test),
+  `macro_all` (benchmarks); 1000-sample bootstrap 95% CIs; scores reported on
+  all rows and on unflagged rows.
+- Per set: `predictions.csv`, `per_label.csv`, `confusion.csv`, `summary.json`.
+- `make_tables.py` builds every table **only from `predictions.csv`**, after
+  checking that all models were scored on identical samples and that each
+  macro-F1 recomputes exactly.
+
+### 05 Baselines and 07 fine-tuning: one protocol
+`lidpipe/training.py` (config `training`, `baselines`): for each value of a
+3-point grid, start from the pinned checkpoint (or from scratch for baselines),
+train up to 3 epochs, score validation after each epoch, keep the best
+(lr, epoch). Target-only: train on target train, select on target validation
+`macro_target3`. Rehearsal: train on mixed train, select on mixed validation
+`macro_all`. Test sets are never used for selection.
+
+| model | method |
+|---|---|
+| NLLB-218, GlotLID v3, OpenLID v3 | native fastText continued training of all weights; missing labels appended with zero rows; each model trained on its own label for a language (OpenLID v3 `ara_Arab`) |
+| fastText LID-176 | `fasttext_continual`: parity-verified import, Pali leaf added under Sinhala, all weights trained (SGD) |
+| ConLID | cross-entropy over the full output space, sparse SGD (`lidlab`) |
+| XLM-R base | LoRA (r=16) + classification head, AdamW; **deferred** (`training.deferred_models`) |
+| baselines | NB, linear SVM, char n-gram LogReg (OvR), XGBoost (CPU), fastText from scratch, Char-CNN, Char-BiGRU |
+
+Arabic: LID-176 (`ar`) and OpenLID v3 (`ara_Arab`) only have the macrolanguage
+label; it is credited as `arb_Arab` (documented limitation).
+
 ## Target dataset (Sinhala / Pali / Sanskrit in Sinhala script)
 
 Built once by maintainers (`scripts/maintainer/resplit_target.py`) and published
@@ -164,7 +203,7 @@ data_pipeline/
 ├── run_pipeline.py      # single entry point
 ├── config/              # pipeline.yaml, labels.yaml, locks.json, reference_outputs.json
 ├── lidpipe/             # shared library: text, labels, metrics, dedup, manifests, preflight, stages
-├── scripts/             # 01.download 02.preprocess 03.prepare_datasets 04.dataset_checking maintainer
+├── scripts/             # 01..08 stage scripts, maintainer/, legacy/ (old notebooks, not run)
 ├── tests/               # unit tests and data invariants
 ├── datasets/            # produced data (gitignored)
 └── logs/                # per-run logs and summary.md (gitignored)

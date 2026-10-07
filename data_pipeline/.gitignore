@@ -1,6 +1,7 @@
-datasets/
-test_dataset_folder/
-models/
-backup_datasets/
+/datasets/
+/test_dataset_folder/
+/models/
+/backup_datasets/
 .state/
-logs/
+/logs/
+/smoke/

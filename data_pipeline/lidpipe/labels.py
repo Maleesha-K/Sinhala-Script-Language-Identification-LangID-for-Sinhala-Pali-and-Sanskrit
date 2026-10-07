@@ -19,6 +19,30 @@ def gold_language(benchmark, raw_code):
     return (_GOLD_OVERRIDES.get(benchmark) or {}).get(raw_code, raw_code)
 
 
+def model_label_map(model_labels):
+    """Scored label -> the label this model already uses for it, if any.
+
+    Exact match first (NLLB `arb_Arab`), then the model's own label for the same
+    language with the same script or no script (OpenLID-v3 `ara_Arab`, LID-176
+    `ar` / `sa`). Labels the model lacks map to themselves and are appended as
+    new outputs when fine-tuning, so no language gets two competing outputs.
+    """
+    out = {}
+    for label in SCORED:
+        lang, _, script = label.partition('_')
+        if label in model_labels:
+            out[label] = label
+            continue
+        match = None
+        for m in model_labels:
+            m_lang, _, m_script = m.partition('_')
+            if _PRED_ALIASES.get(m_lang, m_lang) == lang and m_script in (script, ''):
+                match = m
+                break
+        out[label] = match or label
+    return out
+
+
 def canonical_prediction(raw, text):
     """Model output -> `<lang>_<Script>`.
 

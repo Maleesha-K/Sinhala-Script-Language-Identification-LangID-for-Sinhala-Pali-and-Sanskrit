@@ -30,7 +30,10 @@ import sys
 import time
 from datetime import datetime, timezone
 
-from lidpipe import config, paths, preflight
+if '--smoke' in sys.argv:  # must be set before lidpipe.paths is imported
+    os.environ['PIPELINE_SMOKE'] = '1'
+
+from lidpipe import config, paths, preflight  # noqa: E402
 from lidpipe.manifest import read_manifest, sha256_file, verify_manifest
 from lidpipe.stages import STAGES, select
 
@@ -164,6 +167,9 @@ def main():
     ap.add_argument('--from', dest='start', help='start at this stage')
     ap.add_argument('--only', help='comma-separated stage ids')
     ap.add_argument('--force', action='store_true', help='re-run stages even if already complete')
+    ap.add_argument('--smoke', action='store_true',
+                    help='tiny subsamples + one grid point for stages 05-08 (plumbing check, not results)')
+    ap.add_argument('--models', help='comma-separated subset of models for stages 05-08, e.g. nllb_lid218,conlid')
     ap.add_argument('--preflight-only', action='store_true')
     ap.add_argument('--dry-run', action='store_true', help='show what would run')
     ap.add_argument('--allow-reference-diff', action='store_true',
@@ -172,6 +178,12 @@ def main():
                     help='maintainers: store the current outputs as the reference run')
     args = ap.parse_args()
 
+    if args.models:
+        os.environ['PIPELINE_MODELS'] = args.models
+    if args.smoke:
+        os.environ['PIPELINE_SMOKE'] = '1'
+    if args.force:
+        os.environ['PIPELINE_FORCE'] = '1'
     stages = select(args.stages, args.start, args.only)
     pending = [s for s in stages if not s.implemented]
     stages = [s for s in stages if s.implemented]

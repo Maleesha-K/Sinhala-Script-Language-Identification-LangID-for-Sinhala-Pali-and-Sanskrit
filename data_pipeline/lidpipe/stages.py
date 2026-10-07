@@ -1,6 +1,7 @@
 """Stage registry: what each stage runs, needs, reads and writes."""
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 
 from . import config, paths
@@ -9,6 +10,9 @@ BENCH_DIRS = [paths.benchmark_dir(n) for n in paths.BENCHMARK_NAMES]
 BENCH_RAW = [paths.benchmark_raw(n) for n in paths.BENCHMARK_NAMES]
 OPENLID_RAW = paths.FINETUNE / 'openlid_v2' / 'raw'
 REPLAY_MIXED = paths.FINETUNE / 'replay_mixed'
+AUDIT = paths.DATASETS / 'audit'
+# Model stages only start on data that passed the stage-04 audit.
+CHECKED_DATA = BENCH_DIRS + [paths.TARGET, REPLAY_MIXED, AUDIT]
 
 
 @dataclass
@@ -31,7 +35,8 @@ class Stage:
     def config_hash(self):
         """Hash of only the configuration this stage reads, so unrelated config
         edits do not invalidate it."""
-        scope = {'locks': {k: config.locks()[k] for k in self.needs_locks},
+        scope = {'models': os.environ.get('PIPELINE_MODELS', ''),
+                 'locks': {k: config.locks()[k] for k in self.needs_locks},
                  'labels': config.labels() if self.uses_labels else None,
                  'pipeline': {k: config.pipeline().get(k) for k in self.pipeline_keys}}
         return hashlib.sha256(json.dumps(scope, sort_keys=True).encode()).hexdigest()
@@ -61,10 +66,30 @@ STAGES = [
           inputs=BENCH_DIRS + [paths.TARGET, REPLAY_MIXED], outputs=[paths.DATASETS / 'audit'],
           uses_labels=True, pipeline_keys=['preprocess', 'target_split', 'replay'],
           reports=[paths.DATASETS / 'audit' / 'audit_report.md']),
-    Stage('05', 'traditional_baselines', [], implemented=False),
-    Stage('06', 'benchmark_zero_shot', [], implemented=False),
-    Stage('07', 'train_models', [], implemented=False),
-    Stage('08', 'benchmark_evaluation', [], implemented=False),
+    Stage('05', 'traditional_baselines', ['05.traditional_baselines/baselines.py'],
+          disk_gb=4, inputs=CHECKED_DATA,
+          outputs=[paths.MODELS / '00_traditional_ml_baselines', paths.RESULTS / '00_traditional_ml_baselines'],
+          uses_labels=True, pipeline_keys=['baselines', 'training', 'seeds', 'smoke', 'bootstrap'],
+          deterministic=False, reports=[paths.RESULTS / '00_traditional_ml_baselines' / 'manifest.json']),
+    Stage('06', 'benchmark_zero_shot', ['06.benchmark_zero_shot/zero_shot.py'],
+          needs_locks=['lid176', 'openlid_v3', 'glotlid_v3', 'nllb_lid218', 'conlid'], needs_tools=['g++'],
+          disk_gb=6, inputs=CHECKED_DATA, outputs=[paths.RESULTS / '01_zero_shot'], uses_labels=True,
+          pipeline_keys=['bootstrap', 'smoke'], deterministic=False,
+          reports=[paths.RESULTS / '01_zero_shot' / 'manifest.json']),
+    Stage('07', 'train_models', ['07.train_models/train_models.py'],
+          needs_locks=['lid176', 'openlid_v3', 'glotlid_v3', 'nllb_lid218', 'conlid', 'xlm_roberta_base'],
+          needs_tools=['g++'], disk_gb=12, inputs=CHECKED_DATA,
+          outputs=[paths.MODELS / '02_target_only_sota', paths.MODELS / '03_global_rehearsal_sota'],
+          uses_labels=True, pipeline_keys=['training', 'seeds', 'smoke'], deterministic=False,
+          reports=[paths.MODELS / '02_target_only_sota' / 'manifest.json',
+                   paths.MODELS / '03_global_rehearsal_sota' / 'manifest.json']),
+    Stage('08', 'benchmark_evaluation', ['08.benchmark_evaluation/evaluate_finetuned.py',
+                                          '08.benchmark_evaluation/make_tables.py'],
+          inputs=CHECKED_DATA + [paths.MODELS / '02_target_only_sota', paths.MODELS / '03_global_rehearsal_sota'],
+          outputs=[paths.RESULTS / '02_target_only', paths.RESULTS / '03_multilingual_rehearsal',
+                   paths.RESULTS / 'tables'],
+          uses_labels=True, pipeline_keys=['bootstrap', 'seeds', 'smoke'], deterministic=False,
+          reports=[paths.RESULTS / 'tables' / 'results.md']),
 ]
 
 # Stage numbers are the execution order: datasets are prepared (03) before
