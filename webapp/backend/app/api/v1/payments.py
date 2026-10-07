@@ -10,6 +10,8 @@ from app.db.models.payment import PaymentStatus
 from app.dependencies import get_db, get_current_user
 from app.schemas.response import BaseResponse, success_response
 from app.services.payment_service import PaymentService
+from app.config import settings
+from app.utils.exceptions import BadRequestException, ForbiddenException
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -70,7 +72,7 @@ async def initiate_payhere_payment(
         )
         return success_response(data)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise BadRequestException(message=str(e))
 
 @router.post("/payhere/notify")
 async def payhere_ipn_notify(
@@ -103,13 +105,17 @@ async def confirm_sandbox_payment(
     Development/Sandbox helper: immediately validates and fulfills a test transaction
     when PayHere checkout completes on the client without a public IPN tunnel.
     """
+    # Without this guard any user could mark their own unpaid live order as paid.
+    if settings.PAYHERE_MODE != "sandbox":
+        raise ForbiddenException(message="Sandbox confirmation is disabled in live mode")
+
     success, message = await PaymentService.simulate_sandbox_success(
         db=db,
         order_id=req.order_id,
         user=current_user,
     )
     if not success:
-        raise HTTPException(status_code=400, detail=message)
+        raise BadRequestException(message=message)
 
     return success_response({"order_id": req.order_id, "message": message, "new_balance": float(current_user.credits_balance)})
 

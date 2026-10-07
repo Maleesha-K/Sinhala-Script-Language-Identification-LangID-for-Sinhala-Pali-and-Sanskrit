@@ -14,7 +14,10 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_track_started=True,
-    broker_connection_retry_on_startup=True
+    broker_connection_retry_on_startup=True,
+    # Surya holds ~4 GB of models in RAM per process; a dedicated single-process
+    # worker consumes this queue (see docker-compose.worker.yml).
+    task_routes={"process_document_ocr_surya": {"queue": "surya"}},
 )
 
 # Auto-discover tasks in all submodules

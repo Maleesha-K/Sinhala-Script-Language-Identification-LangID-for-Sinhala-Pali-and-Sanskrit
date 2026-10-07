@@ -18,9 +18,16 @@ class DocumentResponse(DocumentBase):
     id: UUID
     user_id: UUID
     upload_status: UploadStatus
+    ocr_engine: str
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class OCREngineResponse(BaseModel):
+    id: str
+    label: str
+    description: str
+    is_default: bool
 
 class DocumentPageResponse(BaseModel):
     id: UUID
@@ -28,5 +35,6 @@ class DocumentPageResponse(BaseModel):
     page_number: int
     extracted_text: Optional[str] = None
     extraction_method: Optional[ExtractionMethod] = None
+    ocr_model: Optional[str] = None
     status: PageStatus
     model_config = ConfigDict(from_attributes=True)

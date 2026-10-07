@@ -185,6 +185,15 @@ class PaymentService:
         Atomically marks a payment as COMPLETED and tops up the user's credits.
         Guarded against double-crediting.
         """
+        # Re-read the transaction under a row lock so a concurrent IPN and
+        # sandbox confirmation cannot both credit the same order.
+        locked = await db.execute(
+            select(PaymentTransaction)
+            .where(PaymentTransaction.id == transaction.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        transaction = locked.scalar_one()
         if transaction.status == PaymentStatus.COMPLETED:
             return True
 

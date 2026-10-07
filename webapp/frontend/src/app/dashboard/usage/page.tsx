@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TopUpModal } from "@/components/billing/top-up-modal";
+import { useAuth } from "@/context/auth-context";
 
 interface ActivityItem {
   id: string;
@@ -57,6 +58,7 @@ export default function UsagePage() {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [topUpOpen, setTopUpOpen] = useState(false);
+  const { refreshUser } = useAuth();
 
   const fetchUsageAndPayments = async () => {
     try {
@@ -68,6 +70,9 @@ export default function UsagePage() {
       setData(usageRes.data.data);
       if (paymentsRes.data?.data) {
         setPayments(paymentsRes.data.data);
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("credits-updated"));
       }
     } catch (error) {
       toast.error("Failed to load usage data.");
@@ -148,7 +153,7 @@ export default function UsagePage() {
                         {data.credits_balance.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
                       </h3>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Use credits for OCR extraction (50 credits/page) and language classification.
+                        Credits are charged per page for OCR extraction and per token for language classification.
                       </p>
                     </div>
                   </div>
@@ -323,7 +328,7 @@ export default function UsagePage() {
       <TopUpModal 
         open={topUpOpen} 
         onOpenChange={setTopUpOpen} 
-        onSuccess={fetchUsageAndPayments} 
+        onSuccess={() => { fetchUsageAndPayments(); refreshUser(); }} 
       />
     </div>
   );

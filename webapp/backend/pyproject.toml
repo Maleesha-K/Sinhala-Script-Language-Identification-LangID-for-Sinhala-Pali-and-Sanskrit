@@ -27,6 +27,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Surya OCR v1: the last pure-PyTorch release, which runs on CPU without a
+# separate inference server. Only the OCR worker needs it.
+surya = [
+    "surya-ocr==0.17.1",
+    # 0.17.1 predates transformers 5, whose config API it cannot load models with.
+    "transformers>=4.56.1,<5",
+    "torch>=2.7",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
@@ -36,6 +44,15 @@ dev = [
     "pytest-mock>=3.14",
     "testcontainers[postgres,redis]>=4.8"
 ]
+
+# CPU-only torch wheels: the default PyPI wheels bundle several GB of CUDA.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]

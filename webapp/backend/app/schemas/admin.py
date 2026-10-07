@@ -18,6 +18,7 @@ class TierUpdate(BaseModel):
     price_usd: Optional[float] = None
     included_credits: Optional[float] = None
     ocr_pages_included: Optional[int] = None
+    is_active: Optional[bool] = None
 
 class TierResponse(TierBase):
     id: UUID
@@ -62,3 +63,9 @@ class ModelRateResponse(ModelRateBase):
     id: UUID
     is_active: bool
     model_config = ConfigDict(from_attributes=True)
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    active_subscriptions: int
+    storage_used_bytes: int
+    active_jobs: int

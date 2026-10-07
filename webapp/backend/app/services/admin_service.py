@@ -156,4 +156,31 @@ class AdminService:
         await db.refresh(rate)
         return rate
 
+    async def get_stats(self, db: AsyncSession):
+        from sqlalchemy import func
+        from app.db.models.user import User
+        from app.db.models.subscription import Subscription, SubscriptionStatus
+        from app.db.models.classification_job import ClassificationJob, JobStatus
+        from app.schemas.admin import AdminStatsResponse
+
+        total_users = await db.scalar(select(func.count()).select_from(User))
+        active_subscriptions = await db.scalar(
+            select(func.count())
+            .select_from(Subscription)
+            .join(TierDefinition, Subscription.tier_id == TierDefinition.id)
+            .where(Subscription.status == SubscriptionStatus.ACTIVE, TierDefinition.price_usd > 0)
+        )
+        storage_used = await db.scalar(select(func.coalesce(func.sum(User.storage_used_bytes), 0)))
+        active_jobs = await db.scalar(
+            select(func.count())
+            .select_from(ClassificationJob)
+            .where(ClassificationJob.status.in_([JobStatus.QUEUED, JobStatus.PROCESSING]))
+        )
+        return AdminStatsResponse(
+            total_users=total_users or 0,
+            active_subscriptions=active_subscriptions or 0,
+            storage_used_bytes=int(storage_used or 0),
+            active_jobs=active_jobs or 0,
+        )
+
 admin_service = AdminService()

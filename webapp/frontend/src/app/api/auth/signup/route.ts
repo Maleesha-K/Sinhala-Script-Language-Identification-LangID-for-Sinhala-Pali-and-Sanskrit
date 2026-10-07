@@ -1,25 +1,31 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
+import { cookies } from 'next/headers';
+import { setAuthCookies } from "@/lib/auth-server";
+import { API_URL, backendErrorMessage } from "@/lib/backend";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
     // Call the backend FastAPI signup route
-    const response = await axios.post(`${apiUrl}/auth/signup`, body);
+    const response = await axios.post(`${API_URL}/auth/signup`, body);
     
-    // Automatically log in the user after signup by calling the local login API
-    const loginResponse = await axios.post(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/auth/login`, {
+    // Log the new user in. This must set the cookies on *this* response: a
+    // server-side call to /api/auth/login would set them on a response the
+    // browser never sees.
+    const login = await axios.post(`${API_URL}/auth/login`, {
       email: body.email,
-      password: body.password
+      password: body.password,
     });
+    const { access_token, refresh_token } = login.data.data;
+    setAuthCookies(await cookies(), access_token, refresh_token);
 
     return NextResponse.json({ success: true, user: response.data.data });
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json(
-      { detail: error.response?.data?.message || error.response?.data?.detail || 'Signup failed' },
-      { status: error.response?.status || 400 }
+      { detail: backendErrorMessage(error, 'Signup failed') },
+      { status: axios.isAxiosError(error) ? error.response?.status ?? 400 : 400 }
     );
   }
 }

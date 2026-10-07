@@ -8,11 +8,21 @@ from app.schemas.response import BaseResponse, success_response
 from app.schemas.admin import (
     TierResponse, TierCreate, TierUpdate,
     SystemConfigResponse, SystemConfigUpdate,
-    ModelRateResponse, ModelRateCreate, ModelRateUpdate
+    ModelRateResponse, ModelRateCreate, ModelRateUpdate,
+    AdminStatsResponse,
 )
 from app.services.admin_service import admin_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+# --- Stats ---
+@router.get("/stats", response_model=BaseResponse[AdminStatsResponse])
+async def get_stats(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin)
+) -> dict:
+    stats = await admin_service.get_stats(db)
+    return success_response(data=stats, message="Platform stats retrieved")
 
 # --- Tiers ---
 @router.get("/tiers", response_model=BaseResponse[List[TierResponse]])

@@ -57,6 +57,10 @@ You can also run individual stages:
 - `make preprocess`: Runs all preprocessing notebooks.
 - `make check`: Runs the dataset validation checks on all preprocessed datasets. This step now includes robust baseline checks for **Sinhala**, **Pali**, and **Sanskrit**, exporting any misclassifications to CSV files for manual review. It also supports dynamic test dataset replacement via Google Drive!
 - `make benchmark`: Runs every zero-shot benchmark notebook in `04.benchmark/` (note: these download large third-party models — hundreds of MB to a few GB each — so this can take a while on a fresh machine).
+- `make finetune-dataset`: Runs the `05.finetune_dataset/` notebooks, then `build_11groups.py` to build the 11-group rehearsal data (fetches the Sanskrit-Devanagari corpus if missing).
+- `make finetune-models`: Runs every notebook in `06.finetune_models/`, including `finetune_rehearsal_new_method.ipynb` (the `new_method/` continued-training + rehearsal experiment for NLLB, GlotLID and ConLID).
+- `make benchmark-finetuned`: Runs every notebook in `07.benchmark_finetuned/`, including `benchmark_rehearsal_new_method.ipynb` (zero-shot / target-only / replay tables).
+- `make finetune-rehearsal` / `make benchmark-rehearsal`: Run only the `new_method` stage 06 / 07 notebooks. Completed phases are reused; if input data changes, pass a new output dir, e.g. `uv run papermill ... -p output_dir results/run2`. Building the native fastText binary needs `g++` (MinGW-w64 on Windows) when `new_method/bin/` is empty.
 - `make clean`: Deletes all downloaded and preprocessed data.
 
 ## Pipeline Standards & Conventions

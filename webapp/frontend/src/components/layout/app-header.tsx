@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Globe, LayoutDashboard, ShieldCheck, LogOut, User, ChevronDown, Loader2, Coins } from "lucide-react";
@@ -17,9 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function AppHeader() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, refreshUser } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+
+  // Keep credit balance updated across route navigations
+  useEffect(() => {
+    refreshUser();
+  }, [pathname, refreshUser]);
 
   const isAdmin = user?.role === "admin";
   const inAdminSection = pathname.startsWith("/admin");

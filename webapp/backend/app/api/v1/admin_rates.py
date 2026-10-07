@@ -44,9 +44,15 @@ async def list_available_models(
     admin: User = Depends(get_admin_user)
 ):
     """List all available models in the system (Admin only)"""
+    from app.ml.registry import MODELS
     available_models = [
-        {"model_name": "sklearn_langid", "model_type": ModelType.CLASSIFICATION.value, "description": "Standard scikit-learn Language ID model"},
-        {"model_name": "tesseract", "model_type": ModelType.OCR.value, "description": "Tesseract OCR engine"}
+        {"model_name": info.id, "model_type": ModelType.CLASSIFICATION.value, "description": info.label}
+        for info in MODELS.values()
+    ]
+    from app.ocr.registry import OCR_ENGINES
+    available_models += [
+        {"model_name": info.id, "model_type": ModelType.OCR.value, "description": info.label}
+        for info in OCR_ENGINES.values()
     ]
     return success_response(data=available_models)
 

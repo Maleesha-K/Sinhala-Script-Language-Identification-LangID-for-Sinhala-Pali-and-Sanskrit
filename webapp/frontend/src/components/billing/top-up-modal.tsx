@@ -39,6 +39,9 @@ interface CreditPackage {
   description: string;
 }
 
+// Mirrors the backend's custom pack price: LKR 0.25 per credit, to the cent.
+const customPrice = (credits: number) => Math.round(credits * 0.25 * 100) / 100;
+
 interface TopUpModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -101,7 +104,11 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
 
     if (selectedId === "custom") {
       const credits = Math.max(1000, Number(customCredits) || 1000);
+<<<<<<< HEAD
       const amountLkr = Math.round(credits * unitPrice);
+=======
+      const amountLkr = customPrice(credits);
+>>>>>>> origin/main
       return { credits, amountLkr, name: "Custom Pack" };
     }
     const pkg = packages.find((p) => p.id === selectedId) || packages[1] || packages[0];
@@ -139,7 +146,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
       setPaymentStep("form");
       setLoading(false);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || err.message || "Failed to initialize payment.");
+      toast.error(err.response?.data?.error || err.response?.data?.detail || err.message || "Failed to initialize payment.");
       setLoading(false);
     }
   };
@@ -163,6 +170,11 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
 
       // Refresh balance in dashboard
       onSuccess();
+
+      // Trigger global header credit badge update
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("credits-updated"));
+      }
     } catch (err: any) {
       setProcessingPayment(false);
       setPaymentStep("form");
@@ -504,6 +516,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                         </p>
                       </div>
                     </div>
+<<<<<<< HEAD
                   )}
 
                   {/* Tab 3: Internet Banking Form */}
@@ -543,6 +556,12 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                       <span className="text-xs text-muted-foreground">Settling:</span>
                       <p className="text-xs font-semibold text-slate-800">
                         {currentPackageName} (<span className="text-emerald-600 font-bold">+{currentCreditsAmount.toLocaleString()} Credits</span>)
+=======
+                    <div className="text-right">
+                      <span className="text-xs text-muted-foreground">Total Price (LKR):</span>
+                      <p className="text-lg font-bold text-primary">
+                        LKR {customPrice(customCredits).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+>>>>>>> origin/main
                       </p>
                     </div>
                     <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end">

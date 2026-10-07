@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/layout/page-header";
-import { cn } from "@/lib/utils";
+import { apiErrorDetail, cn } from "@/lib/utils";
 
 type Tier = {
   id: string;
@@ -80,8 +80,8 @@ export default function TiersPage() {
       }
       setOpen(false);
       fetchTiers();
-    } catch { 
-      toast.error(editingTier ? "Failed to update tier" : "Failed to create tier"); 
+    } catch (error) { 
+      toast.error(apiErrorDetail(error, editingTier ? "Failed to update tier" : "Failed to create tier")); 
     } finally { 
       setSaving(false); 
     }
@@ -94,8 +94,8 @@ export default function TiersPage() {
       await axios.delete(`/api/admin/tiers/${id}`);
       toast.success("Tier deleted");
       fetchTiers();
-    } catch {
-      toast.error("Failed to delete tier");
+    } catch (error) {
+      toast.error(apiErrorDetail(error, "Failed to delete tier"));
     } finally {
       setDeletingId(null);
     }
