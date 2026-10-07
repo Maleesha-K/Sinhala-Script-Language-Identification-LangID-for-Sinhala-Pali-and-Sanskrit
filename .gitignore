@@ -17,3 +17,5 @@ data_pipeline/new_method/data/
 data_pipeline/new_method/bin/
 data_pipeline/new_method/results/**/predictions.csv
 data_pipeline/new_method/results/**/evaluation_index_*.csv
+pipeline/datasets/
+pipeline/models/
