@@ -1,6 +1,7 @@
 """Load pipeline.yaml / labels.yaml / locks.json and hash them for resume checks."""
 import hashlib
 import json
+import os
 from functools import lru_cache
 
 import yaml
@@ -10,7 +11,12 @@ from . import paths
 
 @lru_cache(maxsize=None)
 def pipeline():
-    return yaml.safe_load(paths.PIPELINE_CONFIG.read_text(encoding='utf-8'))
+    cfg = yaml.safe_load(paths.PIPELINE_CONFIG.read_text(encoding='utf-8'))
+    # `run_pipeline.py --smoke` (env PIPELINE_SMOKE=1): tiny subsamples and one
+    # grid point, to check the plumbing end to end in minutes.
+    if os.environ.get('PIPELINE_SMOKE', '').strip() in {'1', 'true', 'yes'}:
+        cfg['smoke'] = True
+    return cfg
 
 
 @lru_cache(maxsize=None)

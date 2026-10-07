@@ -45,6 +45,44 @@ replay:
   # Decontamination against every benchmark eval set: exact text match, plus
   # MinHash near-duplicates at the same settings as target_split.near_dup.
 
+# Fine-tuning protocol (stage 07), identical for every model:
+#  - target_only: train on target train, select on target validation (macro_target3)
+#  - rehearsal:   train on mixed train,  select on mixed validation  (macro_all, 11 labels)
+#  - every model gets a 3-point learning-rate grid spanning one decade around its
+#    optimiser's standard value, and the same epoch budget; validation is scored
+#    after every epoch and the best (lr, epoch) is kept. Test sets are never used.
+#  - ties keep the first found: smaller learning rate, then earlier epoch.
+training:
+  # Models trained only when named explicitly (run_pipeline.py --only 07 --models xlmr):
+  # XLM-R fine-tuning takes hours on a laptop GPU.
+  deferred_models: [xlmr]
+  max_epochs: 3
+  selection_metric: {target_only: macro_target3, rehearsal: macro_all}
+  lr_grid:
+    fasttext_softmax: [0.02, 0.05, 0.2]   # native fastText SGD, linear decay within each epoch
+    fasttext_hs: [0.1, 0.5, 2.0]          # LID-176 leaf surgery, constant SGD
+    conlid: [0.02, 0.05, 0.2]             # sparse SGD, linear decay within each epoch
+    xlmr: [2.0e-5, 5.0e-5, 1.0e-4]        # AdamW, LoRA r=16 + classification head
+  batch_size: {fasttext_hs: 64, conlid: 32, xlmr: 32}
+  xlmr: {lora_r: 16, lora_alpha: 32, lora_dropout: 0.1, max_length: 128}
+
+# Traditional baselines (stage 05): trained from scratch on the same splits,
+# same selection rule; 3-point grid of each model's main hyperparameter.
+baselines:
+  phases: [target_only, rehearsal]
+  features: {analyzer: char_wb, ngram_range: [1, 4], n_features: 1048576}
+  grid:
+    nb: {alpha: [0.01, 0.1, 1.0]}
+    svm: {C: [0.1, 1.0, 10.0]}
+    logreg: {C: [1.0, 10.0, 100.0]}
+    xgboost: {learning_rate: [0.1, 0.3, 0.6]}
+    fasttext_scratch: {lr: [0.1, 0.5, 1.0]}
+    char_cnn: {lr: [3.0e-4, 1.0e-3, 3.0e-3]}
+    char_bigru: {lr: [3.0e-4, 1.0e-3, 3.0e-3]}
+  max_epochs: 3                 # neural baselines and fastText
+  # Runs on CPU: 11-class GPU histograms (classes x features x bins x nodes) exceed a 4 GB GPU.
+  xgboost: {n_estimators: 200, max_depth: 6, n_features: 16384, max_bin: 64}
+
 # Smoke mode: tiny subsample + single grid point, to check the plumbing.
 smoke: false
 

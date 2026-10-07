@@ -1,4 +1,5 @@
 """Every filesystem location used by the pipeline, relative to data_pipeline/."""
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,17 +12,23 @@ REFERENCE_OUTPUTS = CONFIG_DIR / 'reference_outputs.json'
 ENV_FILE = ROOT / '.env'
 ENV_EXAMPLE = ROOT / '.env.example'
 
+# Smoke runs (run_pipeline.py --smoke) write models, results and stage state
+# under smoke/ so they can never be mistaken for, or overwrite, real results.
+SMOKE = os.environ.get('PIPELINE_SMOKE', '').strip() in {'1', 'true', 'yes'}
+_OUT = ROOT / 'smoke' if SMOKE else ROOT
+
 SCRIPTS = ROOT / 'scripts'
-STATE_DIR = ROOT / '.state'
+STATE_DIR = _OUT / '.state'
 LOGS_DIR = ROOT / 'logs'
 
 DATASETS = ROOT / 'datasets'
 TARGET = DATASETS / 'target_language'
 BENCHMARKS = DATASETS / 'hybrid_benchmark'
 FINETUNE = DATASETS / 'hybrid_finetune'
-RESULTS = DATASETS / 'benchmark_results'
+RESULTS = _OUT / 'datasets' / 'benchmark_results'
 
-MODELS = ROOT / 'models'
+MODELS = _OUT / 'models'
+PRETRAINED = ROOT / 'models' / 'pretrained'   # downloaded base checkpoints (shared)
 
 BENCHMARK_NAMES = ('flores_plus', 'wili_2018', 'commonlid')
 

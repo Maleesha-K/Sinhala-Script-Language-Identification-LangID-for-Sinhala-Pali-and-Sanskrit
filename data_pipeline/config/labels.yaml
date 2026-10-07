@@ -60,7 +60,9 @@ prediction_language_aliases:
   sinhala: sin
   pali: pli
   sanskrit: san
-  # LID-176 can only emit the macrolanguage code `ar`; it is credited as arb.
-  # This is a documented limitation, not a gold-label mapping.
+  # LID-176 (`ar`) and OpenLID-v3 (`ara_Arab`) only have the macrolanguage
+  # label for Arabic; it is credited as arb. This is a documented limitation,
+  # not a gold-label mapping. When such a model is fine-tuned, arb_Arab training
+  # rows use the model's own Arabic label (see lidpipe.labels.model_label_map).
   ar: arb
   ara: arb

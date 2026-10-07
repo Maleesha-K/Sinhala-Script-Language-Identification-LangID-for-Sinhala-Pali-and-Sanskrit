@@ -67,7 +67,11 @@ def check_import(model, native, texts):
         hidden_error = max(hidden_error, float(np.abs(hidden - reference_hidden).max()))
         np.testing.assert_allclose(hidden, reference_hidden, rtol=2e-5, atol=2e-6)
         scores = model.leaf_log_scores(ids, offsets).exp().numpy()
-        ref_labels, ref_scores = native.predict(batch, k=176, threshold=0.0)
+        # The C++ binding directly: fasttext-wheel's Python predict() on a list
+        # returns a wrong (repeated) score array under NumPy 2.
+        ref = [native.f.predict(t + "\n", 176, 0.0, "strict") for t in batch]
+        ref_labels = [[label for _, label in row] for row in ref]
+        ref_scores = [[score for score, _ in row] for row in ref]
         for i, (labels, values) in enumerate(zip(ref_labels, ref_scores)):
             expected_top = labels[0].removeprefix("__label__")
             actual_top = model.labels[int(scores[i].argmax())]
