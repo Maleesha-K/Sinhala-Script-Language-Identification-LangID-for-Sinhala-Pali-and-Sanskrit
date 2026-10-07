@@ -62,7 +62,7 @@ training:
     fasttext_softmax: [0.02, 0.05, 0.2]   # native fastText SGD, linear decay within each epoch
     fasttext_hs: [0.1, 0.5, 2.0]          # LID-176 leaf surgery, constant SGD
     conlid: [0.02, 0.05, 0.2]             # sparse SGD, linear decay within each epoch
-    xlmr: [2.0e-5, 5.0e-5, 1.0e-4]        # AdamW, LoRA r=16 + classification head
+    xlmr: [2.0e-5, 5.0e-5, 1.0e-4]        # papluca XLM-R LID: AdamW, LoRA r=16 + extended head
   batch_size: {fasttext_hs: 64, conlid: 32, xlmr: 32}
   xlmr: {lora_r: 16, lora_alpha: 32, lora_dropout: 0.1, max_length: 128}
 

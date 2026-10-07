@@ -164,7 +164,7 @@ train up to 3 epochs, score validation after each epoch, keep the best
 | NLLB-218, GlotLID v3, OpenLID v3 | native fastText continued training of all weights; missing labels appended with zero rows; each model trained on its own label for a language (OpenLID v3 `ara_Arab`) |
 | fastText LID-176 | `fasttext_continual`: parity-verified import, Pali leaf added under Sinhala, all weights trained (SGD) |
 | ConLID | cross-entropy over the full output space, sparse SGD (`lidlab`) |
-| XLM-R base | LoRA (r=16) + classification head, AdamW; **deferred** (`training.deferred_models`) |
+| XLM-R LangID (`papluca/xlm-roberta-base-language-detection`) | pretrained 20-language LID head extended with the missing labels (original rows kept, new rows zero); LoRA (r=16) on attention + head, AdamW; **training deferred** (`training.deferred_models`), zero-shot runs in stage 06 |
 | baselines | NB, linear SVM, char n-gram LogReg (OvR), XGBoost (CPU), fastText from scratch, Char-CNN, Char-BiGRU |
 
 Arabic: LID-176 (`ar`) and OpenLID v3 (`ara_Arab`) only have the macrolanguage

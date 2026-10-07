@@ -28,7 +28,7 @@ OUT = paths.RESULTS / 'tables'
 SETS = list(eval_set_paths())
 BENCH = [s for s in SETS if s != 'target_test']
 NAMES = {'nllb_lid218': 'NLLB-218 (fastText)', 'glotlid_v3': 'GlotLID v3', 'openlid_v3': 'OpenLID v3',
-         'lid176': 'fastText LID-176', 'conlid': 'ConLID', 'xlmr': 'XLM-R base (LoRA)',
+         'lid176': 'fastText LID-176', 'conlid': 'ConLID', 'xlmr': 'XLM-R LangID (papluca)',
          'nb': 'Multinomial NB', 'svm': 'Linear SVM', 'logreg': 'Char n-gram LogReg', 'xgboost': 'XGBoost',
          'fasttext_scratch': 'fastText (scratch)', 'char_cnn': 'Char-CNN', 'char_bigru': 'Char-BiGRU'}
 failures, sample_sets = [], {}

@@ -108,15 +108,18 @@
       "vocab.json"
     ]
   },
-  "xlm_roberta_base": {
+  "xlmr_lid": {
+    "_comment": "XLM-RoBERTa-base fine-tuned for language identification (20 languages). Treated like every other pretrained LID model: zero-shot, then its head is extended with the missing labels.",
     "kind": "model",
-    "repo_id": "FacebookAI/xlm-roberta-base",
-    "revision": "e73636d4f797dec63c3081bb6ed5c7b0bb3f2089",
+    "repo_id": "papluca/xlm-roberta-base-language-detection",
+    "revision": "9865598389ca9d95637462f743f683b51d75b87b",
     "files": [
       "model.safetensors",
+      "config.json",
       "sentencepiece.bpe.model",
       "tokenizer.json",
-      "config.json"
+      "tokenizer_config.json",
+      "special_tokens_map.json"
     ]
   }
 }

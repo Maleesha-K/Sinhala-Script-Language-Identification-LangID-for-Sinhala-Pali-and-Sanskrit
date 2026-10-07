@@ -1,7 +1,8 @@
 """Zero-shot: every pretrained LID model, unchanged, on the four eval sets.
 
-XLM-RoBERTa-base has no language-identification head, so it has no zero-shot
-result (reported as not applicable, not as 0).
+Predictions are unrestricted: a model may only output its own labels (e.g. the
+XLM-R LID model has 20, without Sinhala, Pali, Sanskrit, Tamil or Bengali), and
+rows of languages it cannot output count as errors.
 """
 import gc
 

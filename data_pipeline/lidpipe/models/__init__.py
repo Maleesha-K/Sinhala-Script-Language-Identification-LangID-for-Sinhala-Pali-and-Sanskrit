@@ -23,9 +23,9 @@ REGISTRY = {
     'glotlid_v3': ('fasttext_softmax', 'glotlid_v3', 'model_v3.bin'),
     'nllb_lid218': ('fasttext_softmax', 'nllb_lid218', 'model.bin'),
     'conlid': ('conlid', 'conlid', None),
-    'xlmr': ('xlmr', 'xlm_roberta_base', None),
+    'xlmr': ('xlmr', 'xlmr_lid', None),   # papluca/xlm-roberta-base-language-detection
 }
-PRETRAINED = ['lid176', 'openlid_v3', 'glotlid_v3', 'nllb_lid218', 'conlid']  # have a LID head
+PRETRAINED = ['lid176', 'openlid_v3', 'glotlid_v3', 'nllb_lid218', 'conlid', 'xlmr']  # all have a LID head
 
 
 def selected(default):

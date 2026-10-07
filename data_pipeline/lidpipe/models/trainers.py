@@ -142,25 +142,32 @@ class LID176Trainer:
 
 
 class XLMRTrainer:
-    """XLM-RoBERTa-base + new classification head over the scored labels of the
-    phase, LoRA adapters on attention (PEFT); AdamW with linear decay over the
-    whole epoch budget. The same max_length is used for training and inference."""
+    """XLM-R language-identification model (papluca/xlm-roberta-base-language-
+    detection, 20 labels). Like every other pretrained LID model, its head is
+    extended: the 20 original rows are kept, missing labels are appended with
+    zero rows, and predictions stay unrestricted over all outputs. LoRA adapters
+    on attention + the (extended) head are trained with AdamW and linear decay
+    over the whole epoch budget; max_length is the same in training and inference."""
 
     def __init__(self, base_path, label_set, seed, cfg):
         import torch
         from peft import LoraConfig, TaskType, get_peft_model
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
+        from .xlmr import extend_head
         torch.manual_seed(seed)
         self.torch, self.cfg = torch, cfg
-        self.labels = list(label_set)
-        self.lookup = {l: i for i, l in enumerate(self.labels)}
         self.device = torch_device()
         self.tok = AutoTokenizer.from_pretrained(base_path)
-        model = AutoModelForSequenceClassification.from_pretrained(
-            base_path, num_labels=len(self.labels), id2label=dict(enumerate(self.labels)), label2id=self.lookup)
+        model = AutoModelForSequenceClassification.from_pretrained(base_path)
+        original = [model.config.id2label[i] for i in range(model.config.num_labels)]
+        self.map = model_label_map(original)
+        extend_head(model, [self.map[l] for l in label_set if self.map[l] not in original])
+        self.labels = [model.config.id2label[i] for i in range(model.config.num_labels)]
+        self.lookup = {l: i for i, l in enumerate(self.labels)}
         x = cfg['xlmr']
         lora = LoraConfig(task_type=TaskType.SEQ_CLS, r=x['lora_r'], lora_alpha=x['lora_alpha'],
-                          lora_dropout=x['lora_dropout'], target_modules=['query', 'value'])
+                          lora_dropout=x['lora_dropout'], target_modules=['query', 'value'],
+                          modules_to_save=['classifier'])
         self.model = get_peft_model(model, lora).to(self.device)
         self.base_path, self.seed, self.batch = str(base_path), seed, cfg['batch_size']['xlmr']
         self.opt = self.sched = None
@@ -180,7 +187,7 @@ class XLMRTrainer:
             self.sched = get_linear_schedule_with_warmup(self.opt, int(0.06 * total), total)
         order = np.random.default_rng(self.seed + epoch).permutation(len(rows))
         texts = [rows[i]['text'] for i in order]
-        y_all = torch.tensor([self.lookup[rows[i]['label']] for i in order])
+        y_all = torch.tensor([self.lookup[self.map[rows[i]['label']]] for i in order])
         scaler = torch.amp.GradScaler(enabled=self.device == 'cuda')
         self.model.train()
         for start in range(0, len(texts), self.batch):
