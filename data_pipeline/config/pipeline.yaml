@@ -71,6 +71,9 @@ training:
 baselines:
   phases: [target_only, rehearsal]
   features: {analyzer: char_wb, ngram_range: [1, 4], n_features: 1048576}
+  # Parallel worker processes for one-vs-rest LogReg. Each worker holds its own copy of the feature matrix (~1 GB on the rehearsal data),
+  # so keep this small on a 16 GB machine.
+  n_jobs: 2
   grid:
     nb: {alpha: [0.01, 0.1, 1.0]}
     svm: {C: [0.1, 1.0, 10.0]}

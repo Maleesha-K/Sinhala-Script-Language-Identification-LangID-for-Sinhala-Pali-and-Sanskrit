@@ -22,7 +22,8 @@ def _features(n_features=None):
     from sklearn.feature_extraction.text import HashingVectorizer
     f = config.pipeline()['baselines']['features']
     return HashingVectorizer(analyzer=f['analyzer'], ngram_range=tuple(f['ngram_range']),
-                             n_features=n_features or f['n_features'], alternate_sign=False, norm=None)
+                             n_features=n_features or f['n_features'], alternate_sign=False, norm=None,
+                             dtype=np.float32)
 
 
 class _Sklearn:
@@ -83,7 +84,7 @@ class LogReg(_Sklearn):
         super().__init__(value, labels, seed)
         # One-vs-rest liblinear: the standard char n-gram LogReg LID baseline.
         self.clf = OneVsRestClassifier(LogisticRegression(C=value, solver='liblinear', random_state=seed),
-                                       n_jobs=-1)
+                                       n_jobs=config.pipeline()['baselines']['n_jobs'])
 
 
 class XGBoost(_Sklearn):
@@ -92,7 +93,7 @@ class XGBoost(_Sklearn):
         x = config.pipeline()['baselines']['xgboost']
         super().__init__(value, labels, seed, n_features=x['n_features'])
         self.clf = XGBClassifier(learning_rate=value, n_estimators=x['n_estimators'], max_depth=x['max_depth'],
-                                 tree_method='hist', max_bin=x['max_bin'], device='cpu', n_jobs=-1,
+                                 tree_method='hist', max_bin=x['max_bin'], device='cpu', n_jobs=-1,  # threads share one copy
                                  random_state=seed)
 
     def predict(self, texts):
