@@ -160,7 +160,7 @@ def run_metadata(log_dir, stages):
 def main():
     sys.stdout.reconfigure(line_buffering=True)  # live output even when piped to a file/tee
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--stages', help='range like 01-03 (execution order: 01 02 05 03 00 04 06 07)')
+    ap.add_argument('--stages', help='range like 01-04 (stages run in numeric order)')
     ap.add_argument('--from', dest='start', help='start at this stage')
     ap.add_argument('--only', help='comma-separated stage ids')
     ap.add_argument('--force', action='store_true', help='re-run stages even if already complete')

@@ -29,7 +29,7 @@ target_split:
   # character 5-gram shingles; pairs with true Jaccard >= threshold keep one.
   near_dup: {shingle: 5, num_perm: 128, threshold: 0.8}
 
-# Rehearsal (experience replay) data for the 8 replay labels, stage 05.
+# Rehearsal (experience replay) data for the 8 replay labels, stage 03.
 replay:
   source: openlid_v2
   seed: 42

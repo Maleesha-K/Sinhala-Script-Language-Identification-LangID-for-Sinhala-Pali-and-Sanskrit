@@ -209,6 +209,6 @@ md += ['', '## Target release (rows per label)', '', '| split | ' + ' | '.join(T
 md += [f'| {s} | ' + ' | '.join(str(c.get(l, 0)) for l in TARGET) + ' |' for s, c in report['target'].items()]
 md_path = prepare_output(out_dir / 'audit_report.md')
 md_path.write_text('\n'.join(md) + '\n', encoding='utf-8')
-write_manifest(out_dir, '03.dataset_checking', [json_path, md_path], readonly=False)
+write_manifest(out_dir, '04.dataset_checking', [json_path, md_path], readonly=False)
 print(f'\n{md[2]}\nFull report: {md_path.relative_to(paths.ROOT)}')
 sys.exit(1 if failed else 0)

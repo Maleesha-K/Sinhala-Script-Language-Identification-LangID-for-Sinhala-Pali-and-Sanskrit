@@ -53,24 +53,23 @@ STAGES = [
         '02.preprocess/preprocess_wili_2018.py',
     ], disk_gb=2, inputs=BENCH_RAW, outputs=BENCH_DIRS, uses_labels=True, pipeline_keys=['preprocess'],
        reports=[d / 'manifest.json' for d in BENCH_DIRS]),
-    Stage('05', 'prepare_datasets', ['05.prepare_datasets/prepare_replay.py'],
+    Stage('03', 'prepare_datasets', ['03.prepare_datasets/prepare_replay.py'],
           disk_gb=2, inputs=BENCH_DIRS + [paths.TARGET, OPENLID_RAW], outputs=[REPLAY_MIXED],
           uses_labels=True, pipeline_keys=['replay', 'target_split'],
           reports=[REPLAY_MIXED / 'replay_report.json']),
-    Stage('03', 'dataset_checking', ['03.dataset_checking/check_datasets.py'],
+    Stage('04', 'dataset_checking', ['04.dataset_checking/check_datasets.py'],
           inputs=BENCH_DIRS + [paths.TARGET, REPLAY_MIXED], outputs=[paths.DATASETS / 'audit'],
           uses_labels=True, pipeline_keys=['preprocess', 'target_split', 'replay'],
           reports=[paths.DATASETS / 'audit' / 'audit_report.md']),
-    Stage('00', 'traditional_baselines', [], implemented=False),
-    Stage('04', 'benchmark_zero_shot', [], implemented=False),
-    Stage('06', 'train_models', [], implemented=False),
-    Stage('07', 'benchmark_evaluation', [], implemented=False),
+    Stage('05', 'traditional_baselines', [], implemented=False),
+    Stage('06', 'benchmark_zero_shot', [], implemented=False),
+    Stage('07', 'train_models', [], implemented=False),
+    Stage('08', 'benchmark_evaluation', [], implemented=False),
 ]
 
-# Execution order follows dependencies, not numbering: dataset checking (03)
-# audits everything including the replay data from 05, and the baselines (00)
-# train on the checked splits.
-ORDER = ['01', '02', '05', '03', '00', '04', '06', '07']
+# Stage numbers are the execution order: datasets are prepared (03) before
+# they are audited (04), and every model stage runs on audited data.
+ORDER = ['01', '02', '03', '04', '05', '06', '07', '08']
 BY_ID = {s.id: s for s in STAGES}
 
 

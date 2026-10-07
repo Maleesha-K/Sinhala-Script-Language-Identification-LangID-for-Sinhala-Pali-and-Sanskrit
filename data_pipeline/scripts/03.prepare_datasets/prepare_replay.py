@@ -128,5 +128,5 @@ for split in ('train', 'validation'):
 rpath = prepare_output(out_dir / 'replay_report.json')
 rpath.write_text(json.dumps(report, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
 files.append(rpath)
-write_manifest(out_dir, '05.prepare_datasets', files)
+write_manifest(out_dir, '03.prepare_datasets', files)
 print(json.dumps({k: v for k, v in report.items() if k.startswith('mixed')}, indent=2))

@@ -25,7 +25,7 @@ Useful options:
 | command | what it does |
 |---|---|
 | `run_pipeline.py --preflight-only` (`make preflight`) | only check `.env`, token, dataset access, tools, GPU, disk |
-| `run_pipeline.py --stages 01-03` | a range, in execution order `01 02 05 03 00 04 06 07` |
+| `run_pipeline.py --stages 01-04` | a range (stages run in numeric order) |
 | `run_pipeline.py --only 03` | one stage |
 | `run_pipeline.py --from 05` | resume from a stage |
 | `run_pipeline.py --force` | re-run even if a stage is up to date |
@@ -61,11 +61,9 @@ Useful options:
 |---|---|---|---|
 | 01 | download | `datasets/hybrid_benchmark/*/raw`, `datasets/target_language`, `datasets/hybrid_finetune/openlid_v2/raw` | `datasets/target_language/split_report.json` |
 | 02 | preprocess | `datasets/hybrid_benchmark/*/{clean,eval}.jsonl` | `datasets/hybrid_benchmark/*/manifest.json` (`summary`) |
-| 05 | prepare datasets | `datasets/hybrid_finetune/replay_mixed/` | `replay_mixed/replay_report.json` |
-| 03 | dataset checking | `datasets/audit/` | **`datasets/audit/audit_report.md`** |
-| 00, 04, 06, 07 | baselines, zero-shot, training, evaluation | not implemented yet | |
-
-03 runs after 05 so it can audit everything, including the replay data.
+| 03 | prepare datasets | `datasets/hybrid_finetune/replay_mixed/` | `replay_mixed/replay_report.json` |
+| 04 | dataset checking | `datasets/audit/` | **`datasets/audit/audit_report.md`** |
+| 05-08 | baselines, zero-shot, training, evaluation | not implemented yet | |
 
 ### 01 Download
 Every input is pinned in `config/locks.json` (Hugging Face revision or sha256):
@@ -91,7 +89,7 @@ than ZWJ/ZWNJ removed, whitespace collapsed). Labels are `<ISO 639-3>_<ISO 15924
   without them.
 - `eval.jsonl` = the 11 scored labels. Benchmarks never contain target test data.
 
-### 05 Prepare datasets (rehearsal)
+### 03 Prepare datasets (rehearsal)
 OpenLID-v2 (Burchell et al., ACL 2023), the curated LID training set, gives the
 8 replay labels. OpenLID sub-sources that are a benchmark's origin are excluded
 wholesale (`replay.exclude_sources`: OpenLID contains WiLI-2018). Per label:
@@ -102,7 +100,7 @@ near-duplicate) and the target data, then a balanced sample (10,000 train /
 1,250 validation per label). `mixed_{train,validation}.jsonl` = target split +
 replay split.
 
-### 03 Dataset checking
+### 04 Dataset checking
 `check_datasets.py` prints a `[PASS]`/`[FAIL]` line per check and writes them all
 to `datasets/audit/audit_report.md`. Any `FAIL` stops the pipeline. Checks:
 
@@ -166,7 +164,7 @@ data_pipeline/
 ├── run_pipeline.py      # single entry point
 ├── config/              # pipeline.yaml, labels.yaml, locks.json, reference_outputs.json
 ├── lidpipe/             # shared library: text, labels, metrics, dedup, manifests, preflight, stages
-├── scripts/             # 01.download 02.preprocess 03.dataset_checking 05.prepare_datasets maintainer
+├── scripts/             # 01.download 02.preprocess 03.prepare_datasets 04.dataset_checking maintainer
 ├── tests/               # unit tests and data invariants
 ├── datasets/            # produced data (gitignored)
 └── logs/                # per-run logs and summary.md (gitignored)

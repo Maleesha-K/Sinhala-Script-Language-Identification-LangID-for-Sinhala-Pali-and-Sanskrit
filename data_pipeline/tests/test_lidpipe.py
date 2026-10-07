@@ -76,8 +76,8 @@ def test_bootstrap_is_deterministic():
 
 
 def test_stage_selection():
-    assert [s.id for s in select('01-07')] == ORDER
-    assert [s.id for s in select(only='03')] == ['03']
+    assert [s.id for s in select('01-08')] == ORDER
+    assert [s.id for s in select(only='04')] == ['04']
     with pytest.raises(SystemExit):
         select('07-01')
     with pytest.raises(SystemExit):
