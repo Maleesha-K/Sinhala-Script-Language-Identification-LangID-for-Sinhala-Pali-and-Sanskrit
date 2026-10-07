@@ -17,3 +17,19 @@ env/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+# Ignore uncompressed files >100MB (gzipped .jsonl.gz / .csv.gz versions are tracked)
+datasets/hybrid_benchmark/wili_2018/wili-2018.jsonl
+datasets/hybrid_benchmark/commonlid/commonlid.jsonl
+**/wili-2018.jsonl
+**/commonlid.jsonl
+datasets/benchmark_results/03_multilingual_rehearsal/fasttext_lid_176_finetuned_all_langs_tatoeba.csv
+datasets/benchmark_results/03_multilingual_rehearsal/fasttext_lid_176_finetuned_augmented_commonlid.csv
+datasets/benchmark_results/03_multilingual_rehearsal/fasttext_lid_176_finetuned_augmented_tatoeba.csv
+datasets/benchmark_results/03_multilingual_rehearsal/fasttext_lid_176_finetuned_augmented_wili-2018.csv
+**/fasttext_lid_176_finetuned_all_langs_tatoeba.csv
+**/fasttext_lid_176_finetuned_augmented_commonlid.csv
+**/fasttext_lid_176_finetuned_augmented_tatoeba.csv
+**/fasttext_lid_176_finetuned_augmented_wili-2018.csv
+
+
