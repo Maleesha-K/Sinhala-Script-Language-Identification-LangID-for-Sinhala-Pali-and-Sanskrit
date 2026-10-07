@@ -129,22 +129,37 @@ def _tools(c, tools):
             c.fail(f'tool: {t}', f'`{t}` not found on PATH; install it (e.g. build-essential / git)')
 
 
-def _gpu(c, needed):
-    if not needed:
+def _device(c, required):
+    """Where PyTorch models will run, and why. An NVIDIA GPU that PyTorch cannot
+    use is a FAIL (it silently costs hours), unless PIPELINE_DEVICE=cpu."""
+    from . import device
+    d = device.diagnose()
+    gpus, name = d['nvidia_gpus'], 'compute device (PyTorch)'
+    if d['torch'] is None:
+        c.fail(name, 'PyTorch is not installed; run `uv sync`')
         return
-    if flag('SKIP_GPU_MODELS'):
-        c.warn('CUDA GPU', 'SKIP_GPU_MODELS=1: GPU-only models will be skipped and marked as such')
+    if d['setting'] == 'cpu':
+        c.warn(name, f'PIPELINE_DEVICE=cpu: PyTorch models run on CPU (torch {d["torch"]})'
+               + (f'; GPU present but unused: {gpus[0]}' if gpus else ''))
         return
-    try:
-        import torch
-        if torch.cuda.is_available():
-            p = torch.cuda.get_device_properties(0)
-            c.ok('CUDA GPU', f'{p.name}, {p.total_memory / 2**30:.1f} GiB')
-        else:
-            c.fail('CUDA GPU', 'GPU-only models are enabled but CUDA is unavailable; '
-                               'set SKIP_GPU_MODELS=1 in .env to skip them')
-    except ImportError:
-        c.fail('CUDA GPU', 'torch not installed; run `uv sync`')
+    if d['cuda_available']:
+        c.ok(name, f'CUDA: {d["device_name"]}, {d["device_gib"]} GiB (torch {d["torch"]}, CUDA build '
+                   f'{d["torch_cuda_build"]})')
+        return
+    if gpus and d['torch_cuda_build'] is None:
+        c.fail(name, f'an NVIDIA GPU is present ({gpus[0]}) but PyTorch is a CPU-only build '
+                     f'(torch {d["torch"]}). Run `uv sync` to install the CUDA build pinned in uv.lock '
+                     f'(on Windows: deactivate any other venv first), or set PIPELINE_DEVICE=cpu to run on CPU.')
+    elif gpus:
+        c.fail(name, f'NVIDIA GPU present ({gpus[0]}) and torch has CUDA {d["torch_cuda_build"]}, but CUDA '
+                     f'is unusable: update the NVIDIA driver to one supporting CUDA {d["torch_cuda_build"]}, '
+                     f'or set PIPELINE_DEVICE=cpu.')
+    elif d['setting'] == 'cuda':
+        c.fail(name, 'PIPELINE_DEVICE=cuda but no NVIDIA GPU/driver was found (nvidia-smi missing)')
+    elif required and not flag('SKIP_GPU_MODELS'):
+        c.fail(name, 'a selected model needs a CUDA GPU but none was found; set SKIP_GPU_MODELS=1 to skip it')
+    else:
+        c.warn(name, 'no NVIDIA GPU found: PyTorch models run on CPU (slower); GPU-only models are skipped')
 
 
 def _disk(c, min_gb):
@@ -165,7 +180,7 @@ def run(stages):
     locks = config.locks()
     repos = {}
     urls = {}
-    tools, gpu, disk = set(), False, 0
+    tools, gpu, torch_stage, disk = set(), False, False, 0
     for s in stages:
         for key in s.needs_locks:
             entry = locks[key]
@@ -177,12 +192,14 @@ def run(stages):
                 repos[key] = entry
         tools |= set(s.needs_tools)
         gpu |= s.needs_gpu
+        torch_stage |= s.uses_torch
         disk = max(disk, s.disk_gb)
     if repos:
         _hf(c, repos)
     for name, url in urls.items():
         _url(c, name, url)
     _tools(c, sorted(tools))
-    _gpu(c, gpu)
+    if gpu or torch_stage:
+        _device(c, gpu)
     _disk(c, disk)
     return c

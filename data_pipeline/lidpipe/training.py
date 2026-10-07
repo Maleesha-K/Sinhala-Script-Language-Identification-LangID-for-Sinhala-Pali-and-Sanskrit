@@ -72,7 +72,7 @@ def select(model, family, base_path, phase, seed, make_trainer, grid=None, epoch
     train, val, labels = phase_data(phase, smoke)
     val_texts, val_gold = [r['text'] for r in val], [r['label'] for r in val]
     out = reset_dir(model_dir(phase, model, seed, root))
-    log, best = [], None
+    log, best, device = [], None, 'cpu'
     print(f'{model} {phase} seed={seed}: {len(train)} train / {len(val)} validation rows; '
           f'{param} grid {grid}; up to {epochs} epochs; selecting on validation {metric}', flush=True)
     for lr in grid:
@@ -81,6 +81,8 @@ def select(model, family, base_path, phase, seed, make_trainer, grid=None, epoch
             for epoch in range(1, min(epochs, getattr(trainer, 'max_epochs', epochs)) + 1):
                 t = time.time()
                 trainer.epoch(train, lr, epoch)
+                # PyTorch trainers expose .device (directly or via a wrapped baseline)
+                device = getattr(trainer, 'device', None) or getattr(getattr(trainer, 'inner', None), 'device', 'cpu')
                 raw, _ = trainer.predict(val_texts)
                 pred = [canonical_prediction(p, x) for p, x in zip(raw, val_texts)]
                 s = summarise(val_gold, pred, n_boot=0)
@@ -100,6 +102,7 @@ def select(model, family, base_path, phase, seed, make_trainer, grid=None, epoch
     chosen = {'model': model, 'family': family, 'phase': phase, 'seed': seed, 'selection_metric': metric,
               'chosen': best, 'hyperparameter': param, 'grid': grid, 'max_epochs': epochs, 'smoke': smoke,
               'train_rows': len(train), 'validation_rows': len(val), 'base_checkpoint': str(base_path),
+              'device': device,
               'rule': 'max validation metric; ties keep the first found: smaller lr, then earlier epoch'}
     prepare_output(out / 'chosen.json').write_text(json.dumps(chosen, indent=2) + '\n', encoding='utf-8')
     print(f'  chosen: {param}={best[param]} epoch={best["epoch"]} validation {metric}={best[metric]:.4f}', flush=True)

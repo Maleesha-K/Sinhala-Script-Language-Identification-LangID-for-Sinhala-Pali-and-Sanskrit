@@ -33,7 +33,7 @@ from datetime import datetime, timezone
 if '--smoke' in sys.argv:  # must be set before lidpipe.paths is imported
     os.environ['PIPELINE_SMOKE'] = '1'
 
-from lidpipe import config, paths, preflight  # noqa: E402
+from lidpipe import config, device, paths, preflight  # noqa: E402
 from lidpipe.manifest import read_manifest, sha256_file, verify_manifest
 from lidpipe.stages import STAGES, select
 
@@ -156,6 +156,7 @@ def run_metadata(log_dir, stages):
             'git_dirty': bool(sh('git', 'status', '--porcelain')),
             'python': sys.version, 'platform': platform.platform(),
             'config_sha256': config.config_hash(), 'stages': [s.id for s in stages],
+            'compute_device': device.diagnose() if any(s.uses_torch for s in stages) else None,
             'packages': (sh('uv', 'pip', 'freeze') or '').splitlines()}
     (log_dir / 'run_metadata.json').write_text(json.dumps(meta, indent=2))
 

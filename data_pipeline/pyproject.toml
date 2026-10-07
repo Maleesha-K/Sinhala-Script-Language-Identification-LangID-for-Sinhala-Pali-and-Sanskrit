@@ -45,3 +45,15 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+# PyTorch with CUDA. On Linux the PyPI wheel already bundles CUDA 13; on Windows
+# PyPI only has a CPU-only build, so Windows takes torch from PyTorch's CUDA 13.0
+# index (driver >= 580 needed). The pipeline still runs on CPU where no NVIDIA
+# GPU exists; preflight reports which device will be used.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true

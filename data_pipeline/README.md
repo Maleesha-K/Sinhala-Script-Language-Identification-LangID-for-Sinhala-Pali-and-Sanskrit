@@ -35,6 +35,15 @@ Useful options:
 | `run_pipeline.py --only 07 --models xlmr` | train the deferred XLM-R model (hours on a laptop GPU) |
 | `uv run pytest` (`make test`) | unit tests, incl. invariants of the produced data |
 
+### GPU (Linux and Windows)
+PyTorch models (LID-176 leaf surgery, ConLID, XLM-R, Char-CNN/BiGRU) use CUDA when
+available. `uv sync` installs a CUDA 13.0 build of PyTorch on both Linux (PyPI)
+and Windows (PyTorch's cu130 index, configured in `pyproject.toml`); it needs an
+NVIDIA driver with CUDA 13 support (>= 580). Preflight reports the device and
+**fails** if an NVIDIA GPU is present but PyTorch cannot use it, with the fix.
+On Windows, run `deactivate` first if another virtualenv is active, so `uv`
+uses `data_pipeline/.venv`. fastText models and the sklearn/XGBoost baselines run on CPU.
+
 ## `.env`
 
 | key | required | meaning |
@@ -44,7 +53,7 @@ Useful options:
 | `HF_TARGET_DATASET` | no (`sinhala-script-lid`) | name of the target-language dataset repo |
 | `HF_PUBLISH_PRIVATE` | no (`1`) | maintainers: new repos are created private |
 | `HF_HOME` | no | Hugging Face cache location |
-| `PIPELINE_DEVICE` | no (`auto`) | `auto`, `cpu` or `cuda` |
+| `PIPELINE_DEVICE` | no (`auto`) | where PyTorch models run: `auto` (CUDA if usable), `cuda`, `cpu` |
 | `SKIP_GPU_MODELS` | no (`0`) | `1` skips GPU-only models instead of failing preflight |
 
 ## What a run shows you

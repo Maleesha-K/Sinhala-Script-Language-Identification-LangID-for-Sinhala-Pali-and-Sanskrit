@@ -192,3 +192,38 @@ def test_preflight_unpublished_release_message(tmp_path):
     c = preflight.Check()
     preflight._local_release(c, 'target_dataset', {'path': str(tmp_path / 'nope'), 'files_sha256': {'a.jsonl': 'x'}})
     assert c.failed and 'resplit_target.py' in c.report()
+
+
+def _device_check(monkeypatch, **diag):
+    from lidpipe import device, preflight
+    base = {'setting': 'auto', 'nvidia_gpus': [], 'torch': '2.13.0', 'torch_cuda_build': None,
+            'cuda_available': False}
+    monkeypatch.setattr(device, 'diagnose', lambda: {**base, **diag})
+    c = preflight.Check()
+    preflight._device(c, required=False)
+    return c
+
+
+def test_preflight_fails_on_cpu_only_torch_with_nvidia_gpu(monkeypatch):
+    # The Windows case: RTX GPU + driver present, but PyPI's CPU-only torch wheel.
+    c = _device_check(monkeypatch, nvidia_gpus=['NVIDIA GeForce RTX 4070, 617.42, 8188 MiB'],
+                      torch='2.13.0+cpu')
+    assert c.failed and 'CPU-only build' in c.report() and 'uv sync' in c.report()
+
+
+def test_preflight_fails_when_driver_too_old_for_cuda_build(monkeypatch):
+    c = _device_check(monkeypatch, nvidia_gpus=['GPU, 450.0, 4096 MiB'], torch_cuda_build='13.0')
+    assert c.failed and 'driver' in c.report()
+
+
+def test_preflight_cpu_only_machine_warns_and_forced_cpu_warns(monkeypatch):
+    assert not _device_check(monkeypatch).failed
+    c = _device_check(monkeypatch, setting='cpu', nvidia_gpus=['GPU'], torch_cuda_build='13.0',
+                      cuda_available=True)
+    assert not c.failed and 'PIPELINE_DEVICE=cpu' in c.report()
+
+
+def test_preflight_ok_with_usable_cuda(monkeypatch):
+    c = _device_check(monkeypatch, nvidia_gpus=['GPU'], torch_cuda_build='13.0', cuda_available=True,
+                      device_name='RTX', device_gib=8.0)
+    assert not c.failed and 'CUDA: RTX' in c.report()

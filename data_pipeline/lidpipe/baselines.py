@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from . import config
+from .device import torch_device
 
 BASELINES = ['nb', 'svm', 'logreg', 'xgboost', 'fasttext_scratch', 'char_cnn', 'char_bigru']
 
@@ -144,7 +145,7 @@ class _CharNet:
         import torch
         torch.manual_seed(seed)
         self.torch, self.lr, self.seed, self.labels = torch, value, seed, list(labels)
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = torch_device()
         self.vocab, self.net, self.opt = None, None, None
 
     def _ids(self, texts):

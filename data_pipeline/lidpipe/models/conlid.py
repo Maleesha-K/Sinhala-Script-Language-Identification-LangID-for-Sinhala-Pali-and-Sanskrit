@@ -9,19 +9,13 @@ from .. import paths
 sys.path.insert(0, str(paths.ROOT / 'new_method'))
 from lidlab.backends import ConLIDBackend  # noqa: E402
 
-from ..env import load_env  # noqa: E402
-
-
-def _device():
-    import os
-    load_env()
-    return os.environ.get('PIPELINE_DEVICE', 'auto') or 'auto'
+from ..device import torch_device  # noqa: E402
 
 
 class ConLID:
     def __init__(self, path):
         self.path = Path(path)
-        self.backend = ConLIDBackend(self.path, _device())
+        self.backend = ConLIDBackend(self.path, torch_device())
         self.labels = list(self.backend.labels)
 
     def predict(self, texts, batch_size=256):

@@ -22,7 +22,8 @@ class Stage:
     steps: list                      # scripts, relative to scripts/, run in order
     needs_locks: list = field(default_factory=list)   # keys in config/locks.json
     needs_tools: list = field(default_factory=list)
-    needs_gpu: bool = False
+    needs_gpu: bool = False                           # cannot run without CUDA
+    uses_torch: bool = False                          # runs PyTorch models (GPU if usable)
     disk_gb: int = 1
     inputs: list = field(default_factory=list)        # dirs whose manifests must verify first
     outputs: list = field(default_factory=list)       # dirs whose manifests this stage writes
@@ -70,17 +71,17 @@ STAGES = [
           disk_gb=4, inputs=CHECKED_DATA,
           outputs=[paths.MODELS / '00_traditional_ml_baselines', paths.RESULTS / '00_traditional_ml_baselines'],
           uses_labels=True, pipeline_keys=['baselines', 'training', 'seeds', 'smoke', 'bootstrap'],
-          deterministic=False, reports=[paths.RESULTS / '00_traditional_ml_baselines' / 'manifest.json']),
+          uses_torch=True, deterministic=False, reports=[paths.RESULTS / '00_traditional_ml_baselines' / 'manifest.json']),
     Stage('06', 'benchmark_zero_shot', ['06.benchmark_zero_shot/zero_shot.py'],
           needs_locks=['lid176', 'openlid_v3', 'glotlid_v3', 'nllb_lid218', 'conlid'], needs_tools=['g++'],
           disk_gb=6, inputs=CHECKED_DATA, outputs=[paths.RESULTS / '01_zero_shot'], uses_labels=True,
-          pipeline_keys=['bootstrap', 'smoke'], deterministic=False,
+          pipeline_keys=['bootstrap', 'smoke'], uses_torch=True, deterministic=False,
           reports=[paths.RESULTS / '01_zero_shot' / 'manifest.json']),
     Stage('07', 'train_models', ['07.train_models/train_models.py'],
           needs_locks=['lid176', 'openlid_v3', 'glotlid_v3', 'nllb_lid218', 'conlid', 'xlm_roberta_base'],
           needs_tools=['g++'], disk_gb=12, inputs=CHECKED_DATA,
           outputs=[paths.MODELS / '02_target_only_sota', paths.MODELS / '03_global_rehearsal_sota'],
-          uses_labels=True, pipeline_keys=['training', 'seeds', 'smoke'], deterministic=False,
+          uses_labels=True, pipeline_keys=['training', 'seeds', 'smoke'], uses_torch=True, deterministic=False,
           reports=[paths.MODELS / '02_target_only_sota' / 'manifest.json',
                    paths.MODELS / '03_global_rehearsal_sota' / 'manifest.json']),
     Stage('08', 'benchmark_evaluation', ['08.benchmark_evaluation/evaluate_finetuned.py',
@@ -88,7 +89,7 @@ STAGES = [
           inputs=CHECKED_DATA + [paths.MODELS / '02_target_only_sota', paths.MODELS / '03_global_rehearsal_sota'],
           outputs=[paths.RESULTS / '02_target_only', paths.RESULTS / '03_multilingual_rehearsal',
                    paths.RESULTS / 'tables'],
-          uses_labels=True, pipeline_keys=['bootstrap', 'seeds', 'smoke'], deterministic=False,
+          uses_labels=True, pipeline_keys=['bootstrap', 'seeds', 'smoke'], uses_torch=True, deterministic=False,
           reports=[paths.RESULTS / 'tables' / 'results.md']),
 ]
 

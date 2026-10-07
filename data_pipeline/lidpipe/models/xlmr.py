@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from .. import config
+from ..device import torch_device
 
 
 class XLMR:
@@ -19,7 +20,7 @@ class XLMR:
         meta = json.loads(meta_file.read_text(encoding='utf-8'))
         self.labels = meta['labels']
         self.torch = torch
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = torch_device()
         self.max_length = config.pipeline()['training']['xlmr']['max_length']
         self.tok = AutoTokenizer.from_pretrained(path)
         base = AutoModelForSequenceClassification.from_pretrained(
@@ -45,9 +46,8 @@ class XLMR:
 
 class LID176Continual:
     def __init__(self, path):
-        import torch
         from fasttext_continual.model import ContinualLID
-        self.model = ContinualLID.from_pretrained(path, device='cuda' if torch.cuda.is_available() else 'cpu')
+        self.model = ContinualLID.from_pretrained(path, device=torch_device())
         self.labels = list(self.model.labels)
 
     def predict(self, texts):

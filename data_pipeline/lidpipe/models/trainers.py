@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
+from ..device import torch_device
 from ..labels import model_label_map
 
 
@@ -62,6 +63,7 @@ class ConLIDTrainer:
         self.wrapper = ConLID(base_path)
         self.map = model_label_map(self.wrapper.labels)
         self.seed, self.batch = seed, cfg['batch_size']['conlid']
+        self.device = self.wrapper.backend.device
         self.wrapper.backend.initialize([self.map[l] for l in label_set], self.tmp)
         self.wrapper.labels = list(self.wrapper.backend.labels)
 
@@ -99,7 +101,7 @@ class LID176Trainer:
         model.config['parity_verified'] = True
         model.config['parity_report'] = report
         model.add_pali()
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = torch_device()
         self.model = model.to(self.device)
         self.map = model_label_map(self.model.labels)
         self.seed, self.batch = seed, cfg['batch_size']['fasttext_hs']
@@ -152,7 +154,7 @@ class XLMRTrainer:
         self.torch, self.cfg = torch, cfg
         self.labels = list(label_set)
         self.lookup = {l: i for i, l in enumerate(self.labels)}
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device = torch_device()
         self.tok = AutoTokenizer.from_pretrained(base_path)
         model = AutoModelForSequenceClassification.from_pretrained(
             base_path, num_labels=len(self.labels), id2label=dict(enumerate(self.labels)), label2id=self.lookup)
