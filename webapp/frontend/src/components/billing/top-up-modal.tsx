@@ -104,11 +104,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
 
     if (selectedId === "custom") {
       const credits = Math.max(1000, Number(customCredits) || 1000);
-<<<<<<< HEAD
       const amountLkr = Math.round(credits * unitPrice);
-=======
-      const amountLkr = customPrice(credits);
->>>>>>> origin/main
       return { credits, amountLkr, name: "Custom Pack" };
     }
     const pkg = packages.find((p) => p.id === selectedId) || packages[1] || packages[0];
@@ -516,7 +512,6 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                         </p>
                       </div>
                     </div>
-<<<<<<< HEAD
                   )}
 
                   {/* Tab 3: Internet Banking Form */}
@@ -556,12 +551,6 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                       <span className="text-xs text-muted-foreground">Settling:</span>
                       <p className="text-xs font-semibold text-slate-800">
                         {currentPackageName} (<span className="text-emerald-600 font-bold">+{currentCreditsAmount.toLocaleString()} Credits</span>)
-=======
-                    <div className="text-right">
-                      <span className="text-xs text-muted-foreground">Total Price (LKR):</span>
-                      <p className="text-lg font-bold text-primary">
-                        LKR {customPrice(customCredits).toLocaleString(undefined, { minimumFractionDigits: 2 })}
->>>>>>> origin/main
                       </p>
                     </div>
                     <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end">
