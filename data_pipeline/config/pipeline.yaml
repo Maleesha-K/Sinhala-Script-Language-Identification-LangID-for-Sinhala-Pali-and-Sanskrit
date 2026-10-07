@@ -1,0 +1,52 @@
+# Experiment protocol. Every model is trained, selected and scored with these
+# settings; nothing model-specific lives in stage scripts.
+
+seeds: [42]
+
+# Percentile-bootstrap 95% CIs on every reported metric.
+bootstrap:
+  resamples: 1000
+  seed: 0
+
+preprocess:
+  normalization: NFC          # applied to every dataset and model input
+  short_text_min_letters: 5   # rows below this are flagged `short`
+
+# Target-language dataset construction (scripts/maintainer/resplit_target.py).
+target_split:
+  seed: 42
+  fractions: {train: 0.8, validation: 0.1, test: 0.1}
+  # Sentence-level instances, as in FLORES+/OpenLID: paragraphs are split at
+  # sentence terminators and packed up to this many characters, removing the
+  # length cue (parallel paragraphs avg 435-661 chars vs ~110 for Sanskrit).
+  # 200 keeps units near FLORES+ sentence length.
+  max_chars: 200
+  min_letters: 5
+  # Split unit: contiguous block of <= block_size units within one document
+  # (blocked grouping for sequential text without finer document boundaries).
+  block_size: 25
+  # Near-duplicate removal (Broder 1997; Lee et al. 2022): MinHash LSH over
+  # character 5-gram shingles; pairs with true Jaccard >= threshold keep one.
+  near_dup: {shingle: 5, num_perm: 128, threshold: 0.8}
+
+# Rehearsal (experience replay) data for the 8 replay labels, stage 05.
+replay:
+  source: openlid_v2
+  seed: 42
+  # Balanced: every replay label gets the same number of units, so no language
+  # is starved (Aya gave German ~200 rows against ~26k Sinhala).
+  per_language: {train: 10000, validation: 1250}
+  # Random candidates drawn per language before filtering, dedup and
+  # decontamination; must leave >= train + validation units.
+  candidates_per_language: 40000
+  # OpenLID sub-sources that are (or derive from) one of our benchmarks are
+  # excluded wholesale, in addition to text-level decontamination.
+  exclude_sources: [wili2018]
+  # Decontamination against every benchmark eval set: exact text match, plus
+  # MinHash near-duplicates at the same settings as target_split.near_dup.
+
+# Smoke mode: tiny subsample + single grid point, to check the plumbing.
+smoke: false
+
+disk_gb:
+  benchmarks: 3

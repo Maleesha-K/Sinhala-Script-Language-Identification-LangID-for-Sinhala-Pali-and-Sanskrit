@@ -1,134 +1,173 @@
-# LangID Data Pipeline
+# Sinhala-script LangID pipeline
 
-This repository contains a modular and extensible data pipeline designed for a research project focused on Language Identification (LangID) for Sinhala, Pali, and Sanskrit written in the Sinhala script.
+Reproducible pipeline for language identification of **Sinhala, Pali and
+Sanskrit written in Sinhala script**, with retention of 8 other languages
+(Sanskrit-Devanagari, English, Tamil, Hindi, Bengali, Modern Standard Arabic,
+French, German). One command runs every stage, validates every output and tells
+you whether you reproduced the published data byte-for-byte.
 
-The pipeline handles downloading raw datasets from multiple sources (like Hugging Face), transforming them into a standardized format, running data quality checks, and eventually feeding them into benchmarking and finetuning stages.
+## Quick start
 
+```bash
+cp .env.example .env            # then put your Hugging Face token in HF_TOKEN
+uv sync                         # install the locked environment
+uv run python run_pipeline.py   # or: make all
+```
 
+With your Hugging Face account, accept the terms of these gated datasets first
+(preflight tells you if you have not):
+[FLORES+](https://huggingface.co/datasets/openlanguagedata/flores_plus),
+[CommonLID](https://huggingface.co/datasets/commoncrawl/CommonLID),
+[OpenLID-v2](https://huggingface.co/datasets/laurievb/OpenLID-v2).
 
-## Architecture
+Useful options:
 
-The pipeline is split into distinct stages, executed sequentially via a `Makefile`. The core design principle is **Decoupled Transformation**: all upstream datasets, regardless of their original format, are transformed into a single, standardized format by a "Middle Layer" before they are processed by the downstream pipeline.
+| command | what it does |
+|---|---|
+| `run_pipeline.py --preflight-only` (`make preflight`) | only check `.env`, token, dataset access, tools, GPU, disk |
+| `run_pipeline.py --stages 01-03` | a range, in execution order `01 02 05 03 00 04 06 07` |
+| `run_pipeline.py --only 03` | one stage |
+| `run_pipeline.py --from 05` | resume from a stage |
+| `run_pipeline.py --force` | re-run even if a stage is up to date |
+| `run_pipeline.py --dry-run` | show what would run |
+| `uv run pytest` (`make test`) | unit tests, incl. invariants of the produced data |
 
-### Directory Structure
+## `.env`
+
+| key | required | meaning |
+|---|---|---|
+| `HF_TOKEN` | yes | Hugging Face read token |
+| `HF_ORG` | no (`script-langid`) | organisation holding this project's datasets/models |
+| `HF_TARGET_DATASET` | no (`sinhala-script-lid`) | name of the target-language dataset repo |
+| `HF_PUBLISH_PRIVATE` | no (`1`) | maintainers: new repos are created private |
+| `HF_HOME` | no | Hugging Face cache location |
+| `PIPELINE_DEVICE` | no (`auto`) | `auto`, `cpu` or `cuda` |
+| `SKIP_GPU_MODELS` | no (`0`) | `1` skips GPU-only models instead of failing preflight |
+
+## What a run shows you
+
+1. **Preflight**: one `OK`/`WARN`/`FAIL` line per check, each failure with its fix.
+2. **Each stage**: the output of every script, including `[PASS]`/`[FAIL]` lines.
+3. **After each stage**: outputs verified against their sha256 manifests, and a
+   **reference check** against `config/reference_outputs.json` (`MATCH` = your
+   files are byte-identical to the maintainers' run; `DIFF` stops the run).
+4. **At the end**: a summary table (stage, status, time, reference check, report
+   paths), printed and saved to `logs/<run>/summary.md`. Every stage's full output
+   is in `logs/<run>/<stage>.log`; environment details in `logs/<run>/run_metadata.json`.
+
+## Stages
+
+| id | stage | outputs | human-readable report |
+|---|---|---|---|
+| 01 | download | `datasets/hybrid_benchmark/*/raw`, `datasets/target_language`, `datasets/hybrid_finetune/openlid_v2/raw` | `datasets/target_language/split_report.json` |
+| 02 | preprocess | `datasets/hybrid_benchmark/*/{clean,eval}.jsonl` | `datasets/hybrid_benchmark/*/manifest.json` (`summary`) |
+| 05 | prepare datasets | `datasets/hybrid_finetune/replay_mixed/` | `replay_mixed/replay_report.json` |
+| 03 | dataset checking | `datasets/audit/` | **`datasets/audit/audit_report.md`** |
+| 00, 04, 06, 07 | baselines, zero-shot, training, evaluation | not implemented yet | |
+
+03 runs after 05 so it can audit everything, including the replay data.
+
+### 01 Download
+Every input is pinned in `config/locks.json` (Hugging Face revision or sha256):
+FLORES+ devtest, CommonLID test, WiLI-2018 (Zenodo; **test split only**), the
+target dataset, and OpenLID-v2 parquet files for the 8 replay labels. Raw files
+are stored byte-for-byte; row counts are checked against the lock.
+
+### 02 Preprocess (benchmarks)
+Every text is **NFC-normalised** (`lidpipe/text.py`; zero-width characters other
+than ZWJ/ZWNJ removed, whitespace collapsed). Labels are `<ISO 639-3>_<ISO 15924>`
+(`config/labels.yaml`):
+- FLORES+ uses its own script field, so romanised Arabic (`arb_Latn`) stays
+  separate, and native `sin_Sinh` / `san_Deva` rows are kept.
+- WiLI and CommonLID carry no script; it is derived per language and asserted
+  for every scored language. WiLI `als` is mapped to `gsw` (Alemannic).
+- **Arabic policy:** `arb_Arab` is ISO `arb` (Modern Standard Arabic) in Arabic
+  script only. Macrolanguage `ara` and dialects are never mapped in, so WiLI has
+  no `arb_Arab` (declared absent). LID-176's prediction `ar` is credited as `arb`
+  (it cannot output anything finer); this is a documented limitation.
+- Exact duplicates removed; texts carrying two labels are kept but excluded from
+  scoring when both labels are scored; rows are **flagged** (`short`,
+  `no_letters`, `wrong_script`), not dropped, so scores can be reported with and
+  without them.
+- `eval.jsonl` = the 11 scored labels. Benchmarks never contain target test data.
+
+### 05 Prepare datasets (rehearsal)
+OpenLID-v2 (Burchell et al., ACL 2023), the curated LID training set, gives the
+8 replay labels. OpenLID sub-sources that are a benchmark's origin are excluded
+wholesale (`replay.exclude_sources`: OpenLID contains WiLI-2018). Per label:
+seeded random candidates, the same normalisation,
+segmentation and filters as the target data, exact and MinHash near-duplicate
+removal, **decontamination** against every benchmark eval set (exact and
+near-duplicate) and the target data, then a balanced sample (10,000 train /
+1,250 validation per label). `mixed_{train,validation}.jsonl` = target split +
+replay split.
+
+### 03 Dataset checking
+`check_datasets.py` prints a `[PASS]`/`[FAIL]` line per check and writes them all
+to `datasets/audit/audit_report.md`. Any `FAIL` stops the pipeline. Checks:
+
+- **benchmarks**: files match manifests (raw and processed); labels well-formed
+  and in the allowed set; all text NFC; unique `sample_id`; no duplicate
+  (text, label); eval ⊂ clean; every scored label present except declared
+  absences, and declared absences really absent; no eval text with two scored
+  labels; Arabic policy (`arb_Arab` only from raw `arb`); expected script per
+  language; WiLI test split only; raw row counts equal the pins.
+- **target release**: files match manifest and the pinned release; labels, NFC,
+  unique ids; units ≤ 200 characters and in Sinhala script; all three labels in
+  every split; no text and no document block shared between splits; **no
+  near-duplicates across splits** (MinHash LSH, re-computed); provenance of the
+  parallel corpus verified at build time.
+- **replay / mixed**: manifests; labels, NFC, ids; balanced per label;
+  `mixed = target + replay` exactly; replay train/validation share no text and
+  no near-duplicate.
+- **contamination**: no benchmark eval text and no target test text in any
+  training or validation set (exact); no replay text near-duplicating a
+  benchmark eval text (re-computed); target test disjoint from benchmarks.
+
+## Target dataset (Sinhala / Pali / Sanskrit in Sinhala script)
+
+Built once by maintainers (`scripts/maintainer/resplit_target.py`) and published
+to `$HF_ORG/$HF_TARGET_DATASET`. Method (parameters in `config/pipeline.yaml`,
+`target_split`):
+
+1. Sources pooled, NFC-normalised, non-Sinhala-script text removed.
+2. **Provenance**: the Pali-Sinhala parallel rows are verified row-by-row against
+   the public corpus `sinhala-nlp/pali-sinhala` (pinned).
+3. **Documents**: source document ids; for the parallel corpus (canonical order)
+   a sutta starts at each Pali incipit *evaṃ me sutaṃ*; both sides of a
+   translation pair share a document.
+4. **Split unit**: contiguous block of ≤ 25 rows within a document.
+5. **Sentence-level units** (as in FLORES+/OpenLID), packed to ≤ 200 characters,
+   which removes the length cue between sources.
+6. Exact duplicates and label conflicts removed; **near-duplicates** removed with
+   MinHash LSH over character 5-grams, Jaccard ≥ 0.8 (Broder 1997; Lee et al. 2022).
+7. Group-stratified 80/10/10 split (seed 42).
+8. Verified: 0 exact and 0 near-duplicate pairs across splits.
+
+## Maintainers
+
+```bash
+# rebuild the target release (prints PASS/FAIL for provenance and leakage,
+# and whether it reproduces the release pinned in config/locks.json)
+uv run python scripts/maintainer/resplit_target.py [--update-lock]
+
+# publish it to $HF_ORG/$HF_TARGET_DATASET and pin the revision in locks.json
+# (needs a token with write access to the organisation)
+uv run python scripts/maintainer/publish_target_hf.py
+
+# after a clean run, store its output hashes as the reference researchers compare to
+uv run python run_pipeline.py --record-reference
+```
+
+## Layout
 
 ```text
 data_pipeline/
-├── datasets/
-│   ├── raw_download/        # Untouched datasets extracted from various sources
-│   └── preprocessed/        # Data transformed into the standardized pipeline format (.jsonl)
-├── scripts/
-│   ├── 01.download/         # Jupyter notebooks to fetch and save raw data
-│   ├── 02.preprocess/       # The "Middle Layer" - transforms raw data to .jsonl
-│   ├── 03.dataset_checking/ # Validation and testing scripts for the standard format
-│   ├── 04.benchmark/        # Zero-shot evaluation notebooks, one per model
-│   └── 05.finetune/         # Model training scripts (Placeholders)
-├── Makefile                 # Orchestrates the execution of all notebooks
-├── .env.example             # Template for environment variables (like HF_TOKEN)
-└── README.md                # This document
+├── run_pipeline.py      # single entry point
+├── config/              # pipeline.yaml, labels.yaml, locks.json, reference_outputs.json
+├── lidpipe/             # shared library: text, labels, metrics, dedup, manifests, preflight, stages
+├── scripts/             # 01.download 02.preprocess 03.dataset_checking 05.prepare_datasets maintainer
+├── tests/               # unit tests and data invariants
+├── datasets/            # produced data (gitignored)
+└── logs/                # per-run logs and summary.md (gitignored)
 ```
-
-## How It Works
-
-The entire pipeline is orchestrated using `make` and `papermill`. Instead of using raw Python scripts, the pipeline executes parameterized Jupyter Notebooks (`.ipynb`).
-
-### Running the Pipeline
-
-Before running, ensure you have set up your environment variables (especially if you are downloading gated datasets from Hugging Face).
-
-1. Copy the environment template: `cp .env.example .env`
-2. Add your Hugging Face token to `.env`: `HF_TOKEN=your_token_here`
-
-#### Local Execution (Makefile)
-To run the entire pipeline locally:
-```bash
-make all
-```
-
-#### Google Colab Compatibility
-Every notebook in this pipeline is engineered to be **100% compatible with Google Colab**.
-- A standard `[COLAB SETUP]` cell is injected at the top of every notebook.
-- When run in Colab, this cell automatically clones the repository, installs all necessary dependencies (via `pip`), and seamlessly mounts your Google Drive for persistent storage.
-- You can simply upload any of these notebooks to Colab and run them from top to bottom without any manual environment configuration!
-
-You can also run individual stages:
-
-- `make download`: Runs all download notebooks.
-- `make preprocess`: Runs all preprocessing notebooks.
-- `make check`: Runs the dataset validation checks on all preprocessed datasets. This step now includes robust baseline checks for **Sinhala**, **Pali**, and **Sanskrit**, exporting any misclassifications to CSV files for manual review. It also supports dynamic test dataset replacement via Google Drive!
-- `make benchmark`: Runs every zero-shot benchmark notebook in `04.benchmark/` (note: these download large third-party models — hundreds of MB to a few GB each — so this can take a while on a fresh machine).
-- `make finetune-dataset`: Runs the `05.finetune_dataset/` notebooks, then `build_11groups.py` to build the 11-group rehearsal data (fetches the Sanskrit-Devanagari corpus if missing).
-- `make finetune-models`: Runs every notebook in `06.finetune_models/`, including `finetune_rehearsal_new_method.ipynb` (the `new_method/` continued-training + rehearsal experiment for NLLB, GlotLID and ConLID).
-- `make benchmark-finetuned`: Runs every notebook in `07.benchmark_finetuned/`, including `benchmark_rehearsal_new_method.ipynb` (zero-shot / target-only / replay tables).
-- `make finetune-rehearsal` / `make benchmark-rehearsal`: Run only the `new_method` stage 06 / 07 notebooks. Completed phases are reused; if input data changes, pass a new output dir, e.g. `uv run papermill ... -p output_dir results/run2`. Building the native fastText binary needs `g++` (MinGW-w64 on Windows) when `new_method/bin/` is empty.
-- `make clean`: Deletes all downloaded and preprocessed data.
-
-## Pipeline Standards & Conventions
-
-To ensure the pipeline remains modular and easy to manage, please adhere to the following standards:
-
-### 1. Naming Convention
-
-The Makefile uses dynamic discovery based on file names. For a dataset named `my_dataset`, the following files must exist:
-
-- `scripts/01.download/download_my_dataset.ipynb`
-- `scripts/02.preprocess/preprocess_my_dataset.ipynb`
-
-The Makefile will automatically discover these and create `make download-my_dataset` and `make preprocess-my_dataset` targets.
-
-### 2. Standardized Format (Middle Layer)
-
-All datasets in the `02.preprocess` stage must be transformed and saved into the `datasets/preprocessed/` directory as **JSON Lines (`.jsonl`)** files.
-Every JSON object should at least contain the following schema:
-
-```json
-{
-  "text": "The sample sentence...",
-  "label": "sin",
-  "source": "dataset_name"
-}
-```
-
-*(Valid labels currently checked are `sin`, `san`, and `pli`)*
-
-### 3. Notebook Parameterization
-
-Notebooks are executed via `papermill`. Inputs and outputs should not be hardcoded. Instead, use a cell tagged with `parameters` at the top of your notebook.
-
-- **Download notebooks** expect: `output_dir` (e.g., `datasets/raw_download/my_dataset`)
-- **Preprocess notebooks** expect: `input_dir` and `output_file`
-- **Check notebooks** expect: `input_file`
-- **Benchmark notebooks** expect: `input_file` (a preprocessed `.jsonl`) and `output_file` (where per-row predictions are saved, e.g. `datasets/benchmark_results/my_model.csv`)
-
-## How to Contribute a New Dataset
-
-1. **Pick a Dataset Name**: Let's say your dataset is `wiki_data`.
-2. **Create Download Notebook**: Create `scripts/01.download/download_wiki_data.ipynb`.
-   - Add a parameter cell with `output_dir = 'datasets/raw_download/wiki_data'`.
-   - Write logic to download the data and save it to `output_dir`.
-3. **Create Preprocess Notebook**: Create `scripts/02.preprocess/preprocess_wiki_data.ipynb`.
-   - Add a parameter cell with `input_dir = 'datasets/raw_download/wiki_data'` and `output_file = 'datasets/preprocessed/wiki_data.jsonl'`.
-   - Write logic to read from `input_dir`, transform the data to match the standard JSONL schema, and write to `output_file`.
-4. **Test**: Run `make all` or `make download-wiki_data && make preprocess-wiki_data` to ensure your new dataset flows through the pipeline perfectly!
-
-## Datasets & Languages
-
-The pipeline currently integrates the following primary datasets for robust and diverse linguistic representation:
-
-1. **FLORES+ (Flores-200)**: A massively multilingual machine translation benchmark dataset containing high-quality translations.
-2. **WiLI-2018**: The Wikipedia Language Identification dataset, providing paragraph-level text for robust baseline classification.
-3. **CommonLID**: A comprehensive language identification dataset aggregated from various web sources.
-
-### Target Benchmarking Languages
-We are mainly benchmarking our models against **10 specific target languages** to evaluate performance across a diverse set of scripts and language families. The target languages are:
-
-1. **Sinhala**
-2. **Sanskrit**
-3. **Pali**
-4. **English**
-5. **Tamil**
-6. **Hindi**
-7. **Bengali**
-8. **Arabic**
-9. **French**
-10. **German**

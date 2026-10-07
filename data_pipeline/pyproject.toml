@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "datasets>=5.0.1",
+    "datasketch>=2.0.0",
     "fasttext-wheel>=0.9.2",
     "gdown>=5.2.0",
     "huggingface-hub>=0.25.0",
@@ -15,6 +16,16 @@ dependencies = [
     "nbformat>=5.10.4",
     "pandas>=2.0.0",
     "papermill>=2.7.0",
+    "pyyaml>=6.0.3",
     "scikit-learn>=1.7.0",
     "tqdm>=4.66.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -1,0 +1,119 @@
+{
+  "_comment": "Every external input, pinned. Change a revision only deliberately: it invalidates all downstream stages.",
+  "flores_plus": {
+    "kind": "dataset",
+    "repo_id": "openlanguagedata/flores_plus",
+    "revision": "e707e62e762a9e2faca3933aa315f4665cc3cd8f",
+    "split": "devtest",
+    "probe_file": "devtest/sin_Sinh.jsonl",
+    "expected_rows": 224664
+  },
+  "commonlid": {
+    "kind": "dataset",
+    "repo_id": "commoncrawl/CommonLID",
+    "revision": "848125552728d584b7adcae253c8b8ceb963cf2e",
+    "split": "test",
+    "probe_file": "data/ace-commonlid.jsonl",
+    "expected_rows": 373230
+  },
+  "wili_2018": {
+    "kind": "url",
+    "url": "https://zenodo.org/records/841984/files/wili-2018.zip?download=1",
+    "doi": "10.5281/zenodo.841984",
+    "members_sha256": {
+      "x_test.txt": "c06db2b42ae5a29428aca5ab9505c5117cbdeb82538eb1b087f55a6627c45556",
+      "y_test.txt": "2fbc58bc6f34c8cea1587396d82986a2637adf5ecb2b5cbd8f2a20be0f81ad11",
+      "labels.csv": "0d5f780f2d5b9ecb28b717b98ffab9718cc7e8c8fcd984eeeba19de7e53e227c"
+    },
+    "expected_rows": 117500
+  },
+  "pali_sinhala_parallel": {
+    "_comment": "Public source of the target corpus's Pali-Sinhala parallel rows; used by the maintainer re-split to verify row alignment (provenance) before recovering sutta documents.",
+    "kind": "dataset",
+    "repo_id": "sinhala-nlp/pali-sinhala",
+    "revision": "da194116e510923936a3871a95ce284b5f75cde5",
+    "files": [
+      "output.tsv"
+    ],
+    "rows": 28395
+  },
+  "target_dataset": {
+    "_comment": "Leakage-free Sinhala/Pali/Sanskrit (Sinhala script) release built by scripts/maintainer/resplit_target.py. kind=local_release until published; then set kind=dataset, repo_id and revision (file hashes stay the same).",
+    "kind": "local_release",
+    "path": "datasets/target_release",
+    "files_sha256": {
+      "train.jsonl": "ba705fe787d630d6ed2ed528042a9413d1eddabc48242be823cd03a0d24cf15e",
+      "validation.jsonl": "08f3a52fb8d8b1f5036933dbdbbe84f0a4bd543900f2afc3b35b55f05b2a60a7",
+      "test.jsonl": "073d6892de08d61df3ca04e30475863d48e772c070329f37785cea5bcc301926",
+      "split_report.json": "895a0910f8e8fa9cd43fb0e89a17ab6e492a9df88238b305327eb20ad88e4c93"
+    }
+  },
+  "openlid_v2": {
+    "_comment": "Rehearsal data for the 8 replay labels: OpenLID-v2 (Burchell et al., ACL 2023), the curated LID training set; FLORES-compatible lang_Script labels. Gated: accept the terms on HF.",
+    "kind": "dataset",
+    "repo_id": "laurievb/OpenLID-v2",
+    "revision": "8f1b77fba8c6180bc975165089d0e3f40e7b9251",
+    "probe_file": "data/san_Deva.parquet",
+    "files": [
+      "data/san_Deva.parquet",
+      "data/eng_Latn.parquet",
+      "data/tam_Taml.parquet",
+      "data/hin_Deva.parquet",
+      "data/ben_Beng.parquet",
+      "data/arb_Arab.parquet",
+      "data/fra_Latn.parquet",
+      "data/deu_Latn.parquet"
+    ]
+  },
+  "lid176": {
+    "kind": "url",
+    "url": "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin",
+    "sha256": null
+  },
+  "openlid_v3": {
+    "kind": "model",
+    "repo_id": "HPLT/OpenLID-v3",
+    "revision": "6b9560483e17e42f48d86cebf22b4b58dffeaa70",
+    "files": [
+      "openlid-v3.bin"
+    ]
+  },
+  "glotlid_v3": {
+    "kind": "model",
+    "repo_id": "cis-lmu/glotlid",
+    "revision": "85cd6716494360367b75f642b5bc78667605d0b4",
+    "files": [
+      "model_v3.bin"
+    ]
+  },
+  "nllb_lid218": {
+    "kind": "model",
+    "repo_id": "facebook/fasttext-language-identification",
+    "revision": "3af127d4124fc58b75666f3594bb5143b9757e78",
+    "files": [
+      "model.bin"
+    ]
+  },
+  "conlid": {
+    "kind": "model",
+    "repo_id": "epfl-nlp/ConLID",
+    "revision": "bb370277ea6ebb4f801868db5a4d3dbb3f2e7fd6",
+    "files": [
+      "model.safetensors",
+      "config.json",
+      "labels.json",
+      "vocab.json"
+    ]
+  },
+  "xlm_roberta_base": {
+    "kind": "model",
+    "repo_id": "FacebookAI/xlm-roberta-base",
+    "revision": "e73636d4f797dec63c3081bb6ed5c7b0bb3f2089",
+    "files": [
+      "model.safetensors",
+      "sentencepiece.bpe.model",
+      "tokenizer.json",
+      "config.json"
+    ]
+  }
+}
