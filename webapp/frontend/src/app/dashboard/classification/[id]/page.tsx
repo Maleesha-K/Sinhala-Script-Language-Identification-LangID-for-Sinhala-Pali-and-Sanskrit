@@ -15,7 +15,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/auth-context";
-import { cn } from "@/lib/utils";
+import { apiErrorDetail, cn } from "@/lib/utils";
 
 type Segment = {
   id: string;
@@ -29,11 +29,11 @@ type Segment = {
 // Fallback until the model list loads; the three categories every model reports.
 const DEFAULT_CORRECTION_LANGUAGES = ["sinhala", "pali", "sanskrit"];
 
-const MODEL_LABELS: Record<string, string> = {
-  sklearn_langid: "Baseline (TF-IDF)",
-  nllb_finetuned: "NLLB LID-218 (fine-tuned)",
-  glotlid_finetuned: "GlotLID v3 (fine-tuned)",
-};
+// ws(s)://host/api/v1 derived from the REST base URL.
+const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace(/^http/, "ws");
+
+// Fallback poll interval, in case a WebSocket event is missed.
+const POLL_MS = 3000;
 
 type JobData = {
   id: string;
@@ -59,9 +59,11 @@ function getStyle(lang: string) {
 export default function ClassificationResultPage() {
   const params = useParams();
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, refreshUser } = useAuth();
   const [job, setJob] = useState<JobData | null>(null);
   const [correctionLanguages, setCorrectionLanguages] = useState<string[]>(DEFAULT_CORRECTION_LANGUAGES);
+  const [modelLabel, setModelLabel] = useState<string | null>(null);
+  const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchJob = useCallback(async () => {
@@ -72,11 +74,25 @@ export default function ClassificationResultPage() {
       if (data.status === "completed" || data.status === "failed") {
         setLoading(false);
       }
-    } catch {
-      toast.error("Failed to load job results");
+    } catch (error) {
+      toast.error(apiErrorDetail(error, "Failed to load job results"));
       setLoading(false);
     }
   }, [params.id]);
+
+  const isRunning = job?.status === "queued" || job?.status === "processing";
+
+  // The job was charged when it finished, so refresh the balance in the header.
+  useEffect(() => {
+    if (job?.status === "completed") refreshUser();
+  }, [job?.status, refreshUser]);
+
+  // Poll as a safety net: the job can finish before the WebSocket subscribes.
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(fetchJob, POLL_MS);
+    return () => clearInterval(interval);
+  }, [isRunning, fetchJob]);
 
   useEffect(() => {
     fetchJob();
@@ -93,6 +109,7 @@ export default function ClassificationResultPage() {
       .then((res) => {
         if (cancelled) return;
         const match = (res.data?.data ?? []).find((m: { id: string }) => m.id === job.model_name);
+        if (match?.label) setModelLabel(match.label);
         if (match?.correction_languages?.length) {
           setCorrectionLanguages(match.correction_languages);
         }
@@ -108,10 +125,11 @@ export default function ClassificationResultPage() {
   // WebSocket for live updates
   useEffect(() => {
     if (!token || !job || (job.status !== "queued" && job.status !== "processing")) return;
-    const ws = new WebSocket(`ws://localhost:8000/api/v1/ws/jobs/${job.id}?token=${token}`);
+    const ws = new WebSocket(`${WS_URL}/ws/jobs/${job.id}?token=${encodeURIComponent(token)}`);
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.status === "failed" && data.message) setFailureMessage(data.message);
         if (data.status === "completed" || data.status === "failed") {
           fetchJob();
         } else {
@@ -155,7 +173,7 @@ export default function ClassificationResultPage() {
         <div className="flex-1">
           <h1 className="text-xl font-bold tracking-tight">Classification Results</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Model: <span className="font-medium">{MODEL_LABELS[job.model_name ?? ""] ?? job.model_name ?? "—"}</span>
+            Model: <span className="font-medium">{modelLabel ?? job.model_name ?? "—"}</span>
             {" · "}Strategy: <span className="font-medium capitalize">{job.segmentation_strategy}</span>
             {job.total_tokens > 0 && (
               <> · <span className="font-medium">{job.total_tokens}</span> tokens</>
@@ -187,7 +205,7 @@ export default function ClassificationResultPage() {
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center space-y-2">
           <XCircle className="h-8 w-8 text-destructive mx-auto" />
           <p className="font-semibold text-sm">Classification failed</p>
-          <p className="text-xs text-muted-foreground">An error occurred during processing.</p>
+          <p className="text-xs text-muted-foreground">{failureMessage || "An error occurred during processing."}</p>
         </div>
       )}
 

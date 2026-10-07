@@ -13,14 +13,16 @@ import {
 } from "lucide-react";
 import { UploadModal } from "@/components/documents/upload-modal";
 import { PageHeader } from "@/components/layout/page-header";
-import { cn } from "@/lib/utils";
+import { apiErrorDetail, cn } from "@/lib/utils";
+import { ocrEngineLabel, type OCREngine } from "@/lib/ocr-engines";
 
-type DocumentStatus = "uploading" | "ready" | "deleted";
+type DocumentStatus = "uploading" | "ready" | "failed" | "deleted";
 
 type Document = {
   id: string;
   filename: string;
   upload_status: DocumentStatus;
+  ocr_engine: string;
   size_bytes: number;
   created_at: string;
 };
@@ -28,12 +30,14 @@ type Document = {
 const statusConfig: Record<DocumentStatus, { icon: React.ElementType; label: string; className: string }> = {
   uploading: { icon: Loader2,      label: "Processing", className: "text-primary" },
   ready:     { icon: CheckCircle2, label: "Ready",      className: "text-emerald-600" },
+  failed:    { icon: XCircle,      label: "Failed",     className: "text-destructive" },
   deleted:   { icon: XCircle,      label: "Deleted",    className: "text-destructive" },
 };
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [engines, setEngines] = useState<OCREngine[]>([]);
 
   const router = useRouter();
 
@@ -47,6 +51,13 @@ export default function DocumentsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    axios
+      .get("/api/documents/ocr-engines")
+      .then((res) => setEngines(res.data?.data ?? []))
+      .catch(() => { /* fall back to raw engine ids */ });
+  }, []);
 
   useEffect(() => {
     fetchDocuments();
@@ -77,8 +88,8 @@ export default function DocumentsPage() {
       await axios.delete(`/api/documents/${docId}`);
       toast.success("Document deleted");
       fetchDocuments();
-    } catch {
-      toast.error("Failed to delete document");
+    } catch (error) {
+      toast.error(apiErrorDetail(error, "Failed to delete document"));
     }
   };
 
@@ -102,6 +113,7 @@ export default function DocumentsPage() {
             <TableRow className="bg-muted/40 hover:bg-muted/40">
               <TableHead className="font-semibold">Filename</TableHead>
               <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">OCR Engine</TableHead>
               <TableHead className="font-semibold">Size</TableHead>
               <TableHead className="font-semibold">Uploaded</TableHead>
               <TableHead className="text-right font-semibold">Actions</TableHead>
@@ -110,13 +122,13 @@ export default function DocumentsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-36 text-center">
+                <TableCell colSpan={6} className="h-36 text-center">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
                 </TableCell>
               </TableRow>
             ) : documents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-36 text-center">
+                <TableCell colSpan={6} className="h-36 text-center">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <Upload className="h-8 w-8 opacity-40" />
                     <p className="text-sm">No documents yet. Upload a PDF to get started.</p>
@@ -144,6 +156,9 @@ export default function DocumentsPage() {
                         <StatusIcon className={cn("h-4 w-4", doc.upload_status === "uploading" && "animate-spin")} />
                         {status.label}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {ocrEngineLabel(engines, doc.ocr_engine)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {(doc.size_bytes / 1024 / 1024).toFixed(2)} MB

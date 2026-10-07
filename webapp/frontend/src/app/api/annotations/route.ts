@@ -1,7 +1,4 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getValidToken } from "@/lib/auth-server";
-import axios from "axios";
+import { forward } from "@/lib/backend";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -10,29 +7,9 @@ export async function GET(request: Request) {
     const value = searchParams.get(key);
     if (value !== null) params[key] = value;
   }
-  const token = await getValidToken();
-
-  try {
-    const res = await axios.get(`http://localhost:8000/api/v1/annotations`, {
-      params,
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return NextResponse.json(res.data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: error.response?.status || 500 });
-  }
+  return forward("/annotations", { params, fallback: "Failed to fetch annotations" });
 }
 
 export async function POST(request: Request) {
-  const token = await getValidToken();
-  const body = await request.json();
-
-  try {
-    const res = await axios.post(`http://localhost:8000/api/v1/annotations`, body, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return NextResponse.json(res.data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: error.response?.status || 500 });
-  }
+  return forward("/annotations", { method: "POST", body: await request.json(), fallback: "Failed to submit correction" });
 }

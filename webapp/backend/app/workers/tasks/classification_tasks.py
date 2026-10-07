@@ -14,6 +14,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def estimate_tokens(text: str) -> int:
+    """Billable token count: whitespace-separated words."""
+    return len(text.split())
+
 def _segment_text(text: str, strategy: str) -> list[dict]:
     """
     Segments the given text according to the strategy.
@@ -115,8 +119,7 @@ async def _process_classification_job_async(job_id_str: str):
                 session.add(segment_record)
                 
             # 4. Finalize Job
-            # A rough estimate for tokens if needed
-            total_tokens = sum(len(t.split()) for t in texts)
+            total_tokens = sum(estimate_tokens(t) for t in texts)
             job.total_tokens = total_tokens
             
             # Deduct credits
@@ -140,7 +143,11 @@ async def _process_classification_job_async(job_id_str: str):
             
         except Exception as e:
             logger.exception(f"ClassificationJob {job_id_str} failed: {e}")
+            # Discard the uncommitted segments of the failed run, then record
+            # the failure on its own.
+            await session.rollback()
             job.status = JobStatus.FAILED
+            job.completed_at = datetime.now(timezone.utc)
             await session.commit()
             publish_job_event(job_id_str, "failed", 0, str(e))
             

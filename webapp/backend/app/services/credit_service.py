@@ -9,6 +9,10 @@ from app.db.models.usage_record import UsageRecord, RecordType
 from app.db.models.classification_job import ClassificationJob
 from app.db.models.document import Document
 
+# Charged when an admin has not configured a rate for the model yet.
+DEFAULT_CREDITS_PER_TOKEN = 0.001
+DEFAULT_CREDITS_PER_PAGE = 0.1
+
 class CreditService:
     async def get_or_create_rate(self, db: AsyncSession, model_name: str, model_type: ModelType, default_credits_per_token: float = 0.0, default_credits_per_page: float = 0.0) -> ModelRate:
         """Fetch the rate for a model, or create a default one if it doesn't exist."""
@@ -29,11 +33,21 @@ class CreditService:
             
         return rate
 
+    async def estimate_classification_cost(self, db: AsyncSession, model_name: str, tokens: int) -> Decimal:
+        """Cost of classifying `tokens` tokens, without creating a rate row."""
+        result = await db.execute(select(ModelRate).where(ModelRate.model_name == model_name))
+        rate = result.scalar_one_or_none()
+        if rate is not None and not rate.is_active:
+            from app.utils.exceptions import BadRequestException
+            raise BadRequestException(message=f"Model {model_name} is currently disabled by an administrator.")
+        per_token = rate.credits_per_token if rate is not None else DEFAULT_CREDITS_PER_TOKEN
+        return Decimal(tokens) * Decimal(str(per_token))
+
     async def charge_classification(self, db: AsyncSession, user_id: uuid.UUID, job_id: uuid.UUID, model_name: str, tokens: int) -> bool:
         """Charges a user for a classification job based on the number of tokens."""
         # Get rate (default to 0.001 per token if not set)
         rate = await self.get_or_create_rate(
-            db, model_name, ModelType.CLASSIFICATION, default_credits_per_token=0.001
+            db, model_name, ModelType.CLASSIFICATION, default_credits_per_token=DEFAULT_CREDITS_PER_TOKEN
         )
         
         if not rate.is_active:
@@ -77,7 +91,7 @@ class CreditService:
         """Charges a user for OCR pages."""
         # Get rate (default to 0.1 per page if not set)
         rate = await self.get_or_create_rate(
-            db, model_name, ModelType.OCR, default_credits_per_page=0.1
+            db, model_name, ModelType.OCR, default_credits_per_page=DEFAULT_CREDITS_PER_PAGE
         )
         
         if not rate.is_active:
@@ -109,5 +123,39 @@ class CreditService:
         db.add(usage)
         await db.commit()
         return True
+
+
+
+    async def refund_ocr(self, db: AsyncSession, user_id: uuid.UUID, document_id: uuid.UUID) -> Decimal:
+        """Return everything charged for a document's OCR, e.g. after the OCR failed.
+
+        A negative usage record is written rather than deleting the charge, so
+        the history stays auditable and the per-document total nets to zero.
+        """
+        from sqlalchemy import func
+        result = await db.execute(
+            select(func.coalesce(func.sum(UsageRecord.credits_charged), 0))
+            .where(UsageRecord.job_id == document_id, UsageRecord.record_type == RecordType.OCR)
+        )
+        charged = Decimal(result.scalar_one())
+        if charged <= 0:
+            return Decimal(0)
+
+        user_result = await db.execute(select(User).where(User.id == user_id).with_for_update())
+        user = user_result.scalar_one_or_none()
+        if not user:
+            return Decimal(0)
+
+        user.credits_balance += charged
+        db.add(UsageRecord(
+            user_id=user_id,
+            record_type=RecordType.OCR,
+            model_name="refund",
+            quantity=0,
+            credits_charged=-charged,
+            job_id=document_id
+        ))
+        await db.commit()
+        return charged
 
 credit_service = CreditService()

@@ -27,6 +27,9 @@ interface CreditPackage {
   description: string;
 }
 
+// Mirrors the backend's custom pack price: LKR 0.25 per credit, to the cent.
+const customPrice = (credits: number) => Math.round(credits * 0.25 * 100) / 100;
+
 interface TopUpModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -71,7 +74,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
   const getActiveAmount = (): { credits: number; amountLkr: number; name: string } => {
     if (selectedId === "custom") {
       const credits = Math.max(1000, Number(customCredits) || 1000);
-      const amountLkr = Math.round(credits * 0.25);
+      const amountLkr = customPrice(credits);
       return { credits, amountLkr, name: "Custom Pack" };
     }
     const pkg = packages.find((p) => p.id === selectedId) || packages[1];
@@ -134,7 +137,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
 
       payhere.startPayment(payhereParams);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || err.message || "Failed to start payment.");
+      toast.error(err.response?.data?.detail || err.message || "Failed to start payment.");
       setLoading(false);
     }
   };
@@ -249,7 +252,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                     <div className="text-right">
                       <span className="text-xs text-muted-foreground">Total Price (LKR):</span>
                       <p className="text-lg font-bold text-primary">
-                        LKR {(Math.round(customCredits * 0.25)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        LKR {customPrice(customCredits).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                   </div>

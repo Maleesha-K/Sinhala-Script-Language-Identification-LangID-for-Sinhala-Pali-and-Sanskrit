@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
+import { ocrEngineLabel, type OCREngine } from "@/lib/ocr-engines";
 
 type ModelInfo = {
   id: string;
@@ -32,6 +33,7 @@ type Document = {
   id: string;
   filename: string;
   upload_status: string;
+  ocr_engine: string;
   size_bytes: number;
   created_at: string;
 };
@@ -41,6 +43,7 @@ type DocumentPage = {
   page_number: number;
   extracted_text: string | null;
   extraction_method: string | null;
+  ocr_model: string | null;
   status: string;
 };
 
@@ -56,6 +59,14 @@ export default function DocumentDetailsPage() {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
+  const [engines, setEngines] = useState<OCREngine[]>([]);
+
+  useEffect(() => {
+    axios
+      .get("/api/documents/ocr-engines")
+      .then((res) => setEngines(res.data?.data ?? []))
+      .catch(() => { /* fall back to raw engine ids */ });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,7 +186,7 @@ export default function DocumentDetailsPage() {
 
       <PageHeader
         title={document.filename}
-        description={`Uploaded on ${new Date(document.created_at).toLocaleDateString()} • ${(document.size_bytes / 1024 / 1024).toFixed(2)} MB • ${pages.length} Pages`}
+        description={`Uploaded on ${new Date(document.created_at).toLocaleDateString()} • ${(document.size_bytes / 1024 / 1024).toFixed(2)} MB • ${pages.length} Pages • OCR: ${ocrEngineLabel(engines, document.ocr_engine)}`}
         actions={
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={handleDownload} className="gap-2">
@@ -299,7 +310,9 @@ export default function DocumentDetailsPage() {
               </h2>
               {activePage?.extraction_method && (
                 <span className="text-xs text-slate-500 font-medium px-2 py-1 bg-white border border-slate-200 rounded-md shadow-sm">
-                  Method: {activePage.extraction_method}
+                  {activePage.ocr_model
+                    ? `Engine: ${ocrEngineLabel(engines, activePage.ocr_model)}`
+                    : `Method: ${activePage.extraction_method}`}
                 </span>
               )}
             </div>

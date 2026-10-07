@@ -17,8 +17,8 @@ WORKDIR /app
 # Copy dependency files
 COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies using uv
-RUN uv sync --frozen
+# Install dependencies using uv (with Surya OCR and CPU-only torch)
+RUN uv sync --frozen --extra surya
 
 # Copy the rest of the application
 COPY . .
@@ -27,5 +27,6 @@ COPY . .
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app
 
-# Command to run the Celery worker
-CMD ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info"]
+# Command to run the Celery worker (default queue; Surya has its own worker,
+# see docker-compose.worker.yml)
+CMD ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "celery", "--loglevel=info"]

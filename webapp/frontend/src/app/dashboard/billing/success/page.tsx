@@ -1,21 +1,24 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import axios from "axios";
+import { apiErrorDetail } from "@/lib/utils";
 import Link from "next/link";
-import { CheckCircle2, Coins, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle2, Coins, ArrowRight, Loader2, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 function BillingSuccessContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const { refreshUser } = useAuth();
   const orderId = searchParams.get("order_id");
 
   const [confirming, setConfirming] = useState(true);
   const [confirmed, setConfirmed] = useState(false);
   const [newBalance, setNewBalance] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const confirmPayment = async () => {
@@ -33,17 +36,21 @@ function BillingSuccessContent() {
           if (res.data.data.new_balance !== undefined) {
             setNewBalance(res.data.data.new_balance);
           }
+          refreshUser();
         }
       } catch (err) {
-        // Even if this fails because IPN already handled it, show confirmation
-        setConfirmed(true);
+        // The backend reports an already-fulfilled order as success, so an
+        // error here means the order really could not be confirmed.
+        setError(apiErrorDetail(err, "We could not confirm this payment yet."));
       } finally {
         setConfirming(false);
       }
     };
 
     confirmPayment();
-  }, [orderId]);
+  }, [orderId, refreshUser]);
+
+  const failed = !confirming && (!orderId || !!error);
 
   return (
     <div className="max-w-xl mx-auto py-12 px-4">
@@ -52,15 +59,21 @@ function BillingSuccessContent() {
           <div className="mx-auto w-16 h-16 bg-green-50 rounded-full flex items-center justify-center">
             {confirming ? (
               <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+            ) : failed ? (
+              <AlertTriangle className="w-10 h-10 text-amber-500" />
             ) : (
               <CheckCircle2 className="w-10 h-10 text-green-600" />
             )}
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Payment Successful!</h2>
+            <h2 className="text-2xl font-bold text-foreground">
+              {confirming ? "Confirming payment…" : failed ? "Payment not confirmed" : "Payment Successful!"}
+            </h2>
             <p className="text-sm text-muted-foreground mt-2">
-              Your transaction has been processed securely through PayHere Sri Lanka.
+              {failed
+                ? `${error ?? "No order was specified."} If you were charged, your credits will appear once PayHere notifies us; check your payment history.`
+                : "Your transaction has been processed securely through PayHere Sri Lanka."}
             </p>
             {orderId && (
               <p className="text-xs font-mono text-muted-foreground mt-1 bg-gray-50 py-1 px-3 rounded inline-block">

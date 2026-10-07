@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { apiErrorDetail } from "@/lib/utils";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -110,7 +111,7 @@ export default function AdminRatesPage() {
       setIsDialogOpen(false);
       fetchData();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to save rate");
+      toast.error(error.response?.data?.detail || "Failed to save rate");
     }
   };
 
@@ -121,7 +122,7 @@ export default function AdminRatesPage() {
       toast.success("Rate deleted");
       fetchData();
     } catch (error) {
-      toast.error("Failed to delete rate");
+      toast.error(apiErrorDetail(error, "Failed to delete rate"));
     }
   };
 
@@ -148,7 +149,7 @@ export default function AdminRatesPage() {
               <Select 
                 value={formData.model_type} 
                 onValueChange={(val) => {
-                  setFormData({...formData, model_type: val, model_name: ""});
+                  setFormData({...formData, model_type: val ?? "classification", model_name: ""});
                 }}
                 disabled={!!editingRate}
               >
@@ -170,7 +171,7 @@ export default function AdminRatesPage() {
               ) : (
                 <Select 
                   value={formData.model_name} 
-                  onValueChange={(val) => setFormData({...formData, model_name: val})}
+                  onValueChange={(val) => setFormData({...formData, model_name: val ?? ""})}
                 >
                   <SelectTrigger><SelectValue placeholder="Select a model..." /></SelectTrigger>
                   <SelectContent>

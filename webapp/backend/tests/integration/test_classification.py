@@ -421,3 +421,52 @@ async def test_get_job_without_token_returns_401(async_client):
     """Reading a job requires authentication."""
     response = await async_client.get(f"{API}/classification/jobs/{uuid.uuid4()}")
     assert response.status_code == 401, response.text
+
+
+# --- list jobs / credit pre-check ------------------------------------------
+
+@pytest.mark.asyncio
+async def test_list_jobs_returns_only_own_jobs_newest_first(
+    async_client, auth_headers, second_user_headers, mock_classification_task
+):
+    """GET /classification/jobs lists the caller's jobs, newest first."""
+    first = await create_job(async_client, auth_headers)
+    second = await create_job(async_client, auth_headers)
+    await create_job(async_client, second_user_headers)
+
+    response = await async_client.get(f"{API}/classification/jobs", headers=auth_headers)
+
+    assert response.status_code == 200, response.text
+    ids = [job["id"] for job in response.json()["data"]]
+    assert ids == [second["id"], first["id"]]
+
+
+async def _set_balance(user_id: str, balance: float) -> None:
+    from sqlalchemy import update
+
+    from app.db.models.user import User
+    from app.db.session import async_session_maker
+
+    async with async_session_maker() as session:
+        await session.execute(
+            update(User).where(User.id == uuid.UUID(user_id)).values(credits_balance=balance)
+        )
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_create_job_without_enough_credits_returns_400(
+    async_client, test_user, mock_classification_task
+):
+    """A job the balance cannot cover is rejected before it is queued."""
+    await _set_balance(test_user["user"]["id"], 0)
+
+    response = await async_client.post(
+        f"{API}/classification/jobs",
+        headers=test_user["headers"],
+        json={"input_text": SINHALA_TEXT},
+    )
+
+    assert response.status_code == 400, response.text
+    assert "Insufficient credits" in response.json()["message"]
+    mock_classification_task.delay.assert_not_called()
