@@ -2,13 +2,18 @@
 import os
 import shutil
 import tempfile
+import time
 import urllib.request
 import zipfile
 from pathlib import Path
 
+import httpx
+
 from . import config, hub
 from .env import load_env
 from .manifest import prepare_output, reset_dir, sha256_file, write_manifest
+
+HF_RETRIES = 5  # waits 5, 10, 20, 40s between attempts
 
 
 def hf_snapshot(lock_key, out_dir, patterns):
@@ -19,8 +24,19 @@ def hf_snapshot(lock_key, out_dir, patterns):
     repo, revision = hub.resolve(lock)
     out_dir = reset_dir(out_dir)
     print(f'{repo} @ {revision[:10] if revision else "latest (sha256-verified)"} -> {out_dir}')
-    snapshot_download(repo, repo_type=lock['kind'], revision=revision,
-                      allow_patterns=patterns, local_dir=out_dir, token=os.environ.get('HF_TOKEN'))
+    # Connection resets (WinError 10054) are common on flaky links; retry without wiping
+    # out_dir so files already fetched are skipped on the next attempt.
+    for attempt in range(1, HF_RETRIES + 1):
+        try:
+            snapshot_download(repo, repo_type=lock['kind'], revision=revision,
+                              allow_patterns=patterns, local_dir=out_dir, token=os.environ.get('HF_TOKEN'))
+            break
+        except httpx.TransportError as e:
+            if attempt == HF_RETRIES:
+                raise
+            wait = 5 * 2 ** (attempt - 1)
+            print(f'network error ({type(e).__name__}: {e}); retry {attempt}/{HF_RETRIES - 1} in {wait}s', flush=True)
+            time.sleep(wait)
     shutil.rmtree(out_dir / '.cache', ignore_errors=True)  # hub bookkeeping, not data
     files = sorted(p for p in out_dir.rglob('*') if p.is_file())
     if not files:
