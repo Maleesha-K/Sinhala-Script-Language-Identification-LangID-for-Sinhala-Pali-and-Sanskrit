@@ -69,7 +69,7 @@ def run_stage(stage, log_dir):
             raise SystemExit(f'stage {stage.id} inputs are not valid:\n  ' + '\n  '.join(problems)
                              + f'\nRegenerate them with: {fix}')
     env = {**os.environ, 'PYTHONPATH': str(paths.ROOT) + os.pathsep + os.environ.get('PYTHONPATH', ''),
-           'PYTHONUNBUFFERED': '1', 'HF_HUB_DISABLE_PROGRESS_BARS': '1'}
+           'PYTHONUNBUFFERED': '1', 'HF_HUB_DISABLE_PROGRESS_BARS': '1', 'PYTHONUTF8': '1'}
     log_path = log_dir / f'{stage.id}_{stage.name}.log'
     with open(log_path, 'a', encoding='utf-8') as log:
         for step in stage.steps:
@@ -77,7 +77,8 @@ def run_stage(stage, log_dir):
             log.write(f'\n===== {step} =====\n')
             log.flush()
             proc = subprocess.Popen([sys.executable, str(paths.SCRIPTS / step)], cwd=paths.ROOT, env=env,
-                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    encoding='utf-8', errors='replace')
             for line in proc.stdout:
                 print('     ' + line, end='')
                 log.write(line)
