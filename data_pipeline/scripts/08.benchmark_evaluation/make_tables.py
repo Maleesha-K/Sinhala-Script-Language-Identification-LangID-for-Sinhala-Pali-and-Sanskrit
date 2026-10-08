@@ -176,7 +176,7 @@ def baseline_stress_test(title):
     p = prepare_output(OUT / f'{title}.csv')
     df.to_csv(p)
     files.append(p)
-    label = lambda m: NAMES.get(m.split('/')[-1], m)
+    label = lambda m: NAMES.get(m.replace('\\', '/').split('/')[-1], m)   # model keys are OS paths
     best = {es: df[f'{es}_macro_f1'].max() for es in FRAG_SETS if f'{es}_macro_f1' in df}
     head = ['Model'] + [FRAG_NAMES[es] for es in FRAG_SETS]
     md = [f'## {title}', '', 'Traditional baselines trained on the target train split only; macro F1 over '
