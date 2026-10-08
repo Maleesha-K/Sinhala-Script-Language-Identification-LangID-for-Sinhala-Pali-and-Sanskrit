@@ -39,13 +39,24 @@ interface CreditPackage {
   description: string;
 }
 
-// Mirrors the backend's custom pack price: LKR 0.25 per credit, to the cent.
-const customPrice = (credits: number) => Math.round(credits * 0.25 * 100) / 100;
-
 interface TopUpModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+}
+
+interface ApiErrorPayload {
+  error?: string;
+  detail?: string;
+}
+
+function getPaymentErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as ApiErrorPayload | undefined;
+    return data?.error || data?.detail || error.message || fallback;
+  }
+
+  return error instanceof Error ? error.message : fallback;
 }
 
 export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
@@ -62,7 +73,6 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
   const [currentOrderAmount, setCurrentOrderAmount] = useState<number>(2500);
   const [currentCreditsAmount, setCurrentCreditsAmount] = useState<number>(10000);
   const [currentPackageName, setCurrentPackageName] = useState<string>("Standard Researcher Pack");
-  const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentStep, setPaymentStep] = useState<"form" | "authorizing" | "success">("form");
 
   // Form Fields
@@ -74,12 +84,17 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
   const [walletType, setWalletType] = useState("eZ Cash");
   const [selectedBank, setSelectedBank] = useState("Sampath Vishwa");
 
-  useEffect(() => {
-    if (!open) {
+  const handleModalOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
       setShowSandboxGateway(false);
       setPaymentStep("form");
-      return;
     }
+
+    onOpenChange(nextOpen);
+  };
+
+  useEffect(() => {
+    if (!open) return;
 
     const fetchPackages = async () => {
       try {
@@ -88,7 +103,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
         if (res.data?.data) {
           setPackages(res.data.data);
         }
-      } catch (err) {
+      } catch {
         toast.error("Failed to load credit packages.");
       } finally {
         setFetchingPackages(false);
@@ -104,11 +119,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
 
     if (selectedId === "custom") {
       const credits = Math.max(1000, Number(customCredits) || 1000);
-<<<<<<< HEAD
-      const amountLkr = customPrice(credits);
-=======
-      const amountLkr = Math.round(credits * unitPrice);
->>>>>>> payment-gateway
+      const amountLkr = Math.round(credits * unitPrice * 100) / 100;
       return { credits, amountLkr, name: "Custom Pack" };
     }
     const pkg = packages.find((p) => p.id === selectedId) || packages[1] || packages[0];
@@ -145,15 +156,14 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
       setShowSandboxGateway(true);
       setPaymentStep("form");
       setLoading(false);
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || err.response?.data?.detail || err.message || "Failed to initialize payment.");
+    } catch (error: unknown) {
+      toast.error(getPaymentErrorMessage(error, "Failed to initialize payment."));
       setLoading(false);
     }
   };
 
   const handleConfirmSandboxPayment = async () => {
     try {
-      setProcessingPayment(true);
       setPaymentStep("authorizing");
 
       // Realistic 3D-Secure bank simulation delay
@@ -165,7 +175,6 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
       });
 
       setPaymentStep("success");
-      setProcessingPayment(false);
       toast.success(`Successfully added ${currentCreditsAmount.toLocaleString()} credits to your account!`);
 
       // Refresh balance in dashboard
@@ -175,17 +184,16 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("credits-updated"));
       }
-    } catch (err: any) {
-      setProcessingPayment(false);
+    } catch (error: unknown) {
       setPaymentStep("form");
-      toast.error(err.response?.data?.detail || "Payment authorization failed.");
+      toast.error(getPaymentErrorMessage(error, "Payment authorization failed."));
     }
   };
 
   const currentSelection = getActiveAmount();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleModalOpenChange}>
       <DialogContent className="max-w-2xl sm:max-w-2xl overflow-hidden p-0 border border-slate-200/80 shadow-2xl rounded-2xl bg-white">
         {!showSandboxGateway ? (
           /* ================= STEP 1: PACKAGE SELECTION MODAL ================= */
@@ -290,7 +298,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                       <div className="text-right">
                         <span className="text-xs text-muted-foreground">Total Price (LKR):</span>
                         <p className="text-lg font-bold text-primary">
-                          LKR {(Math.round(customCredits * (packages.find((p) => p.id === "standard")?.amount_lkr && packages.find((p) => p.id === "standard")!.credits > 0 ? (packages.find((p) => p.id === "standard")!.amount_lkr / packages.find((p) => p.id === "standard")!.credits) : 0.25))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          LKR {currentSelection.amountLkr.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </p>
                       </div>
                     </div>
@@ -324,7 +332,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+                <Button variant="outline" onClick={() => handleModalOpenChange(false)} disabled={loading}>
                   Cancel
                 </Button>
                 <Button 
@@ -516,12 +524,6 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                         </p>
                       </div>
                     </div>
-<<<<<<< HEAD
-                    <div className="text-right">
-                      <span className="text-xs text-muted-foreground">Total Price (LKR):</span>
-                      <p className="text-lg font-bold text-primary">
-                        LKR {customPrice(customCredits).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-=======
                   )}
 
                   {/* Tab 3: Internet Banking Form */}
@@ -561,7 +563,6 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                       <span className="text-xs text-muted-foreground">Settling:</span>
                       <p className="text-xs font-semibold text-slate-800">
                         {currentPackageName} (<span className="text-emerald-600 font-bold">+{currentCreditsAmount.toLocaleString()} Credits</span>)
->>>>>>> payment-gateway
                       </p>
                     </div>
                     <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end">
@@ -637,10 +638,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
 
                   <div className="pt-2">
                     <Button 
-                      onClick={() => {
-                        setShowSandboxGateway(false);
-                        onOpenChange(false);
-                      }}
+                      onClick={() => handleModalOpenChange(false)}
                       className="bg-primary hover:bg-primary/90 text-white font-semibold px-8 h-10 text-xs"
                     >
                       Return to Dashboard
