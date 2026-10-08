@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const apiUrl =
+  process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 export const ACCESS_TOKEN_MAX_AGE = 15 * 60; // 15 mins, matches the backend
 export const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // 7 days

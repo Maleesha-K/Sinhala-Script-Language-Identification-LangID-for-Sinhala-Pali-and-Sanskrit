@@ -1,43 +1,176 @@
-version: '3.8'
+# LangID Platform: the whole application in one stack.
+#
+#   cp .env.example .env    # then set DOMAIN and the secrets
+#   docker compose up -d --build
+#
+# Caddy is the only service reachable from outside. It gets a TLS certificate
+# for $DOMAIN and routes:
+#   /api/v1/*       -> backend   (REST + job-progress WebSockets)
+#   /langid-docs/*  -> minio     (presigned document downloads)
+#   everything else -> frontend  (Next.js, which calls the backend internally)
+#
+# Postgres, Redis and MinIO also publish their ports on 127.0.0.1 only, so the
+# local dev setup (backend/run.sh) can reach them; they are not exposed publicly.
+
+x-backend-env: &backend-env
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+  INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+  BACKEND_CORS_ORIGINS: '["https://${DOMAIN}"]'
+  FRONTEND_URL: https://${DOMAIN}
+  POSTGRES_USER: ${POSTGRES_USER:-langid}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+  POSTGRES_SERVER: db
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: ${POSTGRES_DB:-langid_db}
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  MINIO_ENDPOINT: minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+  MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+  MINIO_SECURE: "false"
+  # Presigned download links are signed for the public host and served via Caddy.
+  MINIO_PUBLIC_ENDPOINT: ${DOMAIN}
+  MINIO_PUBLIC_SECURE: "true"
+  PAYHERE_MERCHANT_ID: ${PAYHERE_MERCHANT_ID:-1211149}
+  PAYHERE_MERCHANT_SECRET: ${PAYHERE_MERCHANT_SECRET:-4MzM4NDYyMDUxMzA5OTY3NDI2MzcxNjA3NTIzMTM0MjcyMzI5NA==}
+  PAYHERE_MODE: ${PAYHERE_MODE:-sandbox}
+  LANGID_FINETUNED_DIR: /finetuned
+
+# Classification models, read-only (see README.md, "Models"):
+#   /models     baseline langid_model.pkl + langid_vectorizer.pkl
+#   /finetuned  data_pipeline stage-07 rehearsal checkpoints, <model>/seed42/best/
+x-model-volumes: &model-volumes
+  - ${BASELINE_MODELS_DIR:-../models}:/models:ro
+  - ${FINETUNED_MODELS_DIR:-../data_pipeline/models/03_global_rehearsal_sota}:/finetuned:ro
+
+x-backend: &backend
+  build:
+    context: ./backend
+  image: langid-backend
+  restart: unless-stopped
+  environment: *backend-env
+  volumes: *model-volumes
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    minio:
+      condition: service_healthy
 
 services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Inlined into the browser bundle; used for the job-progress WebSocket.
+        NEXT_PUBLIC_API_URL: https://${DOMAIN}/api/v1
+    image: langid-frontend
+    restart: unless-stopped
+    environment:
+      # Server-side calls from Next.js go straight to the backend container.
+      API_INTERNAL_URL: http://backend:8000/api/v1
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    <<: *backend
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${API_WORKERS:-2} --proxy-headers --forwarded-allow-ips='*'"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # Each process loads the models it is asked for and keeps them: up to ~5 GB
+  # with every fine-tuned model in use. Raise CELERY_CONCURRENCY only with RAM to spare.
+  celery_worker:
+    <<: *backend
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "celery", "-c", "${CELERY_CONCURRENCY:-1}", "--loglevel=info"]
+
+  # Surya OCR on CPU. One process only: it holds ~5 GB of models in RAM and
+  # needs no classification models.
+  celery_surya_worker:
+    <<: *backend
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "surya", "-c", "1", "-n", "surya@%h", "--loglevel=info"]
+    environment:
+      <<: *backend-env
+      TORCH_DEVICE: cpu
+    volumes:
+      - surya_models:/root/.cache/datalab # Surya downloads its weights here on first use
+
   db:
     image: postgres:15-alpine
-    container_name: langid_postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: langid
-      POSTGRES_PASSWORD: langid_password
-      POSTGRES_DB: langid_db
+      POSTGRES_USER: ${POSTGRES_USER:-langid}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-langid_db}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: langid_redis
-    restart: always
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   minio:
-    image: minio/minio:latest
-    container_name: langid_minio
-    restart: always
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z # community build; MinIO no longer publishes images
+    restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
     command: server /data --console-address ":9001"
     ports:
-      - "9010:9000"
-      - "9011:9001"
+      - "127.0.0.1:9010:9000"
+      - "127.0.0.1:9011:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+  surya_models:
+  caddy_data:
+  caddy_config:

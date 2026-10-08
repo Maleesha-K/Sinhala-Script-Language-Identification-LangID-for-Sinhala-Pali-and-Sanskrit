@@ -39,9 +39,6 @@ interface CreditPackage {
   description: string;
 }
 
-// Mirrors the backend's custom pack price: LKR 0.25 per credit, to the cent.
-const customPrice = (credits: number) => Math.round(credits * 0.25 * 100) / 100;
-
 interface TopUpModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -104,11 +101,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
 
     if (selectedId === "custom") {
       const credits = Math.max(1000, Number(customCredits) || 1000);
-<<<<<<< HEAD
-      const amountLkr = customPrice(credits);
-=======
       const amountLkr = Math.round(credits * unitPrice);
->>>>>>> payment-gateway
       return { credits, amountLkr, name: "Custom Pack" };
     }
     const pkg = packages.find((p) => p.id === selectedId) || packages[1] || packages[0];
@@ -516,12 +509,6 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                         </p>
                       </div>
                     </div>
-<<<<<<< HEAD
-                    <div className="text-right">
-                      <span className="text-xs text-muted-foreground">Total Price (LKR):</span>
-                      <p className="text-lg font-bold text-primary">
-                        LKR {customPrice(customCredits).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-=======
                   )}
 
                   {/* Tab 3: Internet Banking Form */}
@@ -561,7 +548,6 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                       <span className="text-xs text-muted-foreground">Settling:</span>
                       <p className="text-xs font-semibold text-slate-800">
                         {currentPackageName} (<span className="text-emerald-600 font-bold">+{currentCreditsAmount.toLocaleString()} Credits</span>)
->>>>>>> payment-gateway
                       </p>
                     </div>
                     <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end">

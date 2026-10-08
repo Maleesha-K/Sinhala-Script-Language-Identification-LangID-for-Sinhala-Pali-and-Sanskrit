@@ -16,7 +16,7 @@ celery_app.conf.update(
     task_track_started=True,
     broker_connection_retry_on_startup=True,
     # Surya holds ~4 GB of models in RAM per process; a dedicated single-process
-    # worker consumes this queue (see docker-compose.worker.yml).
+    # worker consumes this queue (see webapp/docker-compose.yml).
     task_routes={"process_document_ocr_surya": {"queue": "surya"}},
 )
 

@@ -1,7 +1,8 @@
 """fastText LID-176 continued with hierarchical-softmax leaf surgery.
 
-Checkpoint: https://huggingface.co/script-langid/fasttext-leaf-surgery-11lang,
-produced by data_pipeline/fasttext_continual. It is NOT a native fastText .bin:
+Checkpoint: the data_pipeline stage-07 rehearsal checkpoint (see app/ml/paths.py),
+produced with data_pipeline/fasttext_continual. LID176_MODEL_PATH may instead
+name a Hugging Face repo id. It is NOT a native fastText .bin:
 it ships config.json (labels plus explicit Huffman paths), vocab.json and
 weights.pt, so the `fasttext` package cannot load it.
 
@@ -25,10 +26,11 @@ from pathlib import Path
 from typing import Dict, List
 
 from app.ml.base import BaseClassifier
+from app.ml.paths import finetuned
+from app.ml.text import normalise
 
 logger = logging.getLogger(__name__)
 
-HF_REPO = "script-langid/fasttext-leaf-surgery-11lang"
 FORMAT_VERSION = 1
 
 LABEL_MAP = {"si": "sinhala", "pi": "pali", "sa": "sanskrit"}
@@ -226,7 +228,7 @@ class ContinualLIDClassifier(BaseClassifier):
 
         results: List[Dict] = []
         for raw in texts:
-            text = (raw or "").replace("\n", " ").strip()
+            text = normalise(raw or "")
             if not text:
                 results.append(
                     {"language": "unknown", "confidence": 0.0,
@@ -280,6 +282,6 @@ class ContinualLIDClassifier(BaseClassifier):
 
 
 lid176_classifier = ContinualLIDClassifier(
-    os.environ.get("LID176_MODEL_PATH") or HF_REPO,
+    os.environ.get("LID176_MODEL_PATH") or finetuned("lid176"),
     "fastText LID-176 (leaf surgery)",
 )

@@ -124,7 +124,7 @@ services:
   worker:
     build:
       context: ../../backend
-      dockerfile: Dockerfile.worker
+      dockerfile: Dockerfile
     image: langid-stress-worker:latest
     container_name: stress_worker
     restart: unless-stopped

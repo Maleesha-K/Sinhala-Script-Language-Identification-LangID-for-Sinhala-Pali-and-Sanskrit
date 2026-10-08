@@ -11,6 +11,18 @@ class StorageService:
             secret_key=settings.MINIO_SECRET_KEY,
             secure=settings.MINIO_SECURE
         )
+        # Presigned URLs embed and sign the host, so they must be made for the
+        # host the browser uses. A fixed region keeps presigning offline.
+        if settings.MINIO_PUBLIC_ENDPOINT:
+            self.public_client = Minio(
+                settings.MINIO_PUBLIC_ENDPOINT,
+                access_key=settings.MINIO_ACCESS_KEY,
+                secret_key=settings.MINIO_SECRET_KEY,
+                secure=settings.MINIO_PUBLIC_SECURE,
+                region="us-east-1",
+            )
+        else:
+            self.public_client = self.client
         self.bucket_name = "langid-docs"
         self._ensure_bucket_exists()
 
@@ -55,7 +67,7 @@ class StorageService:
         """Generates a temporary URL to download/view the document."""
         from datetime import timedelta
         try:
-            url = self.client.presigned_get_object(
+            url = self.public_client.presigned_get_object(
                 self.bucket_name,
                 object_name,
                 expires=timedelta(seconds=expiry_seconds)

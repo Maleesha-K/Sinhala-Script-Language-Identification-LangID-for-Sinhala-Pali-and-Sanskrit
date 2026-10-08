@@ -16,7 +16,7 @@ TARGET_LANGUAGES = ["sinhala", "pali", "sanskrit"]
 
 # The fine-tuned checkpoints keep their original label space, so a correction
 # can name any of the replay languages too. These are the eight the models were
-# rehearsed on (data_pipeline/new_method/lidlab/data.py REPLAY), which are the
+# rehearsed on (data_pipeline/config/labels.yaml `replay`), which are the
 # realistic corrections for non-target text.
 FASTTEXT_EXTRA_LANGUAGES = [
     "Sanskrit (Devanagari)", "English", "Tamil", "Hindi",
@@ -72,6 +72,11 @@ def _load_openlid() -> BaseClassifier:
     return openlid_classifier
 
 
+def _load_conlid() -> BaseClassifier:
+    from app.ml.conlid_langid import conlid_classifier
+    return conlid_classifier
+
+
 def _load_lid176() -> BaseClassifier:
     from app.ml.continual_langid import lid176_classifier
     return lid176_classifier
@@ -89,7 +94,7 @@ MODELS: Dict[str, ModelInfo] = {
     "nllb_finetuned": ModelInfo(
         id="nllb_finetuned",
         label="NLLB LID-218 (fine-tuned)",
-        description="Meta's lid218e continued on the 11-group set with replay. 220 labels.",
+        description="Meta's lid218e continued on Sinhala/Pali/Sanskrit with rehearsal. 220 labels.",
         family="fasttext",
         is_baseline=False,
         loader=_load_nllb,
@@ -97,7 +102,7 @@ MODELS: Dict[str, ModelInfo] = {
     "glotlid_finetuned": ModelInfo(
         id="glotlid_finetuned",
         label="GlotLID v3 (fine-tuned)",
-        description="GlotLID v3 continued on the 11-group set with replay. 2,104 labels.",
+        description="GlotLID v3 continued on Sinhala/Pali/Sanskrit with rehearsal. 2,104 labels.",
         family="fasttext",
         is_baseline=False,
         loader=_load_glotlid,
@@ -105,15 +110,23 @@ MODELS: Dict[str, ModelInfo] = {
     "openlid_finetuned": ModelInfo(
         id="openlid_finetuned",
         label="OpenLID v3 (fine-tuned)",
-        description="OpenLID v3 encoder with a new linear head trained with rehearsal. 197 labels.",
+        description="OpenLID v3 continued on Sinhala/Pali/Sanskrit with rehearsal. 197 labels.",
         family="fasttext",
         is_baseline=False,
         loader=_load_openlid,
     ),
+    "conlid_finetuned": ModelInfo(
+        id="conlid_finetuned",
+        label="ConLID (fine-tuned)",
+        description="EPFL's ConLID continued on Sinhala/Pali/Sanskrit with rehearsal. 2,101 labels.",
+        family="conlid",
+        is_baseline=False,
+        loader=_load_conlid,
+    ),
     "lid176_leaf_surgery": ModelInfo(
         id="lid176_leaf_surgery",
         label="fastText LID-176 (fine-tuned)",
-        description="Meta's LID-176 with its Sinhala leaf split into Sinhala/Pali. 177 labels.",
+        description="Meta's LID-176 with its Sinhala leaf split into Sinhala/Pali, trained with rehearsal. 177 labels.",
         family="fasttext",
         is_baseline=False,
         loader=_load_lid176,

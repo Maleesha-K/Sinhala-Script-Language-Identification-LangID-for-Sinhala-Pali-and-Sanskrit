@@ -27,6 +27,6 @@ COPY . .
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app
 
-# Command to run the Celery worker (default queue; Surya has its own worker,
-# see docker-compose.worker.yml)
+# One image serves the API and both Celery workers; docker-compose.yml sets each
+# service's command. The default runs the Celery worker for the default queue.
 CMD ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "celery", "--loglevel=info"]
