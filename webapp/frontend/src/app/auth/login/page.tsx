@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
+import { homePath } from "@/lib/roles";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -34,9 +35,9 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setError(null);
-      await axios.post("/api/auth/login", data);
+      const res = await axios.post("/api/auth/login", data);
       await refreshUser();
-      router.push("/dashboard");
+      router.push(homePath(res.data.role));
     } catch (err: any) {
       setError(err.response?.data?.detail || "Invalid email or password.");
     }

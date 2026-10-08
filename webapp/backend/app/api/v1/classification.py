@@ -55,6 +55,8 @@ class JobResponse(BaseModel):
     created_at: datetime
     completed_at: Optional[datetime]
     error_message: Optional[str] = None
+    # The classified text; segments index into it by their character offsets.
+    input_text: Optional[str] = None
     document_id: Optional[UUID] = None
     page_number: Optional[int] = None
     # Classified so far / in total, while the job runs (total unknown while queued).
@@ -167,6 +169,7 @@ async def get_classification_job(
     }
     
     response_data.update(
+        input_text=job.input_text,
         error_message=job.error_message,
         document_id=job.document_id,
         page_number=job.page_number,

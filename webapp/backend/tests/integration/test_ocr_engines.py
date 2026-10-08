@@ -158,7 +158,7 @@ async def test_worker_uses_the_documents_engine(
 
 
 def test_surya_engine_joins_recognised_lines(mocker):
-    """SuryaEngine returns the recognised lines joined top to bottom."""
+    """SuryaEngine returns the recognised lines in reading order."""
     from types import SimpleNamespace
 
     from PIL import Image
@@ -166,7 +166,11 @@ def test_surya_engine_joins_recognised_lines(mocker):
     from app.ocr.surya_engine import SuryaEngine
 
     engine = SuryaEngine()
-    lines = [SimpleNamespace(text="බුද්ධං සරණං ගච්ඡාමි."), SimpleNamespace(text="ධම්මං සරණං ගච්ඡාමි.")]
+    # Detected bottom line first; read top to bottom.
+    lines = [
+        SimpleNamespace(text="ධම්මං සරණං ගච්ඡාමි.", bbox=[0, 30, 200, 50]),
+        SimpleNamespace(text="බුද්ධං සරණං ගච්ඡාමි.", bbox=[0, 0, 200, 20]),
+    ]
     engine._recognition = mocker.Mock(return_value=[SimpleNamespace(text_lines=lines)])
     engine._detection = object()
 

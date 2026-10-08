@@ -21,8 +21,10 @@ import { cn } from "@/lib/utils";
 import { ocrEngineLabel, type OCREngine } from "@/lib/ocr-engines";
 import { useLiveChannel, type LiveEvent } from "@/lib/live";
 import {
-  DEFAULT_CORRECTION_LANGUAGES, LANG_STYLES, LanguageLegend, SegmentText, mergeSegments, type Segment,
+  DEFAULT_CORRECTION_LANGUAGES, LanguageSummary, SegmentText, languageShares, mergeSegments, type Segment,
 } from "@/components/classification/segments";
+import { languageColor, languageLabel } from "@/lib/language-colors";
+import { downloadCsv } from "@/lib/export";
 
 type ModelInfo = {
   id: string;
@@ -71,15 +73,6 @@ type DocumentPage = {
 
 type View = "languages" | "text";
 
-/** The language most of a page's segments were classified as. */
-function dominantLanguage(segments: Segment[]): string | null {
-  const counts = new Map<string, number>();
-  for (const s of segments) counts.set(s.predicted_language, (counts.get(s.predicted_language) ?? 0) + 1);
-  let best: string | null = null;
-  for (const [lang, n] of counts) if (best === null || n > (counts.get(best) ?? 0)) best = lang;
-  return best;
-}
-
 function updateClassification(
   pages: DocumentPage[],
   pageNumber: number,
@@ -100,6 +93,7 @@ export default function DocumentDetailsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [activePageNumber, setActivePageNumber] = useState<number | null>(null);
   const [view, setView] = useState<View | null>(null);
+  const [focus, setFocus] = useState<string | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [engines, setEngines] = useState<OCREngine[]>([]);
@@ -268,6 +262,17 @@ export default function DocumentDetailsPage() {
     ? lidModel.correction_languages
     : DEFAULT_CORRECTION_LANGUAGES;
   const processing = document.upload_status === "uploading";
+  const allSegments = pages.flatMap((p) => p.classification?.segments ?? []);
+
+  const exportCsv = () =>
+    downloadCsv(`${document.filename.replace(/\.pdf$/i, "")}-languages.csv`, [
+      ["page", "segment", "language", "confidence", "text"],
+      ...pages.flatMap((p) =>
+        (p.classification?.segments ?? []).map((s) => [
+          p.page_number, s.segment_index + 1, languageLabel(s.predicted_language), s.confidence.toFixed(4), s.text.trim(),
+        ]),
+      ),
+    ]);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -292,6 +297,12 @@ export default function DocumentDetailsPage() {
               <Download className="h-4 w-4" />
               Download Original
             </Button>
+            {allSegments.length > 0 && (
+              <Button variant="outline" onClick={exportCsv} className="gap-2">
+                <Download className="h-4 w-4" />
+                Export CSV
+              </Button>
+            )}
             {/* base-ui DropdownMenu doesn't use asChild */}
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -362,6 +373,13 @@ export default function DocumentDetailsPage() {
         </div>
       )}
 
+      {allSegments.length > 0 && (
+        <div className="rounded-xl border border-border bg-white shadow-sm px-5 py-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-800">Languages in this document</h3>
+          <LanguageSummary segments={allSegments} focus={focus} onFocus={setFocus} />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Left sidebar: Page Navigation */}
         <div className="md:col-span-3 space-y-4">
@@ -372,6 +390,7 @@ export default function DocumentDetailsPage() {
                 <PageButton
                   key={page.page_number}
                   page={page}
+                  focus={focus}
                   active={activePage?.page_number === page.page_number}
                   onClick={() => setActivePageNumber(page.page_number)}
                 />
@@ -439,7 +458,12 @@ export default function DocumentDetailsPage() {
               ) : activePage.status === "failed" ? (
                 <Placeholder className="text-red-400">OCR failed for this page. You were not charged for it.</Placeholder>
               ) : activeView === "languages" && activePage.classification ? (
-                <PageLanguages classification={activePage.classification} correctionLanguages={correctionLanguages} />
+                <PageLanguages
+                  text={activePage.extracted_text}
+                  classification={activePage.classification}
+                  correctionLanguages={correctionLanguages}
+                  focus={focus}
+                />
               ) : activePage.extracted_text ? (
                 <div className="whitespace-pre-wrap font-mono text-sm text-slate-700 leading-relaxed custom-scrollbar h-[500px] overflow-y-auto">
                   {activePage.extracted_text}
@@ -464,16 +488,22 @@ function Placeholder({ children, icon, className }: { children: React.ReactNode;
   );
 }
 
-function PageButton({ page, active, onClick }: { page: DocumentPage; active: boolean; onClick: () => void }) {
+function PageButton({
+  page, active, focus, onClick,
+}: { page: DocumentPage; active: boolean; focus: string | null; onClick: () => void }) {
   const lid = page.classification;
-  const language = lid ? dominantLanguage(lid.segments) : null;
-  const style = language ? LANG_STYLES[language.toLowerCase()] : undefined;
+  // The page's main language by share of its text, as in the summary.
+  const shares = lid ? languageShares(lid.segments) : [];
+  const language = shares[0]?.language ?? null;
+  // With a language focused, pages that do not contain it fade.
+  const lacksFocus = !!focus && !lid?.segments.some((s) => s.predicted_language === focus);
   return (
     <button
       onClick={onClick}
       className={cn(
-        "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg transition-colors",
+        "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg transition-all",
         active ? "bg-primary/10 text-primary font-medium" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+        lacksFocus && "opacity-40",
       )}
     >
       <div className="flex items-center gap-2">
@@ -498,11 +528,17 @@ function PageButton({ page, active, onClick }: { page: DocumentPage; active: boo
           </span>
         )}
         {lid?.status === "completed" && (
-          <span className={cn(
-            "text-xs px-1.5 py-0.5 rounded-full font-medium border",
-            style ? [style.bg, style.border, style.text] : "bg-slate-50 border-slate-200 text-slate-600",
-          )}>
-            {style?.label ?? language ?? "—"}
+          <span
+            className="flex items-center gap-1"
+            title={shares.map((s) => `${languageLabel(s.language)} ${Math.round(s.share * 100)}%`).join(", ")}
+          >
+            <span className={cn(
+              "text-xs px-1.5 py-0.5 rounded-full font-medium border max-w-[6.5rem] truncate",
+              language ? languageColor(language).chip : "bg-slate-50 border-slate-200 text-slate-500",
+            )}>
+              {language ? languageLabel(language) : "No text"}
+            </span>
+            {shares.length > 1 && <span className="text-[10px] font-medium text-slate-400">+{shares.length - 1}</span>}
           </span>
         )}
         {lid?.status === "failed" && <XCircle className="h-3.5 w-3.5 text-destructive" aria-label="Language identification failed" />}
@@ -512,16 +548,21 @@ function PageButton({ page, active, onClick }: { page: DocumentPage; active: boo
 }
 
 function PageLanguages({
+  text,
   classification,
   correctionLanguages,
+  focus,
 }: {
+  /** The page's OCR text, which its classification job classified. */
+  text: string | null;
   classification: PageClassification;
   correctionLanguages: string[];
+  focus: string | null;
 }) {
   const { status, segments, done, total } = classification;
+  const running = status === "queued" || status === "processing";
   return (
     <div className="space-y-4">
-      <LanguageLegend />
       {status === "failed" && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           <p className="font-medium text-destructive">Language identification failed for this page</p>
@@ -530,7 +571,7 @@ function PageLanguages({
           </p>
         </div>
       )}
-      {(status === "queued" || status === "processing") && (
+      {running && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
           {status === "queued"
@@ -538,9 +579,15 @@ function PageLanguages({
             : total ? `Classified ${done ?? segments.length} of ${total} segments` : "Classifying…"}
         </div>
       )}
-      {segments.length > 0 && (
+      {(text || segments.length > 0) && (
         <div className="leading-[2.2] text-base max-h-[500px] overflow-y-auto custom-scrollbar">
-          <SegmentText segments={segments} correctionLanguages={correctionLanguages} />
+          <SegmentText
+            text={text}
+            segments={segments}
+            correctionLanguages={correctionLanguages}
+            running={running}
+            focus={focus}
+          />
         </div>
       )}
     </div>

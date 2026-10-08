@@ -10,6 +10,7 @@ import threading
 from PIL import Image
 
 from app.ocr.base import BaseOCREngine
+from app.ocr.reading_order import Line, lines_to_text
 
 
 class SuryaEngine(BaseOCREngine):
@@ -40,7 +41,9 @@ class SuryaEngine(BaseOCREngine):
         self._ensure_loaded()
         predictions = self._recognition([image.convert("RGB")], det_predictor=self._detection)
         lines = predictions[0].text_lines if predictions else []
-        return "\n".join(line.text for line in lines)
+        # Surya returns lines in detection order; put them in reading order
+        # (columns, paragraphs) as Tesseract does.
+        return lines_to_text(Line(*line.bbox, line.text) for line in lines)
 
 
 surya_engine = SuryaEngine()

@@ -4,14 +4,16 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, CheckCircle2, XCircle, Clock, Zap } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, XCircle, Clock, Zap, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { apiErrorDetail, cn } from "@/lib/utils";
 import { useLiveChannel, type LiveEvent } from "@/lib/live";
 import {
-  DEFAULT_CORRECTION_LANGUAGES, LanguageLegend, SegmentText, mergeSegments, type Segment,
+  DEFAULT_CORRECTION_LANGUAGES, LanguageSummary, SegmentText, mergeSegments, type Segment,
 } from "@/components/classification/segments";
+import { languageLabel } from "@/lib/language-colors";
+import { downloadCsv } from "@/lib/export";
 
 type JobStatus = "queued" | "processing" | "completed" | "failed";
 
@@ -22,6 +24,7 @@ type JobData = {
   segmentation_strategy: string;
   total_tokens: number;
   error_message?: string | null;
+  input_text?: string | null;
   done?: number | null;
   total?: number | null;
   segments: Segment[];
@@ -35,6 +38,7 @@ export default function ClassificationResultPage() {
   const [correctionLanguages, setCorrectionLanguages] = useState<string[]>(DEFAULT_CORRECTION_LANGUAGES);
   const [modelLabel, setModelLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [focus, setFocus] = useState<string | null>(null);
 
   const fetchJob = useCallback(async () => {
     try {
@@ -132,6 +136,12 @@ export default function ClassificationResultPage() {
 
   if (!job) return null;
 
+  const exportCsv = () =>
+    downloadCsv(`classification-${job.id.slice(0, 8)}.csv`, [
+      ["segment", "language", "confidence", "text"],
+      ...job.segments.map((s) => [s.segment_index + 1, languageLabel(s.predicted_language), s.confidence.toFixed(4), s.text.trim()]),
+    ]);
+
   const StatusIcon = statusConfig[job.status]?.icon ?? Clock;
   const statusColor = statusConfig[job.status]?.color ?? "text-muted-foreground";
   const statusLabel = statusConfig[job.status]?.label ?? job.status;
@@ -158,6 +168,12 @@ export default function ClassificationResultPage() {
           <StatusIcon className={cn("h-4 w-4", job.status === "processing" && "animate-spin")} />
           {statusLabel}
         </div>
+        {job.status === "completed" && job.segments.length > 0 && (
+          <Button variant="outline" size="sm" onClick={exportCsv} className="gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        )}
       </div>
 
       {/* Progress, while segments stream in below */}
@@ -196,12 +212,18 @@ export default function ClassificationResultPage() {
         </div>
       )}
 
-      {/* Results, as they arrive */}
-      {job.segments.length > 0 && (
+      {/* The text as submitted, highlighted as segments arrive */}
+      {(job.input_text || job.segments.length > 0) && (
         <div className="space-y-4">
-          <LanguageLegend />
+          <LanguageSummary segments={job.segments} focus={focus} onFocus={setFocus} />
           <div className="rounded-xl border border-border bg-white shadow-sm p-6 leading-[2.2] text-base">
-            <SegmentText segments={job.segments} correctionLanguages={correctionLanguages} />
+            <SegmentText
+              text={job.input_text}
+              segments={job.segments}
+              correctionLanguages={correctionLanguages}
+              running={isRunning}
+              focus={focus}
+            />
           </div>
         </div>
       )}

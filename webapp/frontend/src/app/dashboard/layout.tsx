@@ -17,12 +17,19 @@ export default async function DashboardLayout({
     redirect("/auth/login");
   }
 
+  // redirect() throws, so it must stay outside the try/catch.
+  let role: string | null = null;
   try {
-    await axios.get(`${API_URL}/users/me`, {
+    const res = await axios.get(`${API_URL}/users/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    role = res.data.data.role;
   } catch {
     redirect("/auth/login");
+  }
+  // Admins work in the admin panel only.
+  if (role === "admin") {
+    redirect("/admin");
   }
 
   return (
