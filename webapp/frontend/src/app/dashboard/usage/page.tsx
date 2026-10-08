@@ -16,7 +16,8 @@ import {
   Eye, 
   PlusCircle, 
   Receipt, 
-  CreditCard 
+  CreditCard,
+  Ban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
@@ -97,6 +98,8 @@ export default function UsagePage() {
       case "failed":
       case "deleted":
         return <XCircle className="h-4 w-4 text-red-500" />;
+      case "cancelled":
+        return <Ban className="h-4 w-4 text-amber-500" />;
       default:
         return <Clock className="h-4 w-4 text-gray-400" />;
     }

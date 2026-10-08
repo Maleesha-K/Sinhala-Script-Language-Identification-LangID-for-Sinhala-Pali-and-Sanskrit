@@ -15,6 +15,7 @@ from app.workers.tasks.classification_tasks import (
     process_classification_job, estimate_tokens, split_segments,
 )
 from app.utils.events import segment_payload
+from app.services.job_control import ACTIVE_JOB_STATUSES, cancel_job
 from app.services.credit_service import credit_service
 from app.ml.registry import MODELS, BASELINE_MODEL, list_models
 from pydantic import BaseModel, Field
@@ -55,6 +56,8 @@ class JobResponse(BaseModel):
     created_at: datetime
     completed_at: Optional[datetime]
     error_message: Optional[str] = None
+    # A cancel was requested; the job stops at its next batch.
+    cancel_requested: bool = False
     # The classified text; segments index into it by their character offsets.
     input_text: Optional[str] = None
     document_id: Optional[UUID] = None
@@ -171,6 +174,7 @@ async def get_classification_job(
     response_data.update(
         input_text=job.input_text,
         error_message=job.error_message,
+        cancel_requested=job.cancel_requested,
         document_id=job.document_id,
         page_number=job.page_number,
     )
@@ -185,10 +189,35 @@ async def get_classification_job(
     response_data["done"] = len(response_data["segments"])
     if job.status == JobStatus.PROCESSING:
         response_data["total"] = len(split_segments(job.input_text or "", job.segmentation_strategy))
-    elif job.status == JobStatus.COMPLETED:
+    elif job.status in (JobStatus.COMPLETED, JobStatus.CANCELLED):
         response_data["total"] = response_data["done"]
 
     return success_response(data=response_data)
+
+
+@router.post("/jobs/{job_id}/cancel")
+async def cancel_classification_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Stop a queued or running job. Segments classified so far are kept and
+    the unclassified part is refunded."""
+    result = await db.execute(
+        select(ClassificationJob).where(ClassificationJob.id == job_id, ClassificationJob.user_id == current_user.id)
+    )
+    job = result.scalar_one_or_none()
+    if not job:
+        raise NotFoundException(item="Job")
+    if job.status not in ACTIVE_JOB_STATUSES:
+        raise BadRequestException(f"This job has already {job.status.value}.")
+
+    await cancel_job(db, job)
+    stopped = job.status == JobStatus.CANCELLED
+    return success_response(
+        data={"id": job.id, "status": job.status, "cancel_requested": job.cancel_requested},
+        message="Job cancelled" if stopped else "Cancelling: the job stops after its current batch",
+    )
 
 
 @router.get("/models", response_model=BaseResponse[List[ModelInfoResponse]])

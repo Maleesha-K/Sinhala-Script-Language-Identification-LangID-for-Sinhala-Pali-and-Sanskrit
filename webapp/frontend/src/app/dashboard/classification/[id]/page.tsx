@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, CheckCircle2, XCircle, Clock, Zap, Download } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, XCircle, Clock, Zap, Download, Ban, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { apiErrorDetail, cn } from "@/lib/utils";
@@ -15,7 +15,7 @@ import {
 import { languageLabel } from "@/lib/language-colors";
 import { downloadCsv } from "@/lib/export";
 
-type JobStatus = "queued" | "processing" | "completed" | "failed";
+type JobStatus = "queued" | "processing" | "completed" | "failed" | "cancelled";
 
 type JobData = {
   id: string;
@@ -24,6 +24,7 @@ type JobData = {
   segmentation_strategy: string;
   total_tokens: number;
   error_message?: string | null;
+  cancel_requested?: boolean;
   input_text?: string | null;
   done?: number | null;
   total?: number | null;
@@ -39,6 +40,7 @@ export default function ClassificationResultPage() {
   const [modelLabel, setModelLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [focus, setFocus] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchJob = useCallback(async () => {
     try {
@@ -78,6 +80,7 @@ export default function ClassificationResultPage() {
           return {
             ...prev,
             status: event.status as JobStatus,
+            cancel_requested: (event.cancel_requested as boolean | undefined) ?? prev.cancel_requested,
             done: (event.done as number | undefined) ?? prev.done,
             total: (event.total as number | undefined) ?? prev.total,
             error_message: event.status === "failed" ? (event.message as string) || prev.error_message : prev.error_message,
@@ -86,13 +89,31 @@ export default function ClassificationResultPage() {
         return prev;
       });
     },
-    isFinal: (event) => event.type === "status" && (event.status === "completed" || event.status === "failed"),
+    isFinal: (event) =>
+      event.type === "status" && ["completed", "failed", "cancelled"].includes(event.status as string),
   });
 
-  // The job is charged when it starts, so refresh the balance in the header.
+  // The job is charged when it starts (and partly refunded when cancelled),
+  // so refresh the balance in the header.
   useEffect(() => {
-    if (job?.status === "processing" || job?.status === "completed") refreshUser();
+    if (job?.status === "processing" || job?.status === "completed" || job?.status === "cancelled") refreshUser();
   }, [job?.status, refreshUser]);
+
+  const handleCancel = async () => {
+    if (!confirm("Stop this classification? Sentences classified so far are kept, and you are refunded for the rest.")) return;
+    setCancelling(true);
+    try {
+      const res = await axios.post(`/api/classification/jobs/${params.id}/cancel`);
+      const { status, cancel_requested } = res.data.data;
+      setJob((prev) => (prev ? { ...prev, status, cancel_requested } : prev));
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(apiErrorDetail(error, "Failed to cancel the job"));
+      fetchJob();
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // The correction options depend on the model that produced this job: the
   // baseline is three-way, the fine-tuned checkpoints also know the replay
@@ -123,6 +144,7 @@ export default function ClassificationResultPage() {
     processing: { icon: Loader2,     color: "text-primary",    label: "Processing" },
     completed:  { icon: CheckCircle2, color: "text-emerald-500", label: "Completed" },
     failed:     { icon: XCircle,     color: "text-destructive", label: "Failed" },
+    cancelled:  { icon: Ban,         color: "text-amber-600",  label: "Cancelled" },
   };
 
   if (loading && !job) {
@@ -168,7 +190,19 @@ export default function ClassificationResultPage() {
           <StatusIcon className={cn("h-4 w-4", job.status === "processing" && "animate-spin")} />
           {statusLabel}
         </div>
-        {job.status === "completed" && job.segments.length > 0 && (
+        {isRunning && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCancel}
+            disabled={cancelling || job.cancel_requested}
+            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+          >
+            {cancelling || job.cancel_requested ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-3.5 w-3.5 fill-current" />}
+            {job.cancel_requested ? "Cancelling…" : "Cancel"}
+          </Button>
+        )}
+        {(job.status === "completed" || job.status === "cancelled") && job.segments.length > 0 && (
           <Button variant="outline" size="sm" onClick={exportCsv} className="gap-2">
             <Download className="h-4 w-4" />
             Export CSV
@@ -181,7 +215,9 @@ export default function ClassificationResultPage() {
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Zap className="h-4 w-4 text-primary" />
-            {job.status === "queued"
+            {job.cancel_requested
+              ? "Cancelling: stopping after the current batch…"
+              : job.status === "queued"
               ? "Waiting for a worker…"
               : job.total
                 ? `Classified ${job.done ?? 0} of ${job.total} segments`
@@ -196,6 +232,21 @@ export default function ClassificationResultPage() {
             ) : (
               <div className="h-full bg-primary rounded-full animate-pulse w-1/3" />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Cancelled state */}
+      {job.status === "cancelled" && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3">
+          <Ban className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-900">Classification cancelled</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              {job.segments.length > 0
+                ? `${job.segments.length} sentence${job.segments.length === 1 ? " was" : "s were"} classified before you cancelled; they are highlighted below. You were refunded for the rest.`
+                : "It was cancelled before any sentence was classified. You were not charged."}
+            </p>
           </div>
         </div>
       )}

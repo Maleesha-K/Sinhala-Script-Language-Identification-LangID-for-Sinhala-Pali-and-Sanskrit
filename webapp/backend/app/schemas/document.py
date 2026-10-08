@@ -19,6 +19,7 @@ class DocumentResponse(DocumentBase):
     upload_status: UploadStatus
     ocr_engine: str
     lid_model: Optional[str] = None
+    cancel_requested: bool = False
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)

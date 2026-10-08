@@ -5,7 +5,7 @@ import Link from "next/link";
 import axios from "axios";
 import { formatDistanceToNow } from "date-fns";
 import {
-  FileText, Activity, CheckCircle2, Coins, ArrowRight, Loader2, XCircle, Clock, Upload,
+  FileText, Activity, CheckCircle2, Coins, ArrowRight, Loader2, XCircle, Clock, Upload, Ban,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { PageHeader } from "@/components/layout/page-header";
@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 type Job = {
   id: string;
-  status: "queued" | "processing" | "completed" | "failed";
+  status: "queued" | "processing" | "completed" | "failed" | "cancelled";
   model_name: string;
   total_tokens: number;
   created_at: string;
@@ -23,7 +23,7 @@ type Job = {
 type Document = {
   id: string;
   filename: string;
-  upload_status: "uploading" | "ready" | "failed" | "deleted";
+  upload_status: "uploading" | "ready" | "failed" | "deleted" | "cancelled";
   created_at: string;
 };
 
@@ -39,6 +39,7 @@ const STATUS = {
   ready:      { icon: CheckCircle2, className: "text-emerald-500", label: "Ready" },
   failed:     { icon: XCircle,      className: "text-destructive", label: "Failed" },
   deleted:    { icon: XCircle,      className: "text-destructive", label: "Deleted" },
+  cancelled:  { icon: Ban,          className: "text-amber-500",   label: "Cancelled" },
 } as const;
 
 function StatusIcon({ status }: { status: keyof typeof STATUS }) {

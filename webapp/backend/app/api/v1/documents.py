@@ -19,6 +19,7 @@ from app.db.models.classification_job import ClassificationJob, JobStatus
 from app.db.models.classified_segment import ClassifiedSegment
 from app.services.credit_service import credit_service
 from app.utils.events import job_payload, page_payload, segment_payload
+from app.services.job_control import cancel_document
 from app.utils.exceptions import AppException, BadRequestException, NotFoundException
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -142,6 +143,24 @@ async def get_document_download_url(
         
     return success_response(data={"download_url": url}, message="Download URL generated")
 
+@router.post("/{document_id}/cancel", response_model=BaseResponse[DocumentResponse])
+async def cancel_document_processing(
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> dict:
+    """Stop a document's OCR and the classification of its pages. Pages read
+    and classified so far are kept; the rest is refunded."""
+    result = await db.execute(select(Document).where(Document.id == document_id, Document.user_id == current_user.id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise NotFoundException(item="Document")
+    if not await cancel_document(db, doc):
+        raise BadRequestException(message="This document has finished processing.")
+    await db.refresh(doc)
+    return success_response(data=doc, message="Cancelling document processing")
+
+
 @router.delete("/{document_id}")
 async def delete_document(
     document_id: UUID,
@@ -178,7 +197,7 @@ def _job_total(job: ClassificationJob, done: int) -> int | None:
     """Segments a job will produce: known once it runs (unknown while queued)."""
     if job.status == JobStatus.PROCESSING:
         return len(split_segments(job.input_text or "", job.segmentation_strategy))
-    return done if job.status == JobStatus.COMPLETED else None
+    return done if job.status in (JobStatus.COMPLETED, JobStatus.CANCELLED) else None
 
 
 @router.get("/{document_id}/pages")

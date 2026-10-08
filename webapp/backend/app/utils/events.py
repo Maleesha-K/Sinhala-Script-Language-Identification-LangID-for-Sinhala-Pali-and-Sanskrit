@@ -5,10 +5,12 @@ Every event is a JSON object with a "type":
 
   job_updates:{job_id}
     status     {status, progress, message, done, total}  job status / progress
+               (cancel_requested: true while a cancel is pending)
     segments   {segments, done, total}                   newly classified segments
 
   document_updates:{document_id}
-    document       {status, message}                     document status
+    document       {status, message}                     document status (cancel_requested
+                                                         while a cancel is pending)
     page           {page}                                 a page was created or changed
     page_job       {page_number, job}                     a page's classification job changed
     page_segments  {page_number, job_id, segments}        newly classified segments of a page
@@ -67,6 +69,7 @@ def job_payload(job, done: int | None = None, total: int | None = None) -> dict:
         "status": job.status.value,
         "model_name": job.model_name,
         "error_message": job.error_message,
+        "cancel_requested": job.cancel_requested,
         "done": done,
         "total": total,
     }

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
 import {
-  Loader2, ArrowLeft, Languages, FileText, Download, ChevronDown, Cpu, Sparkles, Clock, XCircle,
+  Loader2, ArrowLeft, Languages, FileText, Download, ChevronDown, Cpu, Sparkles, Clock, XCircle, Ban, Square,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/layout/page-header";
-import { cn } from "@/lib/utils";
+import { apiErrorDetail, cn } from "@/lib/utils";
 import { ocrEngineLabel, type OCREngine } from "@/lib/ocr-engines";
 import { useLiveChannel, type LiveEvent } from "@/lib/live";
 import {
@@ -36,7 +36,7 @@ type ModelInfo = {
   correction_languages?: string[];
 };
 
-type DocumentStatus = "uploading" | "ready" | "failed" | "deleted";
+type DocumentStatus = "uploading" | "ready" | "failed" | "deleted" | "cancelled";
 
 type Document = {
   id: string;
@@ -44,11 +44,12 @@ type Document = {
   upload_status: DocumentStatus;
   ocr_engine: string;
   lid_model: string | null;
+  cancel_requested?: boolean;
   size_bytes: number;
   created_at: string;
 };
 
-type JobStatus = "queued" | "processing" | "completed" | "failed";
+type JobStatus = "queued" | "processing" | "completed" | "failed" | "cancelled";
 
 /** A page's classification job, as the backend serializes it. */
 type PageClassification = {
@@ -56,6 +57,7 @@ type PageClassification = {
   status: JobStatus;
   model_name: string;
   error_message: string | null;
+  cancel_requested?: boolean;
   done: number | null;
   total: number | null;
   segments: Segment[];
@@ -67,7 +69,7 @@ type DocumentPage = {
   extracted_text: string | null;
   extraction_method: string | null;
   ocr_model: string | null;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: "pending" | "processing" | "completed" | "failed" | "cancelled";
   classification: PageClassification | null;
 };
 
@@ -94,6 +96,7 @@ export default function DocumentDetailsPage() {
   const [activePageNumber, setActivePageNumber] = useState<number | null>(null);
   const [view, setView] = useState<View | null>(null);
   const [focus, setFocus] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [engines, setEngines] = useState<OCREngine[]>([]);
@@ -152,7 +155,11 @@ export default function DocumentDetailsPage() {
     onEvent: (event: LiveEvent) => {
       switch (event.type) {
         case "document":
-          setDocument((prev) => (prev ? { ...prev, upload_status: event.status as DocumentStatus } : prev));
+          setDocument((prev) => (prev ? {
+            ...prev,
+            upload_status: event.status as DocumentStatus,
+            cancel_requested: (event.cancel_requested as boolean | undefined) ?? prev.cancel_requested,
+          } : prev));
           break;
         case "page": {
           const page = event.page as Omit<DocumentPage, "classification">;
@@ -224,6 +231,20 @@ export default function DocumentDetailsPage() {
     }
   };
 
+  const handleCancel = async () => {
+    if (!confirm("Stop processing this document? Pages read and classified so far are kept, and you are refunded for the rest.")) return;
+    setCancelling(true);
+    try {
+      const res = await axios.post(`/api/documents/${documentId}/cancel`);
+      setDocument((prev) => (prev ? { ...prev, ...res.data } : prev));
+      toast.success("Cancelling: processing stops after the current page.");
+    } catch (error) {
+      toast.error(apiErrorDetail(error, "Failed to cancel processing"));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (!document) return;
     try {
@@ -256,12 +277,24 @@ export default function DocumentDetailsPage() {
   const totalExtractedChars = pages.reduce((acc, p) => acc + (p.extracted_text?.length || 0), 0);
   const pagesRead = pages.filter((p) => p.status === "completed" || p.status === "failed").length;
   const pagesClassified = pages.filter((p) => p.classification?.status === "completed").length;
-  const pagesToClassify = pages.filter((p) => p.classification).length;
+  const pagesToClassify = pages.filter((p) => p.classification && p.classification.status !== "cancelled").length;
+  const runningJobs = pages.filter(
+    (p) => p.classification?.status === "queued" || p.classification?.status === "processing",
+  );
   const lidModel = models.find((m) => m.id === document.lid_model);
   const correctionLanguages = lidModel?.correction_languages?.length
     ? lidModel.correction_languages
     : DEFAULT_CORRECTION_LANGUAGES;
   const processing = document.upload_status === "uploading";
+  // Anything still running can be cancelled.
+  const active = processing || runningJobs.length > 0;
+  const cancelRequested =
+    cancelling ||
+    (active && !!document.cancel_requested) ||
+    runningJobs.some((p) => p.classification?.cancel_requested);
+  const pagesSkipped = pages.filter((p) => p.status === "cancelled").length;
+  const jobsCancelled = pages.filter((p) => p.classification?.status === "cancelled").length;
+  const wasCancelled = !active && (document.upload_status === "cancelled" || jobsCancelled > 0);
   const allSegments = pages.flatMap((p) => p.classification?.segments ?? []);
 
   const exportCsv = () =>
@@ -293,6 +326,17 @@ export default function DocumentDetailsPage() {
         description={`Uploaded on ${new Date(document.created_at).toLocaleDateString()} • ${(document.size_bytes / 1024 / 1024).toFixed(2)} MB • ${pages.length} Pages • OCR: ${ocrEngineLabel(engines, document.ocr_engine)}${lidModel ? ` • Languages: ${lidModel.label}` : ""}`}
         actions={
           <div className="flex items-center gap-3">
+            {active && (
+              <Button
+                variant="outline"
+                onClick={handleCancel}
+                disabled={cancelRequested}
+                className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+              >
+                {cancelRequested ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-3.5 w-3.5 fill-current" />}
+                {cancelRequested ? "Cancelling…" : "Cancel"}
+              </Button>
+            )}
             <Button variant="outline" onClick={handleDownload} className="gap-2">
               <Download className="h-4 w-4" />
               Download Original
@@ -358,9 +402,10 @@ export default function DocumentDetailsPage() {
         }
       />
 
-      {(processing || (pagesToClassify > 0 && pagesClassified < pagesToClassify)) && (
+      {active && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          {cancelRequested && <span className="font-medium text-amber-700">Cancelling: stopping after the current page…</span>}
           <span>
             Text: <span className="font-medium">{pagesRead}</span> of {pages.length || "?"} pages read
           </span>
@@ -369,7 +414,22 @@ export default function DocumentDetailsPage() {
               Languages: <span className="font-medium">{pagesClassified}</span> of {pagesToClassify} pages classified
             </span>
           )}
-          <span className="text-xs text-muted-foreground">Results appear below as each page finishes.</span>
+          {!cancelRequested && <span className="text-xs text-muted-foreground">Results appear below as each page finishes.</span>}
+        </div>
+      )}
+
+      {wasCancelled && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-3.5 flex items-start gap-3">
+          <Ban className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-900">Processing cancelled</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              {pagesRead} of {pages.length} pages were read
+              {document.lid_model ? ` and ${pagesClassified} fully classified` : ""}; those results are kept below.
+              {pagesSkipped > 0 && ` ${pagesSkipped} page${pagesSkipped === 1 ? " was" : "s were"} skipped.`}
+              {" "}You were refunded for the work not done.
+            </p>
+          </div>
         </div>
       )}
 
@@ -457,6 +517,10 @@ export default function DocumentDetailsPage() {
                 <Placeholder icon={<Loader2 className="h-6 w-6 animate-spin text-primary/50" />}>Reading page…</Placeholder>
               ) : activePage.status === "failed" ? (
                 <Placeholder className="text-red-400">OCR failed for this page. You were not charged for it.</Placeholder>
+              ) : activePage.status === "cancelled" ? (
+                <Placeholder icon={<Ban className="h-6 w-6 text-amber-400" />}>
+                  Not read: processing was cancelled before this page. You were not charged for it.
+                </Placeholder>
               ) : activeView === "languages" && activePage.classification ? (
                 <PageLanguages
                   text={activePage.extracted_text}
@@ -513,6 +577,9 @@ function PageButton({
       <div className="flex items-center gap-1.5">
         {page.status === "pending" && <Clock className="h-3.5 w-3.5 text-slate-300" aria-label="Waiting for OCR" />}
         {page.status === "processing" && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-label="Reading" />}
+        {page.status === "cancelled" && (
+          <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full font-medium">Skipped</span>
+        )}
         {page.status === "failed" && (
           <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">Failed</span>
         )}
@@ -527,7 +594,7 @@ function PageButton({
             {lid.status === "processing" && lid.total ? `${lid.done ?? 0}/${lid.total}` : "…"}
           </span>
         )}
-        {lid?.status === "completed" && (
+        {(lid?.status === "completed" || (lid?.status === "cancelled" && lid.segments.length > 0)) && (
           <span
             className="flex items-center gap-1"
             title={shares.map((s) => `${languageLabel(s.language)} ${Math.round(s.share * 100)}%`).join(", ")}
@@ -542,6 +609,7 @@ function PageButton({
           </span>
         )}
         {lid?.status === "failed" && <XCircle className="h-3.5 w-3.5 text-destructive" aria-label="Language identification failed" />}
+        {lid?.status === "cancelled" && <Ban className="h-3.5 w-3.5 text-amber-500" aria-label="Language identification cancelled" />}
       </div>
     </button>
   );
@@ -563,6 +631,16 @@ function PageLanguages({
   const running = status === "queued" || status === "processing";
   return (
     <div className="space-y-4">
+      {status === "cancelled" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+          <p className="font-medium text-amber-900">Language identification cancelled for this page</p>
+          <p className="text-xs text-amber-800 mt-0.5">
+            {segments.length > 0
+              ? `${segments.length} sentence${segments.length === 1 ? " was" : "s were"} classified first and are highlighted; the rest of the page is shown unclassified.`
+              : "No sentence was classified. The page text is shown below."}
+          </p>
+        </div>
+      )}
       {status === "failed" && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           <p className="font-medium text-destructive">Language identification failed for this page</p>
@@ -574,7 +652,9 @@ function PageLanguages({
       {running && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-          {status === "queued"
+          {classification.cancel_requested
+            ? "Cancelling…"
+            : status === "queued"
             ? "Waiting for language identification…"
             : total ? `Classified ${done ?? segments.length} of ${total} segments` : "Classifying…"}
         </div>

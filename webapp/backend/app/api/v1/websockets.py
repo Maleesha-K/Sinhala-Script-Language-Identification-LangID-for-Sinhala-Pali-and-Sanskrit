@@ -18,11 +18,11 @@ from app.utils.redis_client import async_redis_client
 from app.dependencies import get_ws_current_user, get_db
 from app.db.models.classification_job import ClassificationJob, JobStatus
 from app.db.models.document import Document, UploadStatus
+from app.services.job_control import ACTIVE_JOB_STATUSES
 
 router = APIRouter(prefix="/ws", tags=["websockets"])
 
-TERMINAL_STATUSES = {JobStatus.COMPLETED.value, JobStatus.FAILED.value}
-ACTIVE_JOB_STATUSES = (JobStatus.QUEUED, JobStatus.PROCESSING)
+TERMINAL_STATUSES = {JobStatus.COMPLETED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value}
 
 
 async def _authenticate(websocket: WebSocket, token: str, db: AsyncSession, object_id: str):

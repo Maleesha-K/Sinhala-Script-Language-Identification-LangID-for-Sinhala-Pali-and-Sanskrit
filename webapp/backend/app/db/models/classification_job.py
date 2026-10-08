@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, Numeric, Text, ForeignKey, Enum as SQLEnum, DateTime
+from sqlalchemy import String, Integer, Numeric, Text, ForeignKey, Enum as SQLEnum, DateTime, Boolean, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base, TimestampMixin
@@ -11,6 +11,8 @@ class JobStatus(str, enum.Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    # Stopped by the user; segments classified before the stop are kept.
+    CANCELLED = "cancelled"
 
 class ClassificationJob(Base, TimestampMixin):
     __tablename__ = "classification_jobs"
@@ -30,6 +32,9 @@ class ClassificationJob(Base, TimestampMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Why a failed job failed, shown to the user.
     error_message: Mapped[str | None] = mapped_column(Text)
+    # Set by the cancel endpoint while the job runs; the worker stops at its
+    # next batch and marks the job CANCELLED.
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
     
     user = relationship("User")
     document = relationship("Document")

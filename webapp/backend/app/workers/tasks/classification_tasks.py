@@ -3,7 +3,9 @@ import re
 from datetime import datetime, timezone
 import asyncio
 
-from sqlalchemy import select
+from decimal import Decimal
+
+from sqlalchemy import select, update
 from app.workers.celery_app import celery_app
 from app.db.session import async_session_maker
 from app.db.models.classification_job import ClassificationJob, JobStatus
@@ -120,6 +122,18 @@ class _Progress:
             })
 
 
+class _Cancelled(Exception):
+    """The user cancelled the job; raised at a checkpoint."""
+
+
+async def _cancel_requested(session, job_id) -> bool:
+    # A column select reads the database, not the session's cached object.
+    result = await session.execute(
+        select(ClassificationJob.cancel_requested).where(ClassificationJob.id == job_id)
+    )
+    return bool(result.scalar_one())
+
+
 async def _process_classification_job_async(job_id_str: str):
     job_uuid = UUID(job_id_str)
     from app.services.credit_service import credit_service
@@ -133,12 +147,25 @@ async def _process_classification_job_async(job_id_str: str):
             logger.error(f"ClassificationJob {job_id_str} not found")
             return
 
+        # Start only a job that is still queued: one cancelled while it waited
+        # is already final.
+        started = await session.execute(
+            update(ClassificationJob)
+            .where(ClassificationJob.id == job_uuid, ClassificationJob.status == JobStatus.QUEUED)
+            .values(status=JobStatus.PROCESSING)
+        )
+        await session.commit()
+        if started.rowcount == 0:
+            logger.info(f"ClassificationJob {job_id_str} is no longer queued (cancelled); skipping")
+            await engine.dispose()
+            return
+        await session.refresh(job)
+
         progress = _Progress(job)
         user_id, model_name = job.user_id, job.model_name
         charged = False
+        texts: list[str] = []
         try:
-            job.status = JobStatus.PROCESSING
-            await session.commit()
             progress.status(5, "Starting segmentation...")
 
             text_to_process = job.input_text or ""
@@ -151,6 +178,8 @@ async def _process_classification_job_async(job_id_str: str):
             progress.total = len(texts)
 
             # 2. Charge up front: results are visible as soon as they are saved.
+            if await _cancel_requested(session, job_uuid):
+                raise _Cancelled()
             job.total_tokens = sum(estimate_tokens(t) for t in texts)
             if not await credit_service.charge_classification(
                 session, user_id, job.id, model_name, job.total_tokens
@@ -162,6 +191,9 @@ async def _process_classification_job_async(job_id_str: str):
             classifier = get_classifier(model_name)
             progress.status(10, f"Classifying with {model_name}...")
             for start in range(0, len(texts), BATCH_SIZE):
+                # Checkpoint: a cancel stops here, keeping the batches saved so far.
+                if await _cancel_requested(session, job_uuid):
+                    raise _Cancelled()
                 predictions = classifier.predict_batch(texts[start:start + BATCH_SIZE])
                 records = []
                 for i, pred in enumerate(predictions, start):
@@ -188,6 +220,27 @@ async def _process_classification_job_async(job_id_str: str):
             await session.commit()
             logger.info(f"ClassificationJob {job_id_str} completed successfully.")
             progress.status(100, "Job finished successfully.")
+
+        except _Cancelled:
+            # Keep the saved segments; refund the share of tokens never classified.
+            await session.rollback()
+            if charged:
+                total = sum(estimate_tokens(t) for t in texts)
+                done = sum(estimate_tokens(t) for t in texts[:progress.done])
+                if total > done:
+                    await credit_service.refund_classification(
+                        session, user_id, job_uuid, Decimal(total - done) / Decimal(total)
+                    )
+            await session.refresh(job)
+            job.status = JobStatus.CANCELLED
+            job.completed_at = datetime.now(timezone.utc)
+            await session.commit()
+            message = (
+                f"Cancelled after {progress.done} of {progress.total} segments."
+                if progress.total else "Cancelled before classification started."
+            )
+            logger.info(f"ClassificationJob {job_id_str}: {message}")
+            progress.status(0, message)
 
         except Exception as e:
             logger.exception(f"ClassificationJob {job_id_str} failed: {e}")

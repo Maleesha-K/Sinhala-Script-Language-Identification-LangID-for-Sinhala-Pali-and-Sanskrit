@@ -168,12 +168,17 @@ class CreditService:
         some pages failed."""
         return await self._refund(db, user_id, document_id, RecordType.OCR, fraction)
 
-    async def refund_classification(self, db: AsyncSession, user_id: uuid.UUID, job_id: uuid.UUID) -> Decimal:
-        """Return a classification job's charge, e.g. after the job failed."""
-        refunded = await self._refund(db, user_id, job_id, RecordType.CLASSIFICATION)
+    async def refund_classification(
+        self, db: AsyncSession, user_id: uuid.UUID, job_id: uuid.UUID, fraction: Decimal = Decimal(1)
+    ) -> Decimal:
+        """Return a classification job's charge after it failed, or `fraction`
+        of it for the part a cancelled job did not classify."""
+        refunded = await self._refund(db, user_id, job_id, RecordType.CLASSIFICATION, fraction)
         if refunded:
             await db.execute(
-                update(ClassificationJob).where(ClassificationJob.id == job_id).values(credits_charged=0)
+                update(ClassificationJob)
+                .where(ClassificationJob.id == job_id)
+                .values(credits_charged=ClassificationJob.credits_charged - refunded)
             )
             await db.commit()
         return refunded

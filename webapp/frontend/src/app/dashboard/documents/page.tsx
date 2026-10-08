@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
-  Loader2, Download, Trash2, FileText, CheckCircle2, Clock, XCircle, Upload, Eye,
+  Loader2, Download, Trash2, FileText, CheckCircle2, Clock, XCircle, Upload, Eye, Ban,
 } from "lucide-react";
 import { UploadModal } from "@/components/documents/upload-modal";
 import { PageHeader } from "@/components/layout/page-header";
 import { apiErrorDetail, cn } from "@/lib/utils";
 import { ocrEngineLabel, type OCREngine } from "@/lib/ocr-engines";
 
-type DocumentStatus = "uploading" | "ready" | "failed" | "deleted";
+type DocumentStatus = "uploading" | "ready" | "failed" | "deleted" | "cancelled";
 
 type Document = {
   id: string;
@@ -29,6 +29,7 @@ type Document = {
 
 const statusConfig: Record<DocumentStatus, { icon: React.ElementType; label: string; className: string }> = {
   uploading: { icon: Loader2,      label: "Processing", className: "text-primary" },
+  cancelled: { icon: Ban,          label: "Cancelled",  className: "text-amber-600" },
   ready:     { icon: CheckCircle2, label: "Ready",      className: "text-emerald-600" },
   failed:    { icon: XCircle,      label: "Failed",     className: "text-destructive" },
   deleted:   { icon: XCircle,      label: "Deleted",    className: "text-destructive" },
