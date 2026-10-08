@@ -23,6 +23,7 @@ LOGS_DIR = ROOT / 'logs'
 
 DATASETS = ROOT / 'datasets'
 TARGET = DATASETS / 'target_language'
+FRAGMENTS = DATASETS / 'target_fragments'      # k-word fragments of the target test split
 BENCHMARKS = DATASETS / 'hybrid_benchmark'
 FINETUNE = DATASETS / 'hybrid_finetune'
 RESULTS = _OUT / 'datasets' / 'benchmark_results'

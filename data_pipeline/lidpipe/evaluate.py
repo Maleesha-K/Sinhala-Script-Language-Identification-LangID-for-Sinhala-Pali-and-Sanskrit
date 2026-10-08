@@ -33,6 +33,14 @@ def eval_set_paths():
     return sets
 
 
+def fragment_set_paths():
+    """Baseline short-text stress test: target test as full sentences and as k-word fragments."""
+    from . import fragments
+    sets = {'target_test': paths.TARGET / 'test' / 'test.jsonl'}
+    sets.update({fragments.name(k): fragments.path(k) for k in fragments.sizes()})
+    return sets
+
+
 def load_eval_set(path, smoke=False):
     with open(path, encoding='utf-8') as f:
         rows = [json.loads(line) for line in f]
@@ -50,13 +58,14 @@ def result_dir(phase, model):
     return paths.RESULTS / PHASES[phase] / model
 
 
-def evaluate(model_name, phase, predict, metadata=None):
-    """Run `predict(texts) -> (raw_labels, confidences)` on every eval set."""
+def evaluate(model_name, phase, predict, metadata=None, sets=None):
+    """Run `predict(texts) -> (raw_labels, confidences)` on every eval set
+    (`sets`: {name: path}, default eval_set_paths())."""
     cfg = config.pipeline()
     smoke, boot = cfg.get('smoke', False), cfg['bootstrap']
     out_root = result_dir(phase, model_name)
     files, overview = [], {}
-    for name, path in eval_set_paths().items():
+    for name, path in (sets or eval_set_paths()).items():
         rows = load_eval_set(path, smoke)
         texts = [r['text'] for r in rows]
         raw, conf = predict(texts)

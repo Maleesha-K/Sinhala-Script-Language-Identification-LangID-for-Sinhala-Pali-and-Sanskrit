@@ -4,7 +4,9 @@ Consistency checks (any failure stops the stage):
   - per eval set, every model was scored on the identical sample_id/text set;
   - macro F1 recomputed from predictions.csv equals summary.json and per_label.csv.
 Tables (CSV + Markdown + LaTeX) in datasets/benchmark_results/tables/:
-  table0_baselines        traditional baselines (target test, and benchmarks for rehearsal)
+  table0_baselines        traditional baselines, short-text stress test: target macro F1 on the
+                          target test split as full sentences and 5/3/1-word fragments, plus
+                          figure_baselines_short_text.{png,pdf}
   table1_zero_shot        pretrained models unchanged
   table2_target_only      fine-tuned on target data only
   table3_rehearsal        fine-tuned on target + replay data, with forgetting (delta vs zero-shot)
@@ -21,7 +23,7 @@ import sys
 import pandas as pd
 
 from lidpipe import paths
-from lidpipe.evaluate import PHASES, eval_set_paths
+from lidpipe.evaluate import PHASES, eval_set_paths, fragment_set_paths
 from lidpipe.labels import SCORED, TARGET
 from lidpipe.manifest import prepare_output, sha256_file, write_manifest
 from lidpipe.metrics import per_label, summarise
@@ -34,7 +36,10 @@ NAMES = {'nllb_lid218': 'NLLB-218 (fastText)', 'glotlid_v3': 'GlotLID v3', 'open
          'nb': 'Multinomial NB', 'svm': 'Linear SVM', 'logreg': 'Char n-gram LogReg', 'xgboost': 'XGBoost',
          'fasttext_scratch': 'fastText (scratch)', 'char_cnn': 'Char-CNN', 'char_bigru': 'Char-BiGRU'}
 failures, sample_sets, stale = [], {}, {}
-CURRENT = {es: sha256_file(p) for es, p in eval_set_paths().items()}
+CURRENT = {es: sha256_file(p) for es, p in {**eval_set_paths(), **fragment_set_paths()}.items()}
+FRAG_SETS = list(fragment_set_paths())
+FRAG_NAMES = {s: 'Full sentence' if s == 'target_test' else f'{s.rsplit("_", 1)[1][:-1]} word'
+              + ('s' if not s.endswith('_1w') else '') for s in FRAG_SETS}
 
 
 def results(phase):
@@ -145,9 +150,132 @@ def build(phase, title, zero_shot=None):
     return df, per_set
 
 
+def baseline_stress_test(title):
+    """Baselines on the target test split at decreasing input length (macro F1 over the 3 target labels)."""
+    rows = []
+    for model, sets in results('baselines').items():
+        row = {'model': model}
+        for es in FRAG_SETS:
+            if es in sets:
+                saved, table = verified(model, 'baselines', es, sets[es])
+                row[f'{es}_macro_f1'] = saved['macro_target3']
+                row[f'{es}_macro_f1_ci'] = saved['macro_target3_ci95']
+                row[f'{es}_accuracy'] = saved['accuracy']
+                for l in TARGET:
+                    row[f'{es}_{l}_f1'] = table.loc[l, 'f1']
+        rows.append(row)
+    stale_files = [*OUT.glob(f'{title}.*'), *OUT.glob(f'per_label_{title}_*.csv'),
+                   *OUT.glob('figure_baselines_short_text.*')]
+    for f in stale_files:
+        prepare_output(f)
+    if not rows:
+        return
+    last = f'{FRAG_SETS[-1]}_macro_f1'
+    df = pd.DataFrame(rows).set_index('model').sort_values(last, ascending=False)
+    files = []
+    p = prepare_output(OUT / f'{title}.csv')
+    df.to_csv(p)
+    files.append(p)
+    label = lambda m: NAMES.get(m.split('/')[-1], m)
+    best = {es: df[f'{es}_macro_f1'].max() for es in FRAG_SETS if f'{es}_macro_f1' in df}
+    head = ['Model'] + [FRAG_NAMES[es] for es in FRAG_SETS]
+    md = [f'## {title}', '', 'Traditional baselines trained on the target train split only; macro F1 over '
+          'sin_Sinh, pli_Sinh, san_Sinh on the target test split (18,982 rows) as full sentences and as k-word '
+          'fragments [95% bootstrap CI]. Best per column in bold.', '',
+          '| ' + ' | '.join(head) + ' |', '|---|' + '---:|' * (len(head) - 1)]
+    tex = ['\\begin{tabular}{l' + 'r' * (len(head) - 1) + '}', '\\toprule', ' & '.join(head) + ' \\\\', '\\midrule']
+    for model, r in df.iterrows():
+        cells_md, cells_tex = [], []
+        for es in FRAG_SETS:
+            v = r.get(f'{es}_macro_f1')
+            top = v is not None and v == v and v == best.get(es)
+            c = fmt(v, r.get(f'{es}_macro_f1_ci'))
+            cells_md.append(f'**{c}**' if top else c)
+            c = fmt(v)
+            cells_tex.append(f'\\textbf{{{c}}}' if top else c)
+        md.append('| ' + ' | '.join([label(model)] + cells_md) + ' |')
+        tex.append(' & '.join([label(model)] + cells_tex) + ' \\\\')
+    tex += ['\\bottomrule', '\\end{tabular}']
+    for ext, text in (('md', '\n'.join(md)), ('tex', '\n'.join(tex))):
+        p = prepare_output(OUT / f'{title}.{ext}')
+        p.write_text(text + '\n', encoding='utf-8')
+        files.append(p)
+    for es in FRAG_SETS:
+        cols = [f'{es}_{l}_f1' for l in TARGET]
+        if set(cols) <= set(df.columns):
+            p = prepare_output(OUT / f'per_label_{title}_{es}.csv')
+            df[cols].set_axis(TARGET, axis=1).to_csv(p)
+            files.append(p)
+    files += short_text_figure(df, label)
+    return files
+
+
+def short_text_figure(df, label):
+    """Line chart: macro F1 vs input length, one line per baseline. The three best
+    at one word are coloured and bold; the rest recede in grey. Every line is
+    direct-labelled with its 1-word score (no legend box needed)."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    ink, muted, grid, grey = '#0b0b0b', '#52514e', '#e4e3df', '#a3a29d'
+    highlight = ['#2a78d6', '#eb6834', '#1baf7a']          # validated categorical slots 1-3
+    cols = [f'{es}_macro_f1' for es in FRAG_SETS]
+    data = df[cols].dropna()
+    if data.empty:
+        return []
+    x = list(range(len(FRAG_SETS)))
+    fig, ax = plt.subplots(figsize=(8.4, 4.8), dpi=200)
+    fig.patch.set_facecolor('#ffffff')
+    order = list(data.index)                                 # sorted by 1-word score, best first
+    for rank, model in reversed(list(enumerate(order))):     # draw greys first, highlights on top
+        color = highlight[rank] if rank < len(highlight) else grey
+        # highlighted lines get distinct markers too, so near-coincident lines stay distinguishable
+        ax.plot(x, data.loc[model].values, color=color, linewidth=2 if rank < 3 else 1.4,
+                marker='osD'[rank] if rank < 3 else 'o', markersize=6 if rank < 3 else 5,
+                markeredgecolor='#ffffff', markeredgewidth=1.2, zorder=3 if rank < 3 else 2)
+    # Direct labels at the right end, nudged apart so none overlap.
+    import math
+    lo = math.floor((float(data.values.min()) - 0.03) * 10) / 10
+    span = 1.005 - lo
+    ys = sorted(((float(data.loc[m, cols[-1]]), m) for m in order), reverse=True)
+    gap, placed = 0.04 * span, []
+    for y, m in ys:
+        y_lab = min(y, placed[-1] - gap) if placed else y
+        placed.append(y_lab)
+        rank = order.index(m)
+        color = highlight[rank] if rank < len(highlight) else grey
+        # a short line swatch in the series colour keys each label (identity is never colour-alone:
+        # the name is always written; the swatch separates lines that end at almost the same value)
+        ax.plot([x[-1] + 0.1, x[-1] + 0.22], [y_lab, y_lab], color=color, linewidth=2.4, clip_on=False,
+                solid_capstyle='round')
+        ax.annotate(f'{label(m)}  {y:.2f}', xy=(x[-1], y), xytext=(x[-1] + 0.28, y_lab), va='center',
+                    fontsize=9, color=ink if rank < 3 else muted, fontweight='bold' if rank < 3 else 'normal',
+                    annotation_clip=False)
+    ax.set_xticks(x, [FRAG_NAMES[es] for es in FRAG_SETS])
+    ax.set_xlim(-0.25, x[-1] + 0.08)
+    ax.set_ylim(lo, 1.005)
+    ax.set_ylabel('Macro-F1 (3 target languages)', color=muted)
+    ax.set_title('All baselines saturate on full sentences; they separate on short fragments',
+                 loc='left', fontsize=11, color=ink, fontweight='bold')
+    ax.grid(axis='y', color=grid, linewidth=0.8)
+    ax.set_axisbelow(True)
+    for side in ('top', 'right', 'left'):
+        ax.spines[side].set_visible(False)
+    ax.spines['bottom'].set_color(grid)
+    ax.tick_params(colors=muted, length=0)
+    fig.subplots_adjust(left=0.09, right=0.70, top=0.9, bottom=0.1)
+    files = []
+    for ext in ('png', 'pdf'):
+        p = prepare_output(OUT / f'figure_baselines_short_text.{ext}')
+        fig.savefig(p, facecolor=fig.get_facecolor())
+        files.append(p)
+    plt.close(fig)
+    return files
+
+
 z, _ = build('zero_shot', 'table1_zero_shot')
 z_index = z if not z.empty else None
-build('baselines', 'table0_baselines')
+baseline_stress_test('table0_baselines')
 build('target_only', 'table2_target_only', zero_shot=z_index)
 build('rehearsal', 'table3_rehearsal', zero_shot=z_index)
 
@@ -160,6 +288,8 @@ report = ['# Results', '', 'All numbers recomputed from per-sample predictions; 
 for t in ('table0_baselines', 'table1_zero_shot', 'table2_target_only', 'table3_rehearsal'):
     f = OUT / f'{t}.md'
     report += [f.read_text(encoding='utf-8') if f.exists() else f'## {t}\n\n(no results yet)', '']
+    if t == 'table0_baselines' and (OUT / 'figure_baselines_short_text.png').exists():
+        report += ['![Baselines at decreasing input length](figure_baselines_short_text.png)', '']
 pending = [f'{m}' for m in ('xlmr',) if not (paths.RESULTS / PHASES['rehearsal'] / m).exists()]
 if pending:
     report += ['Pending (not trained yet): ' + ', '.join(NAMES[m] for m in pending), '']

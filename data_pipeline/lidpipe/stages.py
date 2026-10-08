@@ -12,7 +12,7 @@ OPENLID_RAW = paths.FINETUNE / 'openlid_v2' / 'raw'
 REPLAY_MIXED = paths.FINETUNE / 'replay_mixed'
 AUDIT = paths.DATASETS / 'audit'
 # Model stages only start on data that passed the stage-04 audit.
-CHECKED_DATA = BENCH_DIRS + [paths.TARGET, REPLAY_MIXED, AUDIT]
+CHECKED_DATA = BENCH_DIRS + [paths.TARGET, REPLAY_MIXED, paths.FRAGMENTS, AUDIT]
 
 
 @dataclass
@@ -60,18 +60,19 @@ STAGES = [
     ], disk_gb=2, inputs=BENCH_RAW + [paths.TARGET],   # target test is merged into each eval set
        outputs=BENCH_DIRS, uses_labels=True, pipeline_keys=['preprocess'],
        reports=[d / 'manifest.json' for d in BENCH_DIRS]),
-    Stage('03', 'prepare_datasets', ['03.prepare_datasets/prepare_replay.py'],
-          disk_gb=2, inputs=BENCH_DIRS + [paths.TARGET, OPENLID_RAW], outputs=[REPLAY_MIXED],
-          uses_labels=True, pipeline_keys=['replay', 'target_split'],
-          reports=[REPLAY_MIXED / 'replay_report.json']),
+    Stage('03', 'prepare_datasets', ['03.prepare_datasets/prepare_replay.py',
+                                      '03.prepare_datasets/prepare_fragments.py'],
+          disk_gb=2, inputs=BENCH_DIRS + [paths.TARGET, OPENLID_RAW], outputs=[REPLAY_MIXED, paths.FRAGMENTS],
+          uses_labels=True, pipeline_keys=['replay', 'target_split', 'fragments'],
+          reports=[REPLAY_MIXED / 'replay_report.json', paths.FRAGMENTS / 'fragments_report.json']),
     Stage('04', 'dataset_checking', ['04.dataset_checking/check_datasets.py'],
-          inputs=BENCH_DIRS + [paths.TARGET, REPLAY_MIXED], outputs=[paths.DATASETS / 'audit'],
-          uses_labels=True, pipeline_keys=['preprocess', 'target_split', 'replay'],
+          inputs=BENCH_DIRS + [paths.TARGET, REPLAY_MIXED, paths.FRAGMENTS], outputs=[paths.DATASETS / 'audit'],
+          uses_labels=True, pipeline_keys=['preprocess', 'target_split', 'replay', 'fragments'],
           reports=[paths.DATASETS / 'audit' / 'audit_report.md']),
     Stage('05', 'traditional_baselines', ['05.traditional_baselines/baselines.py'],
           disk_gb=4, inputs=CHECKED_DATA,
           outputs=[paths.MODELS / '00_traditional_ml_baselines', paths.RESULTS / '00_traditional_ml_baselines'],
-          uses_labels=True, pipeline_keys=['baselines', 'training', 'seeds', 'smoke', 'bootstrap'],
+          uses_labels=True, pipeline_keys=['baselines', 'training', 'seeds', 'smoke', 'bootstrap', 'fragments'],
           uses_torch=True, deterministic=False, reports=[paths.RESULTS / '00_traditional_ml_baselines' / 'manifest.json']),
     Stage('06', 'benchmark_zero_shot', ['06.benchmark_zero_shot/zero_shot.py'],
           needs_locks=['lid176', 'openlid_v3', 'glotlid_v3', 'nllb_lid218', 'conlid', 'xlmr_lid'], needs_tools=['g++'],
@@ -87,7 +88,9 @@ STAGES = [
                    paths.MODELS / '03_global_rehearsal_sota' / 'manifest.json']),
     Stage('08', 'benchmark_evaluation', ['08.benchmark_evaluation/evaluate_finetuned.py',
                                           '08.benchmark_evaluation/make_tables.py'],
-          inputs=CHECKED_DATA + [paths.MODELS / '02_target_only_sota', paths.MODELS / '03_global_rehearsal_sota'],
+          inputs=CHECKED_DATA + [paths.MODELS / '02_target_only_sota', paths.MODELS / '03_global_rehearsal_sota',
+                                 # tables also read the baseline and zero-shot results
+                                 paths.RESULTS / '00_traditional_ml_baselines', paths.RESULTS / '01_zero_shot'],
           outputs=[paths.RESULTS / '02_target_only', paths.RESULTS / '03_multilingual_rehearsal',
                    paths.RESULTS / 'tables'],
           uses_labels=True, pipeline_keys=['bootstrap', 'seeds', 'smoke'], uses_torch=True, deterministic=False,

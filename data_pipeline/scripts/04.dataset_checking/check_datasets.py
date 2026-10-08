@@ -12,7 +12,7 @@ import re
 import sys
 from collections import Counter, defaultdict
 
-from lidpipe import config, hub, paths
+from lidpipe import config, fragments, hub, paths
 from lidpipe.dedup import near_duplicate_pairs, near_matches
 from lidpipe.labels import ABSENT_BY_DESIGN, EXPECTED_SCRIPT, REPLAY, SCORED, TARGET
 from lidpipe.manifest import prepare_output, sha256_file, verify_manifest, write_manifest
@@ -190,6 +190,35 @@ for label in REPLAY:
     b = [r['text'] for r in rt if r['label'] == label]
     n = len(near_matches(a, b, nd['shingle'], nd['num_perm'], nd['threshold']))
     check(sec, f'{label}: no validation text near-duplicates a train text', not n, f'{n} rows')
+
+# ------------------------------------------- short-text stress-test fragments
+sec = 'fragments'
+problems = verify_manifest(paths.FRAGMENTS)
+check(sec, 'files match their sha256 manifest', not problems, problems)
+fcfg = cfg['fragments']
+source = {r['sample_id']: r for r in target['test']}
+report['fragments'] = {}
+for k in fragments.sizes():
+    name = fragments.name(k)
+    rows = read(fragments.path(k))
+    common_row_checks(f'{sec}/{name}', rows, TARGET)
+    check(sec, f'{name}: one fragment per target test row, same id and label',
+          Counter((r['sample_id'], r['label']) for r in rows)
+          == Counter((r['sample_id'], r['label']) for r in target['test']), f'{len(rows)} rows')
+    bad_len = bad_span = 0
+    for r in rows:
+        words, src = r['text'].split(), fragments.words_of(source[r['sample_id']]['text'])
+        if len(words) != min(k, len(src)):
+            bad_len += 1
+        if not any(src[i:i + len(words)] == words for i in range(len(src) - len(words) + 1)):
+            bad_span += 1
+    check(sec, f'{name}: exactly {k} words (fewer only when the sentence is shorter)', not bad_len, f'{bad_len} rows')
+    check(sec, f'{name}: every fragment is a contiguous run of words of its source sentence', not bad_span,
+          f'{bad_span} rows')
+    rebuilt = sum(1 for r in rows
+                  if fragments.fragment(source[r['sample_id']]['text'], k, fcfg['seed'], r['sample_id']) != r['text'])
+    check(sec, f'{name}: reproducible from config fragments (seed {fcfg["seed"]})', not rebuilt, f'{rebuilt} rows differ')
+    report['fragments'][name] = dict(Counter(r['label'] for r in rows))
 
 # --------------------------------------------------- contamination gates
 sec = 'contamination'

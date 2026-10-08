@@ -73,9 +73,9 @@ uses `data_pipeline/.venv`. fastText models and the sklearn/XGBoost baselines ru
 |---|---|---|---|
 | 01 | download | `datasets/hybrid_benchmark/*/raw`, `datasets/target_language`, `datasets/hybrid_finetune/openlid_v2/raw` | `datasets/target_language/split_report.json` |
 | 02 | preprocess | `datasets/hybrid_benchmark/*/{clean,eval}.jsonl` | `datasets/hybrid_benchmark/*/manifest.json` (`summary`) |
-| 03 | prepare datasets | `datasets/hybrid_finetune/replay_mixed/` | `replay_mixed/replay_report.json` |
+| 03 | prepare datasets | `datasets/hybrid_finetune/replay_mixed/`, `datasets/target_fragments/` | `replay_mixed/replay_report.json`, `target_fragments/fragments_report.json` |
 | 04 | dataset checking | `datasets/audit/` | **`datasets/audit/audit_report.md`** |
-| 05 | traditional baselines | `models/00_traditional_ml_baselines`, `datasets/benchmark_results/00_traditional_ml_baselines` | |
+| 05 | traditional baselines | `models/00_traditional_ml_baselines`, `datasets/benchmark_results/00_traditional_ml_baselines` | `tables/table0_baselines.md`, `tables/figure_baselines_short_text.png` (after 08) |
 | 06 | zero-shot benchmark | `datasets/benchmark_results/01_zero_shot` | |
 | 07 | fine-tuning | `models/02_target_only_sota`, `models/03_global_rehearsal_sota` (`selection_log.csv`, `chosen.json`, `best/`) | |
 | 08 | evaluation + tables | `datasets/benchmark_results/{02_target_only,03_multilingual_rehearsal,tables}` | **`datasets/benchmark_results/tables/results.md`** |
@@ -124,6 +124,15 @@ near-duplicate) and the target data, then a balanced sample (10,000 train /
 1,250 validation per label). `mixed_{train,validation}.jsonl` = target split +
 replay split.
 
+**Short-text stress-test fragments** (`prepare_fragments.py`, config
+`fragments`): from every target test sentence, a contiguous run of k = 5, 3
+and 1 words starting at a seeded random word (sentences with ≤ k words are kept
+whole), as in the original phase-1 study. Words are whitespace tokens with at
+least one letter, and each row's start is seeded by (seed, k, sample_id), so
+fragments are reproducible and independent of file order. Output
+`datasets/target_fragments/target_test_{5,3,1}w.jsonl` (same `sample_id` and
+label as the source row).
+
 ### 04 Dataset checking
 `check_datasets.py` prints a `[PASS]`/`[FAIL]` line per check and writes them all
 to `datasets/audit/audit_report.md`. Any `FAIL` stops the pipeline. Checks:
@@ -145,6 +154,10 @@ to `datasets/audit/audit_report.md`. Any `FAIL` stops the pipeline. Checks:
 - **replay / mixed**: manifests; labels, NFC, ids; balanced per label;
   `mixed = target + replay` exactly; replay train/validation share no text and
   no near-duplicate.
+- **fragments**: manifest; labels, NFC, ids; one fragment per target test row
+  with the same id and label; exactly k words (fewer only for shorter
+  sentences); each a contiguous run of its source sentence's words; rebuilt
+  identically from the config seed.
 - **contamination**: no benchmark eval text and no target test text in any
   training or validation set (exact); no replay text near-duplicating a
   benchmark eval text (re-computed); target test disjoint from every
@@ -181,6 +194,15 @@ train up to 3 epochs, score validation after each epoch, keep the best
 | ConLID | cross-entropy over the full output space, sparse SGD (`lidlab`) |
 | XLM-R LangID (`papluca/xlm-roberta-base-language-detection`) | pretrained 20-language LID head extended with the missing labels (original rows kept, new rows zero); LoRA (r=16) on attention + head, AdamW; **training deferred** (`training.deferred_models`), zero-shot runs in stage 06 |
 | baselines | NB, linear SVM, char n-gram LogReg (OvR), XGBoost (CPU), fastText from scratch, Char-CNN, Char-BiGRU |
+
+**Baselines (stage 05)** are trained from scratch on the target train split only
+(`baselines.phases: [target_only]`) and selected on target validation. They are
+not scored on the 11-language benchmarks (they only know the 3 target labels);
+instead they get the **short-text stress test**: macro-F1 over `sin_Sinh`,
+`pli_Sinh`, `san_Sinh` on the target test split as full sentences and as 5-, 3-
+and 1-word fragments. Stage 08 turns this into `tables/table0_baselines.*` and
+`tables/figure_baselines_short_text.{png,pdf}` (macro-F1 vs input length, one
+line per baseline, the three best at one word highlighted).
 
 Arabic: LID-176 (`ar`) and OpenLID v3 (`ara_Arab`) only have the macrolanguage
 label; it is credited as `arb_Arab` (documented limitation).

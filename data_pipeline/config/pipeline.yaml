@@ -66,10 +66,21 @@ training:
   batch_size: {fasttext_hs: 64, conlid: 32, xlmr: 32}
   xlmr: {lora_r: 16, lora_alpha: 32, lora_dropout: 0.1, max_length: 128}
 
-# Traditional baselines (stage 05): trained from scratch on the same splits,
-# same selection rule; 3-point grid of each model's main hyperparameter.
+# Short-text stress test (stage 03 builds, stage 05 scores): from every target
+# test sentence, a contiguous run of k words starting at a seeded random word
+# (sentences with <= k words are kept whole). Words are whitespace tokens with at
+# least one letter, so a fragment is never bare punctuation.
+fragments:
+  words: [5, 3, 1]
+  seed: 42
+
+# Traditional baselines (stage 05): trained from scratch on the target train
+# split only (Sinhala/Pali/Sanskrit), selected on target validation with the
+# same rule as the fine-tuned models (3-point grid of each model's main
+# hyperparameter), then scored on the target test split as full sentences and
+# as 5-, 3- and 1-word fragments.
 baselines:
-  phases: [target_only, rehearsal]
+  phases: [target_only]
   features: {analyzer: char_wb, ngram_range: [1, 4], n_features: 1048576}
   # Parallel worker processes for one-vs-rest LogReg. Each worker holds its own copy of the feature matrix (~1 GB on the rehearsal data),
   # so keep this small on a 16 GB machine.

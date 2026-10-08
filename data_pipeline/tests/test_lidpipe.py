@@ -242,3 +242,16 @@ def test_preflight_ok_with_usable_cuda(monkeypatch):
     c = _device_check(monkeypatch, nvidia_gpus=['GPU'], torch_cuda_build='13.0', cuda_available=True,
                       device_name='RTX', device_gib=8.0)
     assert not c.failed and 'CUDA: RTX' in c.report()
+
+
+def test_fragments_are_contiguous_deterministic_and_skip_punctuation():
+    from lidpipe.fragments import fragment, words_of
+    text = 'එක දෙක , තුන හතර පහ හය ।'
+    assert words_of(text) == ['එක', 'දෙක', 'තුන', 'හතර', 'පහ', 'හය']
+    for k in (1, 3, 5):
+        f = fragment(text, k, 42, 'id-1')
+        assert f == fragment(text, k, 42, 'id-1')              # same seed + id -> same fragment
+        w = f.split()
+        assert len(w) == k and any(words_of(text)[i:i + k] == w for i in range(6 - k + 1))
+    assert fragment('එක දෙක', 5, 42, 'x') == 'එක දෙක'          # shorter than k: kept whole
+    assert len({fragment(text, 1, 42, f'id-{i}') for i in range(50)}) > 1   # start varies by row
