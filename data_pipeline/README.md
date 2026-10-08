@@ -102,7 +102,16 @@ than ZWJ/ZWNJ removed, whitespace collapsed). Labels are `<ISO 639-3>_<ISO 15924
   scoring when both labels are scored; rows are **flagged** (`short`,
   `no_letters`, `wrong_script`), not dropped, so scores can be reported with and
   without them.
-- `eval.jsonl` = the 11 scored labels. Benchmarks never contain target test data.
+- `clean.jsonl` = the benchmark as published (every language), never mixed with our data.
+- `eval.jsonl` = the **hybrid** 11-label set that is scored: the benchmark's own
+  rows for the 8 replay labels, with its Sinhala-script rows (`sin_Sinh`, and
+  `pli_Sinh`/`san_Sinh` if any) **replaced by the whole target test split**
+  (`datasets/target_language/test`, the leakage-free successor of the old
+  `test.csv`). Every row records `origin` (`benchmark` / `target_test`); the
+  manifest `summary.hybrid` records how many benchmark rows were replaced. The
+  target rows are identical in all three hybrids, so Sinhala/Pali/Sanskrit are
+  scored on the same data everywhere and only the distractor languages differ.
+  `absent_by_design` in `labels.yaml` describes the benchmark itself.
 
 ### 03 Prepare datasets (rehearsal)
 OpenLID-v2 (Burchell et al., ACL 2023), the curated LID training set, gives the
@@ -121,9 +130,12 @@ to `datasets/audit/audit_report.md`. Any `FAIL` stops the pipeline. Checks:
 
 - **benchmarks**: files match manifests (raw and processed); labels well-formed
   and in the allowed set; all text NFC; unique `sample_id`; no duplicate
-  (text, label); eval ⊂ clean; every scored label present except declared
-  absences, and declared absences really absent; no eval text with two scored
-  labels; Arabic policy (`arb_Arab` only from raw `arb`); expected script per
+  (text, label); benchmark-origin eval rows ⊂ clean; **hybrid**: none of the
+  benchmark's own target-label rows remain, the target rows are exactly the
+  target test split, built from the current test file, and share no text with
+  benchmark rows; every scored label present except declared-absent replay
+  labels, and declared absences really absent from the benchmark; no eval text
+  with two scored labels; Arabic policy (`arb_Arab` only from raw `arb`); expected script per
   language; WiLI test split only; raw row counts equal the pins.
 - **target release**: files match manifest and the pinned release; labels, NFC,
   unique ids; units ≤ 200 characters and in Sinhala script; all three labels in
@@ -135,16 +147,19 @@ to `datasets/audit/audit_report.md`. Any `FAIL` stops the pipeline. Checks:
   no near-duplicate.
 - **contamination**: no benchmark eval text and no target test text in any
   training or validation set (exact); no replay text near-duplicating a
-  benchmark eval text (re-computed); target test disjoint from benchmarks.
+  benchmark eval text (re-computed); target test disjoint from every
+  benchmark's own rows.
 
 ### Evaluation (stages 05, 06, 08): one evaluator, one scorer
 Every model is scored by `lidpipe/evaluate.py` on the same four sets: the target
-test split and the 11-label eval subsets of FLORES+, WiLI-2018 and CommonLID.
+test split alone, and the hybrid 11-label eval sets of FLORES+, WiLI-2018 and
+CommonLID (benchmark replay-label rows + the target test split).
 - Predictions are unrestricted and mapped by `canonical_prediction`
   (`lidpipe/labels.py`); a script-less output (`sa`) takes the input's script.
 - One-vs-rest F1 per label; labels absent from a set are NaN and excluded from
   macro averages (never counted as 0); `macro_target3` (target test),
-  `macro_all` (benchmarks); 1000-sample bootstrap 95% CIs; scores reported on
+  `macro_all` (hybrid benchmarks, with their `macro_target3`/`macro_replay8`
+  split in the table CSVs); 1000-sample bootstrap 95% CIs; scores reported on
   all rows and on unflagged rows.
 - Per set: `predictions.csv`, `per_label.csv`, `confusion.csv`, `summary.json`.
 - `make_tables.py` builds every table **only from `predictions.csv`**, after

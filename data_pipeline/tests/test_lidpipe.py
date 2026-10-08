@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 import unicodedata
 
 import numpy as np
@@ -6,7 +7,7 @@ import pytest
 from sklearn.metrics import f1_score
 
 from lidpipe import paths
-from lidpipe.labels import SCORED, canonical_prediction, gold_language
+from lidpipe.labels import SCORED, TARGET, canonical_prediction, gold_language
 from lidpipe.metrics import per_label, summarise
 from lidpipe.stages import ORDER, select
 from lidpipe.text import normalise, script_of
@@ -84,16 +85,16 @@ def test_stage_selection():
         select(only='99')
 
 
-def _eval_rows(name):
-    path = paths.benchmark_eval(name)
+def _eval_rows(name, which='eval'):
+    path = paths.benchmark_eval(name) if which == 'eval' else paths.benchmark_clean(name)
     if not path.exists():
         pytest.skip('run stage 02 first')
     with open(path, encoding='utf-8') as f:
         return [json.loads(l) for l in f]
 
 
-def test_flores_eval_is_script_qualified_and_has_native_sinhala():
-    rows = _eval_rows('flores_plus')
+def test_flores_is_script_qualified_and_has_native_sinhala():
+    rows = _eval_rows('flores_plus', 'clean')   # the benchmark as published
     labels = {r['label'] for r in rows}
     assert {'sin_Sinh', 'san_Deva', 'arb_Arab'} <= labels
     assert all(r['label_raw'] == 'arb' and script_of(r['text']) == 'Arab' for r in rows if r['label'] == 'arb_Arab')
@@ -101,10 +102,24 @@ def test_flores_eval_is_script_qualified_and_has_native_sinhala():
 
 
 def test_wili_is_test_split_only_without_arabic():
-    rows = _eval_rows('wili_2018')
+    rows = _eval_rows('wili_2018', 'clean')
     assert all(r['sample_id'].startswith('wili_2018:test:') for r in rows)
     assert 'arb_Arab' not in {r['label'] for r in rows}
     assert sum(r['label'] == 'sin_Sinh' for r in rows) == 500
+
+
+def test_hybrid_eval_replaces_benchmark_sinhala_with_target_test():
+    test_file = paths.TARGET / 'test' / 'test.jsonl'
+    if not test_file.exists():
+        pytest.skip('run stage 01 first')
+    with open(test_file, encoding='utf-8') as f:
+        target = Counter((r['sample_id'], r['label']) for r in map(json.loads, f))
+    for name in paths.BENCHMARK_NAMES:
+        rows = _eval_rows(name)
+        own = [r for r in rows if r['origin'] == 'benchmark']
+        assert not [r for r in own if r['label'] in TARGET]          # benchmark's Sinhala rows removed
+        assert Counter((r['sample_id'], r['label']) for r in rows if r['origin'] == 'target_test') == target
+        assert {r['origin'] for r in rows} == {'benchmark', 'target_test'}
 
 
 def test_benchmark_eval_text_is_nfc_and_scored():

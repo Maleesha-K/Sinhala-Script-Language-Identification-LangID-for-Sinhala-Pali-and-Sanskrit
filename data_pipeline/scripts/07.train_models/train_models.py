@@ -10,7 +10,7 @@ import json
 
 from lidpipe import config, paths
 from lidpipe.env import flag, load_env
-from lidpipe.manifest import sha256_file, write_manifest
+from lidpipe.manifest import content_fingerprint, write_manifest
 from lidpipe.models import REGISTRY, base_checkpoint, selected
 from lidpipe.models.trainers import TRAINERS
 from lidpipe.training import PHASE_DIRS, model_dir, select
@@ -22,10 +22,10 @@ GPU_ONLY = {'xlmr'}
 
 
 def protocol_hash(family):
-    data = [paths.TARGET / 'manifest.json', paths.FINETUNE / 'replay_mixed' / 'manifest.json']
+    # Training data content only: evaluation sets do not affect training.
     blob = {'training': {k: v for k, v in cfg['training'].items() if k != 'lr_grid'},
             'grid': cfg['training']['lr_grid'][family], 'smoke': cfg.get('smoke', False),
-            'data': [sha256_file(p) for p in data]}
+            'data': content_fingerprint([paths.TARGET, paths.FINETUNE / 'replay_mixed'])}
     return hashlib.sha256(json.dumps(blob, sort_keys=True).encode()).hexdigest()
 
 

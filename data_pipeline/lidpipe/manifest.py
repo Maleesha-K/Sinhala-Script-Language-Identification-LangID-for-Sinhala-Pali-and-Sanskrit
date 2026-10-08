@@ -61,6 +61,16 @@ def write_manifest(directory, stage, files, extra=None, readonly=True):
     return manifest
 
 
+def content_fingerprint(directories):
+    """sha256 over the file hashes recorded in each directory's manifest. Unlike
+    the manifest file itself it ignores timestamps, so a re-run that produces
+    identical data keeps the same fingerprint (used for resume decisions)."""
+    import hashlib
+    blob = {str(Path(d).relative_to(paths.ROOT)): {f: e['sha256'] for f, e in read_manifest(d)['files'].items()}
+            for d in directories}
+    return hashlib.sha256(json.dumps(blob, sort_keys=True).encode()).hexdigest()
+
+
 def read_manifest(directory):
     return json.loads((Path(directory) / 'manifest.json').read_text(encoding='utf-8'))
 

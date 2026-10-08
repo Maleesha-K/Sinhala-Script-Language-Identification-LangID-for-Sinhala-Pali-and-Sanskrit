@@ -10,8 +10,10 @@ Tables (CSV + Markdown + LaTeX) in datasets/benchmark_results/tables/:
   table3_rehearsal        fine-tuned on target + replay data, with forgetting (delta vs zero-shot)
   per_label_<phase>_<set> F1 of all 11 labels for every model
 Columns: target-test macro F1 over the 3 target labels and its per-label F1, then
-each benchmark's macro F1 over the scored labels present in it. 95% bootstrap CIs
-are in the CSVs and the Markdown.
+each hybrid benchmark's macro F1 over the scored labels present in it (the
+benchmark's replay-label rows + the target test split in place of its own
+Sinhala-script rows). The CSVs also split each hybrid benchmark into its
+target-3 and replay-8 macro F1. 95% bootstrap CIs are in the CSVs and the Markdown.
 """
 import json
 import sys
@@ -21,7 +23,7 @@ import pandas as pd
 from lidpipe import paths
 from lidpipe.evaluate import PHASES, eval_set_paths
 from lidpipe.labels import SCORED, TARGET
-from lidpipe.manifest import prepare_output, write_manifest
+from lidpipe.manifest import prepare_output, sha256_file, write_manifest
 from lidpipe.metrics import per_label, summarise
 
 OUT = paths.RESULTS / 'tables'
@@ -31,7 +33,8 @@ NAMES = {'nllb_lid218': 'NLLB-218 (fastText)', 'glotlid_v3': 'GlotLID v3', 'open
          'lid176': 'fastText LID-176', 'conlid': 'ConLID', 'xlmr': 'XLM-R LangID (papluca)',
          'nb': 'Multinomial NB', 'svm': 'Linear SVM', 'logreg': 'Char n-gram LogReg', 'xgboost': 'XGBoost',
          'fasttext_scratch': 'fastText (scratch)', 'char_cnn': 'Char-CNN', 'char_bigru': 'Char-BiGRU'}
-failures, sample_sets = [], {}
+failures, sample_sets, stale = [], {}, {}
+CURRENT = {es: sha256_file(p) for es, p in eval_set_paths().items()}
 
 
 def results(phase):
@@ -40,7 +43,13 @@ def results(phase):
     found = {}
     for summary in sorted(root.rglob('summary.json')):
         d = summary.parent
-        found.setdefault(str(d.parent.relative_to(root)), {})[d.name] = d
+        model = str(d.parent.relative_to(root))
+        # Scored on an older version of this eval set (e.g. before the hybrid
+        # benchmarks): left out of the tables and listed, never mixed in.
+        if json.loads(summary.read_text(encoding='utf-8')).get('eval_file_sha256') != CURRENT.get(d.name):
+            stale.setdefault(f'{phase}/{model}', []).append(d.name)
+            continue
+        found.setdefault(model, {})[d.name] = d
     return found
 
 
@@ -89,12 +98,16 @@ def build(phase, title, zero_shot=None):
             else:
                 row[f'{es}_macro_f1'] = saved['macro_all']
                 row[f'{es}_macro_f1_ci'] = saved['macro_all_ci95']
+                row[f'{es}_target3_macro_f1'] = saved['macro_target3']
+                row[f'{es}_replay8_macro_f1'] = saved['macro_replay8']
                 if zero_shot is not None and model.split('/')[-1] in zero_shot.index:
                     row[f'{es}_delta_vs_zero_shot'] = saved['macro_all'] - zero_shot.loc[model.split('/')[-1],
                                                                                           f'{es}_macro_f1']
         rows.append(row)
     df = pd.DataFrame(rows)
-    if df.empty:
+    if df.empty:  # remove tables from an earlier run so they cannot be mistaken for current ones
+        for f in [*OUT.glob(f'{title}.*'), *OUT.glob(f'per_label_{title}_*.csv')]:
+            prepare_output(f)
         return df, per_set
     df = df.set_index('model')
     files = []
@@ -140,14 +153,19 @@ build('rehearsal', 'table3_rehearsal', zero_shot=z_index)
 
 report = ['# Results', '', 'All numbers recomputed from per-sample predictions; '
           'target macro-F1 is over sin_Sinh, pli_Sinh, san_Sinh on the held-out target test split; '
-          'benchmark macro-F1 is over the scored labels present in that benchmark '
-          '(absent labels are excluded, never counted as 0). Δ = change vs the same model zero-shot.', '']
+          'benchmark macro-F1 is over the scored labels present in the hybrid benchmark set, i.e. the '
+          "benchmark's own rows for the replay labels plus the target test split in place of its "
+          'Sinhala-script rows (absent labels are excluded, never counted as 0). '
+          'Δ = change vs the same model zero-shot.', '']
 for t in ('table0_baselines', 'table1_zero_shot', 'table2_target_only', 'table3_rehearsal'):
     f = OUT / f'{t}.md'
     report += [f.read_text(encoding='utf-8') if f.exists() else f'## {t}\n\n(no results yet)', '']
 pending = [f'{m}' for m in ('xlmr',) if not (paths.RESULTS / PHASES['rehearsal'] / m).exists()]
 if pending:
     report += ['Pending (not trained yet): ' + ', '.join(NAMES[m] for m in pending), '']
+if stale:
+    report += ['Left out (scored on an older version of the eval set; re-run the stage that produced them): '
+               + '; '.join(f'{m} ({", ".join(v)})' for m, v in stale.items()), '']
 if failures:
     report += ['## Consistency check FAILURES', ''] + [f'- {f}' for f in failures]
 else:

@@ -53,7 +53,11 @@ def common_row_checks(section, rows, allowed):
 
 
 # ---------------------------------------------------------------- benchmarks
-eval_rows, report['benchmarks'] = {}, {}
+# eval.jsonl is the hybrid set: the benchmark's own replay-label rows plus the
+# whole target test split in place of the benchmark's Sinhala-script rows.
+target_test_rows = read(paths.TARGET / 'test' / 'test.jsonl')
+target_test_ids = Counter((r['sample_id'], r['text_sha256'], r['label']) for r in target_test_rows)
+eval_rows, own_rows, report['benchmarks'] = {}, {}, {}
 for name in paths.BENCHMARK_NAMES:
     sec = f'benchmark/{name}'
     problems = verify_manifest(paths.benchmark_dir(name)) + verify_manifest(paths.benchmark_raw(name))
@@ -63,13 +67,32 @@ for name in paths.BENCHMARK_NAMES:
     common_row_checks(f'{sec}/eval', ev, SCORED)
     n = sum(v - 1 for v in Counter((r['text_sha256'], r['label']) for r in clean).values())
     check(sec, 'no duplicate (text, label) rows', not n, f'{n} duplicates')
+    origins = Counter(r.get('origin') for r in ev)
+    check(sec, 'every eval row has origin benchmark or target_test',
+          set(origins) <= {'benchmark', 'target_test'}, dict(origins))
+    own = [r for r in ev if r.get('origin') == 'benchmark']
+    hyb = [r for r in ev if r.get('origin') == 'target_test']
     clean_ids = {r['sample_id'] for r in clean}
-    check(sec, 'eval is a subset of clean', all(r['sample_id'] in clean_ids for r in ev))
-    present = {r['label'] for r in ev}
+    check(sec, 'benchmark-origin eval rows are a subset of clean', all(r['sample_id'] in clean_ids for r in own))
+    n = sum(1 for r in own if r['label'] in TARGET)
+    check(sec, "hybrid: none of the benchmark's own Sinhala-script target rows remain", not n, f'{n} rows')
+    got = Counter((r['sample_id'], r['text_sha256'], r['label']) for r in hyb)
+    check(sec, 'hybrid: target rows are exactly the target test split', got == target_test_ids,
+          f'{len(hyb)} rows vs {len(target_test_rows)} in target test')
+    n = len({r['text_sha256'] for r in own} & {r['text_sha256'] for r in hyb})
+    check(sec, 'hybrid: no benchmark row shares text with a target test row', not n, f'{n} texts')
     absent = ABSENT_BY_DESIGN.get(name, set())
-    check(sec, 'every scored label present (except declared absent)', not (set(SCORED) - present - absent),
-          sorted(set(SCORED) - present - absent) or f'absent by design: {sorted(absent)}')
-    check(sec, 'declared-absent labels really absent', not (present & absent), sorted(present & absent))
+    own_scored = {r['label'] for r in clean if r['label'] in SCORED}
+    check(sec, 'declared-absent labels really absent from the benchmark itself', not (own_scored & absent),
+          sorted(own_scored & absent) or f'absent by design: {sorted(absent)}')
+    present = {r['label'] for r in ev}
+    missing = set(SCORED) - present - (absent - set(TARGET))
+    check(sec, 'every scored label present in the hybrid eval set (except declared-absent replay labels)',
+          not missing, sorted(missing) or sorted(present))
+    manifest = json.loads((paths.benchmark_dir(name) / 'manifest.json').read_text())
+    check(sec, 'hybrid built from the current target test file',
+          manifest['summary']['hybrid']['target_test_file_sha256'] == sha256_file(paths.TARGET / 'test' / 'test.jsonl'))
+    info(sec, "benchmark's own target-label rows replaced", manifest['summary']['hybrid']['benchmark_rows_replaced'])
     ambiguous = sum(1 for r in ev if set(r['other_labels']) & set(SCORED))
     check(sec, 'no eval text carries two scored labels', not ambiguous, f'{ambiguous} rows')
     arb = [r for r in ev if r['label'] == 'arb_Arab']
@@ -84,21 +107,22 @@ for name in paths.BENCHMARK_NAMES:
         n = sum(1 for r in clean if not r['sample_id'].startswith('wili_2018:test:'))
         check(sec, 'WiLI rows come from the test split only', not n, f'{n} non-test rows')
     expected = config.locks()[name]['expected_rows']
-    raw_rows = json.loads((paths.benchmark_dir(name) / 'manifest.json').read_text())['summary']['stats']['raw_rows']
+    raw_rows = manifest['summary']['stats']['raw_rows']
     check(sec, 'raw row count equals pinned count', raw_rows == expected, f'{raw_rows} vs {expected}')
     counts = Counter(r['label'] for r in ev)
     flags = defaultdict(Counter)
     for r in ev:
         flags[r['label']].update(r['flags'])
     report['benchmarks'][name] = {
-        'clean_rows': len(clean), 'eval_rows': len(ev),
+        'clean_rows': len(clean), 'eval_rows': len(ev), 'eval_origin': dict(origins),
         'eval': {l: {'rows': counts.get(l, 0), **flags[l]} for l in SCORED}}
-    eval_rows[name] = ev
+    eval_rows[name], own_rows[name] = ev, own
 
 eval_hashes = {n: {r['text_sha256'] for r in rows} for n, rows in eval_rows.items()}
-for i, a in enumerate(eval_hashes):
-    for b in list(eval_hashes)[i + 1:]:
-        info('benchmarks', f'overlap {a} ~ {b}', f'{len(eval_hashes[a] & eval_hashes[b])} shared eval texts')
+own_hashes = {n: {r['text_sha256'] for r in rows} for n, rows in own_rows.items()}
+for i, a in enumerate(own_hashes):
+    for b in list(own_hashes)[i + 1:]:
+        info('benchmarks', f'overlap {a} ~ {b} (benchmark rows)', f'{len(own_hashes[a] & own_hashes[b])} shared texts')
 
 # ------------------------------------------------------------ target release
 sec = 'target'
@@ -185,8 +209,8 @@ for label in REPLAY:
     n = len(near_matches(q, refs, nd['shingle'], nd['num_perm'], nd['threshold'])) if refs else 0
     report['contamination'][f'replay {label} near-dup'] = n
     check(sec, f'replay {label}: no near-duplicate of a benchmark eval text', not n, f'{n} rows')
-n = len(target_test & all_eval)
-check(sec, 'target test shares no text with any benchmark eval set', not n, f'{n} texts')
+n = len(target_test & set().union(*own_hashes.values()))
+check(sec, "target test shares no text with any benchmark's own eval rows", not n, f'{n} texts')
 
 # ------------------------------------------------------------------ report
 failed = [c for c in checks if c['status'] == 'FAIL']
@@ -200,7 +224,10 @@ md = ['# Dataset audit', '',
       '## Checks', '', '| status | section | check | detail |', '|---|---|---|---|']
 md += [f'| {c["status"]} | {c["section"]} | {c["check"]} | {c["detail"][:160].replace("|", "/")} |' for c in checks]
 for name, b in report['benchmarks'].items():
-    md += ['', f'## Benchmark {name}', '', f'clean rows {b["clean_rows"]:,}; eval rows {b["eval_rows"]:,}', '',
+    md += ['', f'## Benchmark {name} (hybrid eval set)', '',
+           f'clean rows {b["clean_rows"]:,}; eval rows {b["eval_rows"]:,} '
+           f'({b["eval_origin"].get("benchmark", 0):,} from the benchmark, '
+           f'{b["eval_origin"].get("target_test", 0):,} from the target test split)', '',
            '| label | rows | short | no_letters | wrong_script |', '|---|---:|---:|---:|---:|']
     md += [f'| {l} | {e["rows"]} | {e.get("short", 0)} | {e.get("no_letters", 0)} | {e.get("wrong_script", 0)} |'
            for l, e in b['eval'].items()]

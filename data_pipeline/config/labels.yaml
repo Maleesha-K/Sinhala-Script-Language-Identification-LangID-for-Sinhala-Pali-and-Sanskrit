@@ -37,8 +37,10 @@ gold_overrides:
   commonlid: {}
   flores_plus: {}
 
-# Benchmarks that legitimately lack a scored label. Anything else missing
-# aborts stage 02, because a silently vanishing label is normally a bug.
+# Scored labels the benchmark itself (as published) legitimately lacks. Anything
+# else missing aborts stage 02, because a silently vanishing label is normally a
+# bug. Checked on the benchmark's own rows: in the scored hybrid eval sets the
+# three target labels always come from our target test split instead.
 absent_by_design:
   flores_plus: [pli_Sinh, san_Sinh]
   wili_2018: [pli_Sinh, san_Sinh, arb_Arab]

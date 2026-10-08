@@ -1,11 +1,13 @@
 """The one evaluation routine for every model and phase.
 
 Each model is scored on the same four evaluation sets: the target test split
-(Sinhala/Pali/Sanskrit, Sinhala script) and the 11-label eval subsets of
-FLORES+, WiLI-2018 and CommonLID. Predictions are unrestricted (a model may
+alone (Sinhala/Pali/Sanskrit, Sinhala script), and the hybrid 11-label eval
+sets of FLORES+, WiLI-2018 and CommonLID, in which each benchmark's own
+Sinhala-script rows are replaced by that same target test split
+(lidpipe.benchmarks). Predictions are unrestricted (a model may
 output any of its labels) and mapped through lidpipe.labels.canonical_prediction.
 Per set this writes:
-    predictions.csv  sample_id, text_sha256, gold, prediction_raw, prediction, confidence, flagged
+    predictions.csv  sample_id, text_sha256, origin, gold, prediction_raw, prediction, confidence, flagged
     per_label.csv    precision / recall / F1 / support / tp / fp / fn per scored label
     confusion.csv    gold x prediction counts
     summary.json     accuracy + macro F1s with bootstrap CIs, on all rows and on unflagged rows
@@ -18,7 +20,7 @@ import pandas as pd
 
 from . import config, paths
 from .labels import canonical_prediction
-from .manifest import prepare_output, write_manifest
+from .manifest import prepare_output, sha256_file, write_manifest
 from .metrics import per_label, summarise
 
 PHASES = {'baselines': '00_traditional_ml_baselines', 'zero_shot': '01_zero_shot',
@@ -64,6 +66,7 @@ def evaluate(model_name, phase, predict, metadata=None):
         out = out_root / name
         frame = pd.DataFrame({'sample_id': [r['sample_id'] for r in rows],
                               'text_sha256': [r['text_sha256'] for r in rows],
+                              'origin': [r.get('origin', 'target_test') for r in rows],
                               'gold': gold, 'prediction_raw': raw, 'prediction': pred,
                               'confidence': conf, 'flagged': flagged})
         p = prepare_output(out / 'predictions.csv')
@@ -78,6 +81,7 @@ def evaluate(model_name, phase, predict, metadata=None):
         files.append(p)
         clean = frame[~frame.flagged]
         summary = {'eval_set': name, 'model': model_name, 'phase': phase, 'smoke': smoke,
+                   'eval_file_sha256': sha256_file(path),   # results from an older eval set are stale
                    'all_rows': summarise(gold, pred, boot['resamples'], boot['seed']),
                    'unflagged_rows': summarise(clean.gold.tolist(), clean.prediction.tolist(),
                                                boot['resamples'], boot['seed']),

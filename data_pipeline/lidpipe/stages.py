@@ -57,7 +57,8 @@ STAGES = [
         '02.preprocess/preprocess_flores_plus.py',
         '02.preprocess/preprocess_commonlid.py',
         '02.preprocess/preprocess_wili_2018.py',
-    ], disk_gb=2, inputs=BENCH_RAW, outputs=BENCH_DIRS, uses_labels=True, pipeline_keys=['preprocess'],
+    ], disk_gb=2, inputs=BENCH_RAW + [paths.TARGET],   # target test is merged into each eval set
+       outputs=BENCH_DIRS, uses_labels=True, pipeline_keys=['preprocess'],
        reports=[d / 'manifest.json' for d in BENCH_DIRS]),
     Stage('03', 'prepare_datasets', ['03.prepare_datasets/prepare_replay.py'],
           disk_gb=2, inputs=BENCH_DIRS + [paths.TARGET, OPENLID_RAW], outputs=[REPLAY_MIXED],
