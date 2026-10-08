@@ -108,6 +108,14 @@ services:
     <<: *backend
     command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "celery", "-c", "${CELERY_CONCURRENCY:-1}", "--loglevel=info"]
 
+  # Tesseract OCR, apart from classification so that pages already read are
+  # classified while the rest of the document is still being OCR'd. It loads
+  # no classification models (~0.3 GB).
+  celery_ocr_worker:
+    <<: *backend
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "-Q", "ocr", "-c", "${OCR_CONCURRENCY:-1}", "-n", "ocr@%h", "--loglevel=info"]
+    volumes: []
+
   # Surya OCR on CPU. One process only: it holds ~5 GB of models in RAM and
   # needs no classification models.
   celery_surya_worker:

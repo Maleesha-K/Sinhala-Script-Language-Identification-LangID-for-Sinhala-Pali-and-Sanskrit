@@ -1,13 +1,41 @@
-import time
+import io
+import logging
+from decimal import Decimal
 from uuid import UUID
 from app.workers.celery_app import celery_app
 from app.db.session import async_session_maker
 from app.db.models.document import Document, UploadStatus
+from app.utils.events import document_channel, job_payload, page_payload, publish
 from sqlalchemy import select
 import asyncio
 
+logger = logging.getLogger(__name__)
+
+
+async def _queue_page_classification(session, owner_id, document_id, page, model_name, channel):
+    """Classify a page as soon as it is OCR'd, in its own job on the default queue."""
+    from app.db.models.classification_job import ClassificationJob, JobStatus
+    from app.workers.tasks.classification_tasks import process_classification_job
+
+    job = ClassificationJob(
+        user_id=owner_id,
+        document_id=document_id,
+        page_number=page.page_number,
+        input_text=page.extracted_text,
+        model_name=model_name,
+        segmentation_strategy="sentence",
+        status=JobStatus.QUEUED,
+        error_message=None,
+    )
+    session.add(job)
+    await session.commit()
+    publish(channel, {"type": "page_job", "page_number": page.page_number, "job": job_payload(job)})
+    process_classification_job.delay(str(job.id))
+
+
 async def _process_document_async(document_id: str):
-    """Async internal function to update DB using SQLAlchemy."""
+    """OCR a document page by page. Each page is saved and published as soon as
+    it is read, and queued for classification when the document has a model."""
     doc_uuid = UUID(document_id)
     async with async_session_maker() as session:
         result = await session.execute(select(Document).where(Document.id == doc_uuid))
@@ -20,7 +48,6 @@ async def _process_document_async(document_id: str):
         import fitz
         from PIL import Image
         from app.ocr.registry import get_ocr_engine
-        import io
         from app.db.models.document_page import DocumentPage, ExtractionMethod, PageStatus
 
         from app.services.credit_service import credit_service
@@ -29,65 +56,112 @@ async def _process_document_async(document_id: str):
         # Read before any rollback: expired attributes cannot lazy-load in async.
         owner_id = doc.user_id
         engine_id = doc.ocr_engine
+        lid_model = doc.lid_model
+        channel = document_channel(document_id)
+
+        def publish_document(status: UploadStatus, message: str = ""):
+            publish(channel, {"type": "document", "status": status.value, "message": message})
+
+        def publish_page(page):
+            publish(channel, {"type": "page", "page": page_payload(page)})
+
+        async def finish(status: UploadStatus, message: str = ""):
+            await session.refresh(doc)
+            doc.upload_status = status
+            await session.commit()
+            publish_document(status, message)
 
         async def mark_failed(message: str, refund: bool = False):
             # Drop any pages added by the failed run before recording the failure.
             await session.rollback()
             if refund:
                 await credit_service.refund_ocr(session, owner_id, doc_uuid)
-            doc.upload_status = UploadStatus.FAILED
-            await session.commit()
-            await engine.dispose()
+            await finish(UploadStatus.FAILED, message)
             return {"status": "error", "message": message}
 
-        # Fetch PDF from MinIO
-        doc_bytes = storage_service.get_document_bytes(doc.minio_key)
-        if not doc_bytes:
-            return await mark_failed("Could not download document from storage")
-
-        charged = False
         try:
-            pdf_document = fitz.open(stream=doc_bytes, filetype="pdf")
-            total_pages = len(pdf_document)
-            ocr_engine = get_ocr_engine(engine_id)
-            
-            # Deduct credits at the chosen engine's per-page rate
-            success = await credit_service.charge_ocr_page(
-                session, doc.user_id, doc.id, engine_id, num_pages=total_pages
-            )
-            
-            if not success:
-                return await mark_failed("Insufficient credits for OCR")
-            charged = True
-            
-            for page_num in range(total_pages):
-                page = pdf_document.load_page(page_num)
-                # Render to high-res image for OCR
-                pix = page.get_pixmap(dpi=ocr_engine.render_dpi)
-                img = Image.open(io.BytesIO(pix.tobytes()))
-                
-                extracted_text = ocr_engine.extract_text(img)
-                
-                doc_page = DocumentPage(
-                    document_id=doc.id,
-                    page_number=page_num + 1,
-                    extracted_text=extracted_text.strip(),
-                    extraction_method=ExtractionMethod.OCR,
-                    ocr_model=engine_id,
-                    status=PageStatus.COMPLETED
+            # Fetch PDF from MinIO
+            doc_bytes = storage_service.get_document_bytes(doc.minio_key)
+            if not doc_bytes:
+                return await mark_failed("Could not download document from storage")
+
+            charged = False
+            try:
+                pdf_document = fitz.open(stream=doc_bytes, filetype="pdf")
+                total_pages = len(pdf_document)
+                ocr_engine = get_ocr_engine(engine_id)
+
+                # Deduct credits at the chosen engine's per-page rate
+                success = await credit_service.charge_ocr_page(
+                    session, owner_id, doc_uuid, engine_id, num_pages=total_pages
                 )
-                session.add(doc_page)
-                
-            doc.upload_status = UploadStatus.READY
-            await session.commit()
-            
+                if not success:
+                    return await mark_failed("Insufficient credits for OCR")
+                charged = True
+
+                # Every page is listed (pending) before the first is read.
+                pages = [
+                    DocumentPage(document_id=doc_uuid, page_number=n + 1, status=PageStatus.PENDING)
+                    for n in range(total_pages)
+                ]
+                session.add_all(pages)
+                await session.commit()
+                for page in pages:
+                    publish_page(page)
+            except Exception as e:
+                logger.exception("OCR setup failed for document %s", document_id)
+                # The user is not billed for an OCR run that produced nothing.
+                return await mark_failed(str(e), refund=charged)
+
+            failed = 0
+            for page in pages:
+                # A rollback below expires every loaded object; reload this one.
+                await session.refresh(page)
+                page.status = PageStatus.PROCESSING
+                await session.commit()
+                publish_page(page)
+                try:
+                    pdf_page = pdf_document.load_page(page.page_number - 1)
+                    # Render to high-res image for OCR
+                    pix = pdf_page.get_pixmap(dpi=ocr_engine.render_dpi)
+                    img = Image.open(io.BytesIO(pix.tobytes()))
+                    page.extracted_text = ocr_engine.extract_text(img).strip()
+                    page.extraction_method = ExtractionMethod.OCR
+                    page.ocr_model = engine_id
+                    page.status = PageStatus.COMPLETED
+                    await session.commit()
+                except Exception:
+                    logger.exception("OCR failed for page %s of document %s", page.page_number, document_id)
+                    await session.rollback()
+                    await session.refresh(page)
+                    page.status = PageStatus.FAILED
+                    await session.commit()
+                    publish_page(page)
+                    failed += 1
+                    continue
+                publish_page(page)
+
+                if lid_model and page.extracted_text:
+                    try:
+                        await _queue_page_classification(
+                            session, owner_id, doc_uuid, page, lid_model, channel
+                        )
+                    except Exception:
+                        logger.exception("Could not queue classification of page %s", page.page_number)
+                        await session.rollback()
+
+            # Pages that could not be read are not billed.
+            if failed:
+                await credit_service.refund_ocr(
+                    session, owner_id, doc_uuid, Decimal(failed) / Decimal(total_pages)
+                )
+            if total_pages and failed == total_pages:
+                await finish(UploadStatus.FAILED, "OCR failed on every page")
+                return {"status": "error", "message": "OCR failed on every page"}
+            await finish(UploadStatus.READY)
+            return {"status": "success", "document_id": document_id, "failed_pages": failed}
+        finally:
             await engine.dispose()
-            return {"status": "success", "document_id": document_id}
-            
-        except Exception as e:
-            print(f"OCR Error for document {document_id}: {e}")
-            # The user is not billed for an OCR run that produced nothing.
-            return await mark_failed(str(e), refund=charged)
 
 @celery_app.task(name="process_document_ocr", bind=True, max_retries=3)
 def process_document_ocr(self, document_id: str):

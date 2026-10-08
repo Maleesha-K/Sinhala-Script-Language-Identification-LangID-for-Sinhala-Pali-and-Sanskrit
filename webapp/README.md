@@ -4,6 +4,11 @@ Web platform for the Sinhala-script language identification models: users paste
 text or upload PDFs, the text is OCR'd and segmented, and each segment is
 classified as Sinhala, Pali or Sanskrit (or named as another language).
 
+Results stream: a PDF uploaded with a model is classified page by page, each
+page as soon as its OCR finishes, and the document view shows every page's
+text and highlighted languages while later pages are still being read. Pasted
+text shows its segments in batches as they are classified.
+
 Everything runs from one file, `docker-compose.yml`:
 
 | Service | What it does |
@@ -11,11 +16,16 @@ Everything runs from one file, `docker-compose.yml`:
 | `caddy` | Only public entry point. HTTPS (automatic Let's Encrypt certificate) and routing |
 | `frontend` | Next.js app. Calls the backend over the internal Docker network |
 | `backend` | FastAPI. Runs database migrations on start and creates the first admin |
-| `celery_worker` | Classification jobs and Tesseract OCR |
+| `celery_worker` | Classification jobs (holds the models) |
+| `celery_ocr_worker` | Tesseract OCR, separate so OCR never delays the classification of pages already read |
 | `celery_surya_worker` | Surya OCR jobs (CPU, one process) |
 | `db`, `redis`, `minio` | Postgres, Celery broker and job events, document storage |
 
-Caddy routes `/api/v1/*` (REST and job-progress WebSockets) to the backend,
+Workers publish progress to Redis, and the backend relays it to the browser over
+WebSockets (`/api/v1/ws/jobs/{id}`, `/api/v1/ws/documents/{id}`; the event
+format is documented in `backend/app/utils/events.py`).
+
+Caddy routes `/api/v1/*` (REST and progress WebSockets) to the backend,
 `/langid-docs/*` (signed document downloads) to MinIO, and everything else to
 the frontend. Postgres, Redis and MinIO also listen on `127.0.0.1` for local
 development; they are never exposed publicly.
@@ -173,7 +183,8 @@ docker run --rm -v webapp_minio_data:/data -v "$PWD":/backup alpine \
 | `.env` | Default | Effect |
 |---|---|---|
 | `API_WORKERS` | 2 | Uvicorn processes. Each uses ~0.2-0.4 GB |
-| `CELERY_CONCURRENCY` | 1 | Parallel classification/Tesseract jobs. Each process loads its own copy of the models (up to ~5.9 GB), so raise it only with RAM to spare |
+| `CELERY_CONCURRENCY` | 1 | Parallel classification jobs. Each process loads its own copy of the models (up to ~5.9 GB), so raise it only with RAM to spare |
+| `OCR_CONCURRENCY` | 1 | Parallel Tesseract OCR runs (~0.3 GB each, CPU-bound) |
 
 To run without Surya OCR, stop its worker (`docker compose stop
 celery_surya_worker`). Jobs that request Surya then wait in the queue, so tell

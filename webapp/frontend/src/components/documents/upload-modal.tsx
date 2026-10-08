@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, UploadCloud, ScanText, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,12 +23,19 @@ import type { OCREngine } from "@/lib/ocr-engines";
 
 import { buttonVariants } from "@/components/ui/button";
 
-export function UploadModal({ onUploadSuccess }: { onUploadSuccess: () => void }) {
+type ModelInfo = { id: string; label: string; is_baseline: boolean; available: boolean };
+
+// Select value for "do not classify the pages".
+const OCR_ONLY = "none";
+
+export function UploadModal({ onUploadSuccess }: { onUploadSuccess: (document: { id: string }) => void }) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [engines, setEngines] = useState<OCREngine[]>([]);
   const [engineId, setEngineId] = useState<string>("tesseract");
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [modelId, setModelId] = useState<string>(OCR_ONLY);
 
   useEffect(() => {
     if (!open) return;
@@ -41,6 +51,30 @@ export function UploadModal({ onUploadSuccess }: { onUploadSuccess: () => void }
       })
       .catch(() => {
         if (!cancelled) toast.error("Could not load OCR engines; using Tesseract.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    axios
+      .get("/api/classification/models")
+      .then((res) => {
+        if (cancelled) return;
+        const list: ModelInfo[] = (res.data?.data ?? []).filter((m: ModelInfo) => m.available);
+        setModels(list);
+        // Classify with the baseline unless the user picked something else.
+        setModelId((current) =>
+          current !== OCR_ONLY && list.some((m) => m.id === current)
+            ? current
+            : (list.find((m) => m.is_baseline) ?? list[0])?.id ?? OCR_ONLY,
+        );
+      })
+      .catch(() => {
+        /* OCR only */
       });
     return () => {
       cancelled = true;
@@ -67,6 +101,7 @@ export function UploadModal({ onUploadSuccess }: { onUploadSuccess: () => void }
     const formData = new FormData();
     formData.append("file", file);
     formData.append("ocr_engine", engineId);
+    if (modelId !== OCR_ONLY) formData.append("lid_model", modelId);
 
     try {
       const res = await fetch("/api/documents", {
@@ -78,11 +113,12 @@ export function UploadModal({ onUploadSuccess }: { onUploadSuccess: () => void }
         const errorData = await res.json();
         throw new Error(errorData.detail || "Upload failed");
       }
+      const created = await res.json();
 
       toast.success("Document uploaded successfully");
       setOpen(false);
       setFile(null);
-      onUploadSuccess();
+      onUploadSuccess(created);
     } catch (error: any) {
       toast.error(error.message || "Failed to upload document");
     } finally {
@@ -144,6 +180,27 @@ export function UploadModal({ onUploadSuccess }: { onUploadSuccess: () => void }
               </div>
             </div>
           )}
+          <div className="space-y-2">
+            <Label>Language identification</Label>
+            <Select value={modelId} onValueChange={(value) => setModelId(value ?? OCR_ONLY)}>
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(value: string) =>
+                    value === OCR_ONLY ? "OCR only" : models.find((m) => m.id === value)?.label ?? value
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                ))}
+                <SelectItem value={OCR_ONLY}>OCR only</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground leading-snug">
+              Each page is classified as soon as its text is read, so results appear page by page.
+            </p>
+          </div>
           <Button type="submit" className="w-full" disabled={uploading || !file}>
             {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Upload & Process

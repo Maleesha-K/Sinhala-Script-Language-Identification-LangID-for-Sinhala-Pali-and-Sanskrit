@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
 import {
-  Loader2, ArrowLeft, Languages, FileText, Download, ChevronDown, Cpu, Sparkles,
+  Loader2, ArrowLeft, Languages, FileText, Download, ChevronDown, Cpu, Sparkles, Clock, XCircle,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -19,6 +19,10 @@ import {
 import { PageHeader } from "@/components/layout/page-header";
 import { cn } from "@/lib/utils";
 import { ocrEngineLabel, type OCREngine } from "@/lib/ocr-engines";
+import { useLiveChannel, type LiveEvent } from "@/lib/live";
+import {
+  DEFAULT_CORRECTION_LANGUAGES, LANG_STYLES, LanguageLegend, SegmentText, mergeSegments, type Segment,
+} from "@/components/classification/segments";
 
 type ModelInfo = {
   id: string;
@@ -27,15 +31,32 @@ type ModelInfo = {
   family: string;
   is_baseline: boolean;
   available: boolean;
+  correction_languages?: string[];
 };
+
+type DocumentStatus = "uploading" | "ready" | "failed" | "deleted";
 
 type Document = {
   id: string;
   filename: string;
-  upload_status: string;
+  upload_status: DocumentStatus;
   ocr_engine: string;
+  lid_model: string | null;
   size_bytes: number;
   created_at: string;
+};
+
+type JobStatus = "queued" | "processing" | "completed" | "failed";
+
+/** A page's classification job, as the backend serializes it. */
+type PageClassification = {
+  id: string;
+  status: JobStatus;
+  model_name: string;
+  error_message: string | null;
+  done: number | null;
+  total: number | null;
+  segments: Segment[];
 };
 
 type DocumentPage = {
@@ -44,8 +65,28 @@ type DocumentPage = {
   extracted_text: string | null;
   extraction_method: string | null;
   ocr_model: string | null;
-  status: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  classification: PageClassification | null;
 };
+
+type View = "languages" | "text";
+
+/** The language most of a page's segments were classified as. */
+function dominantLanguage(segments: Segment[]): string | null {
+  const counts = new Map<string, number>();
+  for (const s of segments) counts.set(s.predicted_language, (counts.get(s.predicted_language) ?? 0) + 1);
+  let best: string | null = null;
+  for (const [lang, n] of counts) if (best === null || n > (counts.get(best) ?? 0)) best = lang;
+  return best;
+}
+
+function updateClassification(
+  pages: DocumentPage[],
+  pageNumber: number,
+  update: (current: PageClassification | null) => PageClassification,
+): DocumentPage[] {
+  return pages.map((p) => (p.page_number === pageNumber ? { ...p, classification: update(p.classification) } : p));
+}
 
 export default function DocumentDetailsPage() {
   const params = useParams();
@@ -55,8 +96,10 @@ export default function DocumentDetailsPage() {
   const [document, setDocument] = useState<Document | null>(null);
   const [pages, setPages] = useState<DocumentPage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settled, setSettled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<number>(1);
+  const [activePageNumber, setActivePageNumber] = useState<number | null>(null);
+  const [view, setView] = useState<View | null>(null);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [engines, setEngines] = useState<OCREngine[]>([]);
@@ -86,31 +129,78 @@ export default function DocumentDetailsPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        const [docRes, pagesRes] = await Promise.all([
-          axios.get(`/api/documents/${documentId}`),
-          axios.get(`/api/documents/${documentId}/pages`)
-        ]);
-        setDocument(docRes.data);
-        setPages(pagesRes.data);
-        
-        if (pagesRes.data.length > 0) {
-          setActiveTab(pagesRes.data[0].page_number);
-        }
-      } catch (err) {
-        toast.error("Failed to load document details");
-        router.push("/dashboard/documents");
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    if (documentId) {
-      fetchDetails();
+  const load = useCallback(async () => {
+    try {
+      const [docRes, pagesRes] = await Promise.all([
+        axios.get(`/api/documents/${documentId}`),
+        axios.get(`/api/documents/${documentId}/pages`),
+      ]);
+      setDocument(docRes.data);
+      setPages(pagesRes.data);
+    } catch {
+      toast.error("Failed to load document details");
+      router.push("/dashboard/documents");
+    } finally {
+      setLoading(false);
     }
   }, [documentId, router]);
+
+  useEffect(() => {
+    if (documentId) load();
+  }, [documentId, load]);
+
+  // OCR pages and their classifications stream in until the server reports
+  // that nothing is left to wait for.
+  useLiveChannel({
+    path: `/ws/documents/${documentId}`,
+    enabled: !!documentId && !settled,
+    load,
+    onEvent: (event: LiveEvent) => {
+      switch (event.type) {
+        case "document":
+          setDocument((prev) => (prev ? { ...prev, upload_status: event.status as DocumentStatus } : prev));
+          break;
+        case "page": {
+          const page = event.page as Omit<DocumentPage, "classification">;
+          setPages((prev) => {
+            const existing = prev.find((p) => p.page_number === page.page_number);
+            const merged = { ...page, classification: existing?.classification ?? null };
+            return existing
+              ? prev.map((p) => (p.page_number === page.page_number ? merged : p))
+              : [...prev, merged].sort((a, b) => a.page_number - b.page_number);
+          });
+          break;
+        }
+        case "page_job": {
+          const job = event.job as Omit<PageClassification, "segments">;
+          setPages((prev) => updateClassification(prev, event.page_number as number, (current) => {
+            const same = current?.id === job.id;
+            return {
+              ...job,
+              done: job.done ?? (same ? current?.done ?? null : null),
+              total: job.total ?? (same ? current?.total ?? null : null),
+              segments: same ? current?.segments ?? [] : [],
+            };
+          }));
+          break;
+        }
+        case "page_segments": {
+          const jobId = event.job_id as string;
+          setPages((prev) => updateClassification(prev, event.page_number as number, (current) => {
+            const base: PageClassification = current?.id === jobId
+              ? current
+              : { id: jobId, status: "processing", model_name: document?.lid_model ?? "", error_message: null, done: null, total: null, segments: [] };
+            return { ...base, segments: mergeSegments(base.segments, event.segments as Segment[]) };
+          }));
+          break;
+        }
+        case "settled":
+          setSettled(true);
+          break;
+      }
+    },
+    isFinal: (event) => event.type === "settled",
+  });
 
   const handleIdentifyLanguage = async (modelName: string) => {
     // Combine text from all pages
@@ -118,7 +208,7 @@ export default function DocumentDetailsPage() {
       .map(p => p.extracted_text || "")
       .filter(t => t.trim().length > 0)
       .join("\n\n");
-      
+
     if (!fullText) {
       toast.error("No text found in this document to analyze.");
       return;
@@ -167,15 +257,24 @@ export default function DocumentDetailsPage() {
 
   if (!document) return null;
 
-  const activePage = pages.find(p => p.page_number === activeTab);
+  const activePage = pages.find((p) => p.page_number === (activePageNumber ?? pages[0]?.page_number));
+  const activeView: View = view ?? (activePage?.classification ? "languages" : "text");
   const totalExtractedChars = pages.reduce((acc, p) => acc + (p.extracted_text?.length || 0), 0);
+  const pagesRead = pages.filter((p) => p.status === "completed" || p.status === "failed").length;
+  const pagesClassified = pages.filter((p) => p.classification?.status === "completed").length;
+  const pagesToClassify = pages.filter((p) => p.classification).length;
+  const lidModel = models.find((m) => m.id === document.lid_model);
+  const correctionLanguages = lidModel?.correction_languages?.length
+    ? lidModel.correction_languages
+    : DEFAULT_CORRECTION_LANGUAGES;
+  const processing = document.upload_status === "uploading";
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-4 mb-2">
-        <Button 
-          variant="ghost" 
-          size="sm" 
+        <Button
+          variant="ghost"
+          size="sm"
           className="text-muted-foreground hover:text-foreground -ml-2"
           onClick={() => router.push("/dashboard/documents")}
         >
@@ -186,7 +285,7 @@ export default function DocumentDetailsPage() {
 
       <PageHeader
         title={document.filename}
-        description={`Uploaded on ${new Date(document.created_at).toLocaleDateString()} • ${(document.size_bytes / 1024 / 1024).toFixed(2)} MB • ${pages.length} Pages • OCR: ${ocrEngineLabel(engines, document.ocr_engine)}`}
+        description={`Uploaded on ${new Date(document.created_at).toLocaleDateString()} • ${(document.size_bytes / 1024 / 1024).toFixed(2)} MB • ${pages.length} Pages • OCR: ${ocrEngineLabel(engines, document.ocr_engine)}${lidModel ? ` • Languages: ${lidModel.label}` : ""}`}
         actions={
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={handleDownload} className="gap-2">
@@ -196,11 +295,11 @@ export default function DocumentDetailsPage() {
             {/* base-ui DropdownMenu doesn't use asChild */}
             <DropdownMenu>
               <DropdownMenuTrigger
-                disabled={submitting || pages.length === 0}
-                className={cn(buttonVariants(), "gap-2 bg-emerald-600 hover:bg-emerald-700")}
+                disabled={submitting || processing || pages.length === 0}
+                className={cn(buttonVariants({ variant: document.lid_model ? "outline" : "default" }), "gap-2", !document.lid_model && "bg-emerald-600 hover:bg-emerald-700")}
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4" />}
-                Identify Language
+                {document.lid_model ? "Classify Whole Document" : "Identify Language"}
                 <ChevronDown className="h-4 w-4 opacity-80" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72">
@@ -248,6 +347,21 @@ export default function DocumentDetailsPage() {
         }
       />
 
+      {(processing || (pagesToClassify > 0 && pagesClassified < pagesToClassify)) && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span>
+            Text: <span className="font-medium">{pagesRead}</span> of {pages.length || "?"} pages read
+          </span>
+          {document.lid_model && (
+            <span>
+              Languages: <span className="font-medium">{pagesClassified}</span> of {pagesToClassify} pages classified
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">Results appear below as each page finishes.</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Left sidebar: Page Navigation */}
         <div className="md:col-span-3 space-y-4">
@@ -255,39 +369,21 @@ export default function DocumentDetailsPage() {
             <h3 className="font-semibold text-sm mb-3 text-slate-800">Document Pages</h3>
             <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
               {pages.map((page) => (
-                <button
-                  key={page.id}
-                  onClick={() => setActiveTab(page.page_number)}
-                  className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors",
-                    activeTab === page.page_number 
-                      ? "bg-primary/10 text-primary font-medium" 
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 shrink-0" />
-                    <span>Page {page.page_number}</span>
-                  </div>
-                  {page.status === "completed" && (
-                    <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">
-                      {(page.extracted_text?.length || 0)} chars
-                    </span>
-                  )}
-                  {page.status === "failed" && (
-                    <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">
-                      Failed
-                    </span>
-                  )}
-                </button>
+                <PageButton
+                  key={page.page_number}
+                  page={page}
+                  active={activePage?.page_number === page.page_number}
+                  onClick={() => setActivePageNumber(page.page_number)}
+                />
               ))}
               {pages.length === 0 && (
-                <div className="text-sm text-muted-foreground text-center py-6">
-                  No pages extracted yet.
+                <div className="text-sm text-muted-foreground text-center py-6 flex flex-col items-center gap-2">
+                  {processing && <Loader2 className="h-4 w-4 animate-spin text-primary/60" />}
+                  {processing ? "Preparing pages…" : "No pages extracted."}
                 </div>
               )}
             </div>
-            
+
             <div className="mt-4 pt-4 border-t border-slate-100">
               <div className="flex justify-between text-xs text-slate-500 mb-1">
                 <span>Total Chars:</span>
@@ -295,60 +391,158 @@ export default function DocumentDetailsPage() {
               </div>
               <div className="flex justify-between text-xs text-slate-500">
                 <span>OCR Status:</span>
-                <span className="font-medium text-slate-700 capitalize">{document.upload_status}</span>
+                <span className="font-medium text-slate-700 capitalize">{processing ? "processing" : document.upload_status}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right side: Extracted Text Viewer */}
+        {/* Right side: the active page */}
         <div className="md:col-span-9">
           <div className="bg-white rounded-xl border border-border shadow-sm flex flex-col h-full min-h-[500px]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-slate-50/50 rounded-t-xl">
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border bg-slate-50/50 rounded-t-xl">
               <h2 className="font-semibold text-slate-800">
-                Extracted Text {activePage ? `- Page ${activePage.page_number}` : ''}
+                {activePage ? `Page ${activePage.page_number}` : "Extracted Text"}
               </h2>
-              {activePage?.extraction_method && (
-                <span className="text-xs text-slate-500 font-medium px-2 py-1 bg-white border border-slate-200 rounded-md shadow-sm">
-                  {activePage.ocr_model
-                    ? `Engine: ${ocrEngineLabel(engines, activePage.ocr_model)}`
-                    : `Method: ${activePage.extraction_method}`}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {activePage?.classification && (
+                  <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-medium">
+                    {(["languages", "text"] as View[]).map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setView(v)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-md capitalize transition-colors",
+                          activeView === v ? "bg-primary/10 text-primary" : "text-slate-500 hover:text-slate-800",
+                        )}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {activePage?.ocr_model && (
+                  <span className="text-xs text-slate-500 font-medium px-2 py-1 bg-white border border-slate-200 rounded-md shadow-sm">
+                    Engine: {ocrEngineLabel(engines, activePage.ocr_model)}
+                  </span>
+                )}
+              </div>
             </div>
-            
+
             <div className="p-6 flex-1 bg-[#fcfdfd]">
-              {activePage ? (
-                activePage.status === "completed" ? (
-                  activePage.extracted_text ? (
-                    <div className="whitespace-pre-wrap font-mono text-sm text-slate-700 leading-relaxed custom-scrollbar h-[500px] overflow-y-auto">
-                      {activePage.extracted_text}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
-                      <FileText className="h-8 w-8 opacity-20" />
-                      <p>No text found on this page.</p>
-                    </div>
-                  )
-                ) : activePage.status === "failed" ? (
-                  <div className="flex flex-col items-center justify-center h-full text-red-400 gap-2">
-                    <p>OCR failed for this page.</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary/50" />
-                    <p>Processing page...</p>
-                  </div>
-                )
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
-                  <p>Select a page to view extracted text.</p>
+              {!activePage ? (
+                <Placeholder>{processing ? "Pages will appear here as they are read." : "Select a page to view extracted text."}</Placeholder>
+              ) : activePage.status === "pending" ? (
+                <Placeholder icon={<Clock className="h-6 w-6 text-slate-300" />}>Waiting for OCR…</Placeholder>
+              ) : activePage.status === "processing" ? (
+                <Placeholder icon={<Loader2 className="h-6 w-6 animate-spin text-primary/50" />}>Reading page…</Placeholder>
+              ) : activePage.status === "failed" ? (
+                <Placeholder className="text-red-400">OCR failed for this page. You were not charged for it.</Placeholder>
+              ) : activeView === "languages" && activePage.classification ? (
+                <PageLanguages classification={activePage.classification} correctionLanguages={correctionLanguages} />
+              ) : activePage.extracted_text ? (
+                <div className="whitespace-pre-wrap font-mono text-sm text-slate-700 leading-relaxed custom-scrollbar h-[500px] overflow-y-auto">
+                  {activePage.extracted_text}
                 </div>
+              ) : (
+                <Placeholder icon={<FileText className="h-8 w-8 opacity-20" />}>No text found on this page.</Placeholder>
               )}
             </div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Placeholder({ children, icon, className }: { children: React.ReactNode; icon?: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("flex flex-col items-center justify-center h-full min-h-[300px] text-slate-400 gap-3 text-sm", className)}>
+      {icon}
+      <p>{children}</p>
+    </div>
+  );
+}
+
+function PageButton({ page, active, onClick }: { page: DocumentPage; active: boolean; onClick: () => void }) {
+  const lid = page.classification;
+  const language = lid ? dominantLanguage(lid.segments) : null;
+  const style = language ? LANG_STYLES[language.toLowerCase()] : undefined;
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-lg transition-colors",
+        active ? "bg-primary/10 text-primary font-medium" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4 shrink-0" />
+        <span>Page {page.page_number}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        {page.status === "pending" && <Clock className="h-3.5 w-3.5 text-slate-300" aria-label="Waiting for OCR" />}
+        {page.status === "processing" && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-label="Reading" />}
+        {page.status === "failed" && (
+          <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">Failed</span>
+        )}
+        {page.status === "completed" && !lid && (
+          <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">
+            {(page.extracted_text?.length || 0)} chars
+          </span>
+        )}
+        {lid && (lid.status === "queued" || lid.status === "processing") && (
+          <span className="flex items-center gap-1 text-xs text-primary">
+            <Languages className="h-3.5 w-3.5" />
+            {lid.status === "processing" && lid.total ? `${lid.done ?? 0}/${lid.total}` : "…"}
+          </span>
+        )}
+        {lid?.status === "completed" && (
+          <span className={cn(
+            "text-xs px-1.5 py-0.5 rounded-full font-medium border",
+            style ? [style.bg, style.border, style.text] : "bg-slate-50 border-slate-200 text-slate-600",
+          )}>
+            {style?.label ?? language ?? "—"}
+          </span>
+        )}
+        {lid?.status === "failed" && <XCircle className="h-3.5 w-3.5 text-destructive" aria-label="Language identification failed" />}
+      </div>
+    </button>
+  );
+}
+
+function PageLanguages({
+  classification,
+  correctionLanguages,
+}: {
+  classification: PageClassification;
+  correctionLanguages: string[];
+}) {
+  const { status, segments, done, total } = classification;
+  return (
+    <div className="space-y-4">
+      <LanguageLegend />
+      {status === "failed" && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
+          <p className="font-medium text-destructive">Language identification failed for this page</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {classification.error_message || "An error occurred during processing."} You were not charged.
+          </p>
+        </div>
+      )}
+      {(status === "queued" || status === "processing") && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          {status === "queued"
+            ? "Waiting for language identification…"
+            : total ? `Classified ${done ?? segments.length} of ${total} segments` : "Classifying…"}
+        </div>
+      )}
+      {segments.length > 0 && (
+        <div className="leading-[2.2] text-base max-h-[500px] overflow-y-auto custom-scrollbar">
+          <SegmentText segments={segments} correctionLanguages={correctionLanguages} />
+        </div>
+      )}
     </div>
   );
 }

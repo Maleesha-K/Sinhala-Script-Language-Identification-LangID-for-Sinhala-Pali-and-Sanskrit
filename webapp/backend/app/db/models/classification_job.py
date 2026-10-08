@@ -17,7 +17,9 @@ class ClassificationJob(Base, TimestampMixin):
     
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id"))
+    document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("documents.id"), index=True)
+    # Set on the per-page jobs queued by a document's OCR run.
+    page_number: Mapped[int | None] = mapped_column(Integer)
     input_text: Mapped[str | None] = mapped_column(Text)
     model_name: Mapped[str] = mapped_column(String(128), nullable=False)
     segmentation_strategy: Mapped[str] = mapped_column(String(50), default="sentence", server_default="sentence")
@@ -26,6 +28,8 @@ class ClassificationJob(Base, TimestampMixin):
     credits_charged: Mapped[float] = mapped_column(Numeric(18, 4), default=0.0, nullable=False)
     result_minio_key: Mapped[str | None] = mapped_column(Text)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Why a failed job failed, shown to the user.
+    error_message: Mapped[str | None] = mapped_column(Text)
     
     user = relationship("User")
     document = relationship("Document")

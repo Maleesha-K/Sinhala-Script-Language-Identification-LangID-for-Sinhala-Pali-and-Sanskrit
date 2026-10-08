@@ -104,12 +104,15 @@ async def test_upload_with_unknown_engine_returns_400(
     mock_storage.upload_document.assert_not_called()
 
 
-def test_surya_task_is_routed_to_its_own_queue():
+def test_ocr_tasks_are_routed_away_from_classification():
+    """OCR never occupies the classification worker: pages it has read are
+    classified on the default queue while later pages are still being OCR'd."""
     from app.workers.celery_app import celery_app
 
-    route = celery_app.amqp.router.route({}, "process_document_ocr_surya")
-    assert route["queue"].name == "surya"
-    assert celery_app.amqp.router.route({}, "process_document_ocr")["queue"].name == "celery"
+    route = lambda name: celery_app.amqp.router.route({}, name)["queue"].name
+    assert route("process_document_ocr_surya") == "surya"
+    assert route("process_document_ocr") == "ocr"
+    assert route("process_classification_job") == "celery"
 
 
 # --- worker ------------------------------------------------------------------

@@ -23,6 +23,8 @@ class Document(Base, TimestampMixin):
     upload_status: Mapped[UploadStatus] = mapped_column(SQLEnum(UploadStatus), default=UploadStatus.UPLOADING, nullable=False)
     # OCR engine chosen at upload; see app.ocr.registry.
     ocr_engine: Mapped[str] = mapped_column(String(64), default="tesseract", server_default="tesseract", nullable=False)
+    # Classification model run on each page as soon as it is OCR'd; None: OCR only.
+    lid_model: Mapped[str | None] = mapped_column(String(128))
     
     user = relationship("User")
     pages = relationship("DocumentPage", back_populates="document", cascade="all, delete-orphan")

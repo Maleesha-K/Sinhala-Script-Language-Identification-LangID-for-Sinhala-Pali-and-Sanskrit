@@ -126,19 +126,22 @@ class CreditService:
 
 
 
-    async def refund_ocr(self, db: AsyncSession, user_id: uuid.UUID, document_id: uuid.UUID) -> Decimal:
-        """Return everything charged for a document's OCR, e.g. after the OCR failed.
+    async def _refund(
+        self, db: AsyncSession, user_id: uuid.UUID, ref_id: uuid.UUID,
+        record_type: RecordType, fraction: Decimal = Decimal(1),
+    ) -> Decimal:
+        """Return `fraction` of everything charged under `ref_id`.
 
         A negative usage record is written rather than deleting the charge, so
-        the history stays auditable and the per-document total nets to zero.
+        the history stays auditable and the total nets out.
         """
         from sqlalchemy import func
         result = await db.execute(
             select(func.coalesce(func.sum(UsageRecord.credits_charged), 0))
-            .where(UsageRecord.job_id == document_id, UsageRecord.record_type == RecordType.OCR)
+            .where(UsageRecord.job_id == ref_id, UsageRecord.record_type == record_type)
         )
-        charged = Decimal(result.scalar_one())
-        if charged <= 0:
+        amount = (Decimal(result.scalar_one()) * fraction).quantize(Decimal("0.0001"))
+        if amount <= 0:
             return Decimal(0)
 
         user_result = await db.execute(select(User).where(User.id == user_id).with_for_update())
@@ -146,16 +149,33 @@ class CreditService:
         if not user:
             return Decimal(0)
 
-        user.credits_balance += charged
+        user.credits_balance += amount
         db.add(UsageRecord(
             user_id=user_id,
-            record_type=RecordType.OCR,
+            record_type=record_type,
             model_name="refund",
             quantity=0,
-            credits_charged=-charged,
-            job_id=document_id
+            credits_charged=-amount,
+            job_id=ref_id
         ))
         await db.commit()
-        return charged
+        return amount
+
+    async def refund_ocr(
+        self, db: AsyncSession, user_id: uuid.UUID, document_id: uuid.UUID, fraction: Decimal = Decimal(1)
+    ) -> Decimal:
+        """Return the OCR charge of a document, or `fraction` of it when only
+        some pages failed."""
+        return await self._refund(db, user_id, document_id, RecordType.OCR, fraction)
+
+    async def refund_classification(self, db: AsyncSession, user_id: uuid.UUID, job_id: uuid.UUID) -> Decimal:
+        """Return a classification job's charge, e.g. after the job failed."""
+        refunded = await self._refund(db, user_id, job_id, RecordType.CLASSIFICATION)
+        if refunded:
+            await db.execute(
+                update(ClassificationJob).where(ClassificationJob.id == job_id).values(credits_charged=0)
+            )
+            await db.commit()
+        return refunded
 
 credit_service = CreditService()

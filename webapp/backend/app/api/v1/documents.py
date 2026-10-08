@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from uuid import UUID
 from typing import List
 import uuid
@@ -12,13 +12,20 @@ from app.schemas.response import BaseResponse, success_response
 from app.schemas.document import DocumentResponse, OCREngineResponse
 from app.services.storage_service import storage_service
 from app.workers.tasks.ocr_tasks import process_document_ocr, process_document_ocr_surya
+from app.workers.tasks.classification_tasks import split_segments
 from app.ocr.registry import OCR_ENGINES, DEFAULT_OCR_ENGINE, list_ocr_engines
+from app.ml.registry import MODELS
+from app.db.models.classification_job import ClassificationJob, JobStatus
+from app.db.models.classified_segment import ClassifiedSegment
+from app.services.credit_service import credit_service
+from app.utils.events import job_payload, page_payload, segment_payload
 from app.utils.exceptions import AppException, BadRequestException, NotFoundException
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 def _ocr_task_for(queue: str | None):
-    """Celery task for an engine's queue; engines without one share the default pool."""
+    """Celery task for an engine: Surya's own, or the shared OCR task (routed to
+    the `ocr` queue, see celery_app)."""
     return process_document_ocr_surya if queue == "surya" else process_document_ocr
 
 @router.get("/ocr-engines", response_model=BaseResponse[List[OCREngineResponse]])
@@ -30,6 +37,7 @@ async def get_ocr_engines():
 async def upload_document(
     file: UploadFile = File(...),
     ocr_engine: str = Form(DEFAULT_OCR_ENGINE),
+    lid_model: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> dict:
@@ -43,6 +51,16 @@ async def upload_document(
         raise BadRequestException(
             message=f"Unknown OCR engine '{ocr_engine}'. Available: {', '.join(sorted(OCR_ENGINES))}"
         )
+
+    # Model that classifies each page as soon as it is OCR'd; empty: OCR only.
+    lid_model = lid_model or None
+    if lid_model is not None:
+        if lid_model not in MODELS:
+            raise BadRequestException(
+                message=f"Unknown model '{lid_model}'. Available: {', '.join(sorted(MODELS))}"
+            )
+        # Raises when an administrator has disabled the model.
+        await credit_service.estimate_classification_cost(db, lid_model, 0)
 
     # Read file content
     content = await file.read()
@@ -65,6 +83,7 @@ async def upload_document(
         minio_key=object_name,
         upload_status=UploadStatus.UPLOADING,
         ocr_engine=engine.id,
+        lid_model=lid_model,
     )
     
     db.add(new_doc)
@@ -140,6 +159,12 @@ async def delete_document(
     if doc.minio_key:
         storage_service.delete_document(doc.minio_key)
         
+    # Keep the per-page classification jobs (billing and annotation history),
+    # detached from the deleted document.
+    await db.execute(
+        update(ClassificationJob).where(ClassificationJob.document_id == doc.id).values(document_id=None)
+    )
+
     # Delete from DB
     await db.delete(doc)
     current_user.storage_used_bytes = max(0, current_user.storage_used_bytes - doc.size_bytes)
@@ -148,28 +173,63 @@ async def delete_document(
     return success_response(message="Document deleted successfully")
 
 from app.db.models.document_page import DocumentPage
-from app.schemas.document import DocumentPageResponse
 
-@router.get("/{document_id}/pages", response_model=BaseResponse[List[DocumentPageResponse]])
+def _job_total(job: ClassificationJob, done: int) -> int | None:
+    """Segments a job will produce: known once it runs (unknown while queued)."""
+    if job.status == JobStatus.PROCESSING:
+        return len(split_segments(job.input_text or "", job.segmentation_strategy))
+    return done if job.status == JobStatus.COMPLETED else None
+
+
+@router.get("/{document_id}/pages")
 async def get_document_pages(
     document_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> dict:
-    """Gets all pages and OCR extracted text for a specific document."""
-    # First check if the document belongs to the user
+    """Pages of a document with their OCR text and, when the document was
+    uploaded with a model, each page's classification so far."""
     doc_result = await db.execute(select(Document).where(Document.id == document_id, Document.user_id == current_user.id))
     doc = doc_result.scalar_one_or_none()
     
     if not doc:
         raise NotFoundException(item="Document")
         
-    # Fetch pages
     pages_result = await db.execute(
         select(DocumentPage)
         .where(DocumentPage.document_id == document_id)
         .order_by(DocumentPage.page_number)
     )
     pages = pages_result.scalars().all()
-    
-    return success_response(data=pages, message="Document pages retrieved")
+
+    jobs_result = await db.execute(
+        select(ClassificationJob)
+        .where(ClassificationJob.document_id == document_id, ClassificationJob.page_number.is_not(None))
+        .order_by(ClassificationJob.created_at)
+    )
+    # The latest job per page wins.
+    jobs = {job.page_number: job for job in jobs_result.scalars().all()}
+
+    segments_by_job: dict = {job.id: [] for job in jobs.values()}
+    if segments_by_job:
+        segments_result = await db.execute(
+            select(ClassifiedSegment)
+            .where(ClassifiedSegment.job_id.in_(segments_by_job))
+            .order_by(ClassifiedSegment.segment_index)
+        )
+        for segment in segments_result.scalars().all():
+            segments_by_job[segment.job_id].append(segment_payload(segment))
+
+    data = []
+    for page in pages:
+        item = page_payload(page)
+        job = jobs.get(page.page_number)
+        item["classification"] = None
+        if job is not None:
+            segments = segments_by_job[job.id]
+            item["classification"] = {
+                **job_payload(job, len(segments), _job_total(job, len(segments))),
+                "segments": segments,
+            }
+        data.append(item)
+    return success_response(data=data, message="Document pages retrieved")

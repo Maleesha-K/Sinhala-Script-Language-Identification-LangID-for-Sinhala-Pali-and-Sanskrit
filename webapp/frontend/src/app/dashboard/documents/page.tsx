@@ -93,10 +93,9 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleRowClick = (docId: string, status: DocumentStatus) => {
-    if (status === "ready") {
-      router.push(`/dashboard/documents/${docId}`);
-    }
+  // Documents open while they are processed: pages appear as they are read.
+  const handleRowClick = (docId: string) => {
+    router.push(`/dashboard/documents/${docId}`);
   };
 
   return (
@@ -104,7 +103,14 @@ export default function DocumentsPage() {
       <PageHeader
         title="Documents"
         description="Upload PDFs to extract text and run language identification."
-        actions={<UploadModal onUploadSuccess={fetchDocuments} />}
+        actions={
+          <UploadModal
+            onUploadSuccess={(doc) => {
+              // Pages and their languages stream in on the document view.
+              router.push(`/dashboard/documents/${doc.id}`);
+            }}
+          />
+        }
       />
 
       <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
@@ -142,8 +148,8 @@ export default function DocumentsPage() {
                 return (
                   <TableRow 
                     key={doc.id} 
-                    className={cn("hover:bg-muted/30 transition-colors", doc.upload_status === "ready" && "cursor-pointer")}
-                    onClick={() => handleRowClick(doc.id, doc.upload_status)}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => handleRowClick(doc.id)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-2.5">
@@ -171,7 +177,6 @@ export default function DocumentsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          disabled={doc.upload_status !== "ready"}
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/dashboard/documents/${doc.id}`);
@@ -184,7 +189,6 @@ export default function DocumentsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          disabled={doc.upload_status !== "ready"}
                           onClick={(e) => handleDownload(e, doc.id, doc.filename)}
                           className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
                           title="Download"

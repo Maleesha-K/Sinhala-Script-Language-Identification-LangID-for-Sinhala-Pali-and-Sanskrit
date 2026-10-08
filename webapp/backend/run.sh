@@ -29,7 +29,7 @@ trap cleanup SIGINT SIGTERM EXIT
 
 # Start Postgres, Redis, MinIO and the Celery workers from the full-stack compose
 # file (needs webapp/.env; its passwords must match backend/.env)
-SERVICES="db redis minio celery_worker celery_surya_worker"
+SERVICES="db redis minio celery_worker celery_ocr_worker celery_surya_worker"
 echo -e "${BLUE}Starting infrastructure and Celery workers via Docker...${NC}"
 docker compose -f ../docker-compose.yml up -d --build $SERVICES
 
