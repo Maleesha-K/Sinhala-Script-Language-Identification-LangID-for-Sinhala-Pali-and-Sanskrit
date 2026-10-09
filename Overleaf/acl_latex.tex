@@ -189,8 +189,8 @@ Figure \ref{fig:radar_flores_four} shows a compact FLORES+ comparison for Sinhal
 
 \begin{figure*}[!t]
 \centering
-\includegraphics[width=\textwidth]{figures/radar_flores_four_languages_three_regimes.pdf}
-\caption{FLORES+ per-language F1 for four representative languages across zero-shot, target-only fine-tuning, and all-language rehearsal. The 0--1 spokes clockwise from the top are XR (XLM-R Base), CL (ConLID), FT (fastText LID-176), GL (GlotLID v3), NL (NLLB LID-218), and OL (OpenLID-v3). An absent zero-shot profile for Pali or Sanskrit is N/A, not zero.}
+\includegraphics[width=\textwidth]{figures/radar_flores_four_languages_three_regimes_base2.pdf}
+\caption{FLORES+ per-language F1 across zero-shot, target-only fine-tuning, and all-language rehearsal. Spokes clockwise from the top are XR (XLM-R Base), CL (ConLID), FT (fastText LID-176), GL (GlotLID v3), NL (NLLB LID-218), and OL (OpenLID-v3). Radius uses the nonlinear map $r=(2^{10F_1}-1)/(2^{10}-1)$, with rings at $F_1=0.80,0.90,0.95,1.00$; measured zero is at the centre. Absent Pali and Sanskrit zero-shot profiles are N/A.}
 \label{fig:radar_flores_four}
 \end{figure*}
 
@@ -240,7 +240,7 @@ OpenLID-v3 & 0.9989 & 0.9654 & 0.9817 \\
 
 Table \ref{tab:sota_overall_summary} presents the comprehensive Macro-F1 performance across all three hybrid benchmarks for both our seven from-scratch baseline models (trained on the uniform 110,000-sentence dataset) and the six adapted foundation models. 
 
-The complete grid in Figure \ref{fig:radar_all_33} retains benchmark rows and language columns, with a fixed 0--1 radial scale in every panel.
+The complete grid in Figure \ref{fig:radar_all_33} retains benchmark rows and language columns, with the same nonlinear F1 radial scale in every panel.
 
 A clear empirical dichotomy emerges between from-scratch baselines and adapted foundation models:
 \begin{itemize}
@@ -388,10 +388,10 @@ OpenLID-v3 & 0.9994 & 0.9991 & 1.0000 & 0.9950 & 0.9291 & 0.9939 & 0.9858 & 0.93
 \clearpage
 \begin{figure*}[p]
 \centering
-\includegraphics[width=0.96\textwidth]{figures/radar_grid_three_regimes_languages_1-6.pdf}
+\includegraphics[width=0.96\textwidth]{figures/radar_grid_three_regimes_languages_1-6_base2.pdf}
 \par\vspace{-3pt}
-\includegraphics[width=0.96\textwidth]{figures/radar_grid_three_regimes_languages_7-11.pdf}
-\caption{All 33 benchmark--language radar panels. The upper block contains languages 1--6 and the lower block languages 7--11; each block has FLORES+, CommonLID, and WiLI-2018 rows. Colored lines show zero-shot, target-only fine-tuning, and all-language rehearsal. WiLI-2018 Arabic is N/A.}
+\includegraphics[width=0.96\textwidth]{figures/radar_grid_three_regimes_languages_7-11_base2.pdf}
+\caption{All 33 benchmark--language radar panels, with FLORES+, CommonLID, and WiLI-2018 rows in each block. Colored lines show zero-shot, target-only fine-tuning, and all-language rehearsal. Radius uses the nonlinear map $r=(2^{10F_1}-1)/(2^{10}-1)$; rings mark $F_1=0.80,0.90,0.95,1.00$, and measured zero is at the centre. WiLI-2018 Arabic is N/A.}
 \label{fig:radar_all_33}
 \end{figure*}
 \clearpage

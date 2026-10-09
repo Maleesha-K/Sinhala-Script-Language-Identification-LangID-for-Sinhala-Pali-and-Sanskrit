@@ -47,6 +47,7 @@ MODELS = (
 )
 SPOKE_CODES = ("XR", "CL", "FT", "GL", "NL", "OL")
 ANGLES = [2 * math.pi * index / len(MODELS) for index in range(len(MODELS))]
+RADIAL_TICKS = (0.8, 0.9, 0.95, 1.0)
 REGIMES = (
     ("zero shot results", "Zero-shot", "#0072B2", "-", "o"),
     ("finetune using 3 languages", "Target-only", "#D55E00", "--", "s"),
@@ -54,6 +55,11 @@ REGIMES = (
 )
 SHOWCASE_LANGUAGES = ("Sinhala-Sinh", "Pali-Sinh", "Sanskrit-Sinh", "English-Latn")
 Results = dict[str, dict[str, dict[str, list[float | None]]]]
+
+
+def score_to_radius(score: float) -> float:
+    """Expand high F1 scores while preserving zero at the polar origin."""
+    return (2 ** (10 * score) - 1) / (2 ** 10 - 1)
 
 
 def normalized_language(label: str) -> str:
@@ -181,7 +187,7 @@ def draw_panel(axis: plt.Axes, results: Results, benchmark: str, language: str, 
         else:
             label.set_horizontalalignment("center")
         label.set_color("#233041")
-    axis.set_yticks([0.25, 0.5, 0.75, 1.0])
+    axis.set_yticks([score_to_radius(score) for score in RADIAL_TICKS])
     axis.set_yticklabels([])
     axis.tick_params(length=0)
     axis.grid(color="#D7DFE7", linewidth=0.4 if compact else 0.65)
@@ -189,7 +195,7 @@ def draw_panel(axis: plt.Axes, results: Results, benchmark: str, language: str, 
     axis.spines["polar"].set_linewidth(0.6 if compact else 0.9)
 
     for _, color, linestyle, marker, scores in available:
-        radii = [math.nan if score is None else score for score in scores]
+        radii = [math.nan if score is None else score_to_radius(score) for score in scores]
         axis.plot(
             ANGLES + ANGLES[:1], radii + radii[:1],
             color=color, linestyle=linestyle,
@@ -259,7 +265,7 @@ def render_grid(
     )
     figure.text(
         0.5, 0.817 if compact else 0.830,
-        "F1 radial scale: 0–1 (rings every 0.25)  |  N/A omitted; measured zero at centre",
+        "Nonlinear F1 radius: centre 0%; rings 80%, 90%, 95%, 100%  |  N/A omitted",
         ha="center", va="top", fontsize=6.1 if compact else 9,
         color="#596579",
     )
@@ -315,7 +321,12 @@ def render_flores_showcase(results: Results, output_dir: Path) -> None:
         handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.995),
         ncol=3, frameon=False, fontsize=7.3, handlelength=2.5, columnspacing=1.4,
     )
-    stem = "radar_flores_four_languages_three_regimes"
+    figure.text(
+        0.5, 0.895,
+        "Nonlinear F1 radius: centre 0%; rings 80%, 90%, 95%, 100%",
+        ha="center", va="center", fontsize=6.5, color="#596579",
+    )
+    stem = "radar_flores_four_languages_three_regimes_base2"
     title = "FLORES+ F1: Sinhala, Pali, Sanskrit and English"
     pdf_path = output_dir / f"{stem}.pdf"
     png_path = output_dir / f"{stem}.png"
@@ -347,15 +358,15 @@ def main() -> None:
 
     if not args.showcase_only:
         render_grid(
-            results, LANGUAGES, args.output_dir, "radar_grid_three_regimes_3x11",
+            results, LANGUAGES, args.output_dir, "radar_grid_three_regimes_3x11_base2",
             "Per-language F1 across three adaptation regimes", compact=False,
         )
         render_grid(
-            results, LANGUAGES[:6], args.output_dir, "radar_grid_three_regimes_languages_1-6",
+            results, LANGUAGES[:6], args.output_dir, "radar_grid_three_regimes_languages_1-6_base2",
             "Per-language F1 (languages 1–6)", compact=True,
         )
         render_grid(
-            results, LANGUAGES[6:], args.output_dir, "radar_grid_three_regimes_languages_7-11",
+            results, LANGUAGES[6:], args.output_dir, "radar_grid_three_regimes_languages_7-11_base2",
             "Per-language F1 (languages 7–11)", compact=True,
         )
     render_flores_showcase(results, args.output_dir)
