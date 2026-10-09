@@ -21,7 +21,7 @@
 \maketitle
 
 \begin{abstract}
-State-of-the-art language identification (LangID) systems operate on an implicit orthographic assumption: that script uniquely identifies language. This assumption collapses catastrophically for the Sinhala script, which has historically been used to transcribe not only Sinhala, but also liturgical Pali and classical Sanskrit. Consequently, existing systems are structurally incapable of recognizing Sinhala-script Pali and Sanskrit, indiscriminately absorbing both into a single monolithic Sinhala label. In this paper, we present the first dedicated LangID benchmark and empirical study addressing this script-sharing challenge across two complementary research tiers. In \textbf{Phase 1 (Closed-World Benchmark)}, we evaluate seven baseline architectures trained strictly from scratch across four levels of input granularity (full sentences, 5-word, 3-word, and 1-word fragments). We discover that while full sentences saturate ($>0.994$ Macro-F1), single-word stress testing reveals a stark architectural divergence: probabilistic character $n$-gram models (Multinomial Naive Bayes: 0.8584 Macro-F1) and subword embeddings (fastText: 0.8027 Macro-F1) substantially outperform deep neural networks (Char-CNN: 0.7654; Char-BiGRU: 0.6916) and margin classifiers (Linear SVM: 0.6099) by exploiting high-likelihood inflectional affixes without requiring sentence-level syntax. In \textbf{Phase 2 (Open-World Benchmark)}, we scale the evaluation across three standardized hybrid benchmarks (FLORES+, CommonLID, WiLI-2018) spanning 11 languages. We demonstrate that naive fine-tuning induces catastrophic forgetting of global background languages, whereas targeted adaptation strategies—including Two-Stage Specialist Routing, LoRA rebalancing, and custom weight-preserving head extensions—eliminate script ambiguity while maintaining $0.92$--$0.97$ Macro-F1 globally. Finally, we uncover an inherent trade-off in massive multilingual LangID—the \textbf{Dialect Continuum Problem}—showing how fine-grained regional dialect heads in models like OpenLID-v2 induce fragmentation on classical languages.
+State-of-the-art language identification (LangID) systems operate on an implicit orthographic assumption: that script uniquely identifies language. This assumption collapses catastrophically for the Sinhala script, which has historically been used to transcribe not only Sinhala, but also liturgical Pali and classical Sanskrit. Consequently, existing systems are structurally incapable of recognizing Sinhala-script Pali and Sanskrit, indiscriminately absorbing both into a single monolithic Sinhala label. In this paper, we present the first dedicated LangID benchmark and empirical study addressing this script-sharing challenge across two complementary research tiers. In \textbf{Phase 1 (Closed-World Benchmark)}, we evaluate seven baseline architectures trained strictly from scratch across four levels of input granularity (full sentences, 5-word, 3-word, and 1-word fragments). We discover that while full sentences saturate ($>0.994$ Macro-F1), single-word stress testing reveals a stark architectural divergence: probabilistic character $n$-gram models (Multinomial Naive Bayes: 0.8584 Macro-F1) and subword embeddings (fastText: 0.8027 Macro-F1) substantially outperform deep neural networks (Char-CNN: 0.7654; Char-BiGRU: 0.6916) and margin classifiers (Linear SVM: 0.6099) by exploiting high-likelihood inflectional affixes without requiring sentence-level syntax. In \textbf{Phase 2 (Open-World Benchmark)}, we scale the evaluation across three standardized hybrid benchmarks (FLORES+, CommonLID, WiLI-2018) spanning 11 languages. We demonstrate that naive fine-tuning induces catastrophic forgetting of global background languages, whereas targeted adaptation strategies—including Two-Stage Specialist Routing, LoRA rebalancing, and custom weight-preserving head extensions—eliminate script ambiguity while maintaining $0.92$--$0.97$ Macro-F1 globally. Finally, we uncover an inherent trade-off in massive multilingual LangID—the \textbf{Dialect Continuum Problem}—showing how fine-grained regional dialect heads in models like OpenLID-v3 induce fragmentation on classical languages.
 \end{abstract}
 
 \section{Introduction}
@@ -29,7 +29,7 @@ Language Identification (LangID) is an indispensable first stage in Natural Lang
 
 This failure mode is particularly pronounced for the Sinhala script (Unicode block \texttt{U+0D80}--\texttt{U+0DFF}). In Sri Lanka and South Asian scholarly traditions, the Sinhala script has served for over two millennia as the primary written medium not only for \textbf{Sinhala} (an Indo-Aryan language spoken by over 17 million people), but also for \textbf{Pali} (the canonical liturgical language of Theravada Buddhism) and \textbf{Sanskrit} (the classical language of South Asian philosophy, medicine, and mathematics). The Buddhist monastic canon (\textit{Tipitaka}) was first committed to writing in the Sinhala script in the first century BCE at Aluvihara, Sri Lanka \cite{norman1983pali}, yielding an immense corpus of palm-leaf manuscripts and commentaries transcribed in Sinhala orthography.
 
-Because existing planetary-scale LangID tools—such as fastText LID-176 \cite{joulin2017bag}, GlotLID v3 \cite{kargaran2023glotlid}, NLLB LID-218 \cite{nllb2022}, and OpenLID-v2 \cite{burchell2023openlid}—associate the Sinhala script exclusively with modern Sinhala (\texttt{sin} / \texttt{sin\_Sinh}), they exhibit near-zero recall on Sinhala-script Pali and Sanskrit. This systematic misclassification contaminates multilingual web crawls, corrupts machine translation pipelines, and impairs digital humanities scholarship on South Asian historical literature.
+Because existing planetary-scale LangID tools—such as fastText LID-176 \cite{joulin2017bag}, GlotLID v3 \cite{kargaran2023glotlid}, NLLB LID-218 \cite{nllb2022}, and OpenLID-v3 \cite{burchell2023openlid}—associate the Sinhala script exclusively with modern Sinhala (\texttt{sin} / \texttt{sin\_Sinh}), they exhibit near-zero recall on Sinhala-script Pali and Sanskrit. This systematic misclassification contaminates multilingual web crawls, corrupts machine translation pipelines, and impairs digital humanities scholarship on South Asian historical literature.
 
 To resolve this challenge, this paper introduces a comprehensive benchmark and empirical investigation structured across two complementary phases:
 \begin{enumerate}
@@ -181,14 +181,14 @@ Conversely, deep sequence models (CNNs and BiGRUs) optimize filters for composit
 While Phase 1 proves that from-scratch models can resolve target script ambiguity in a closed world, deploying them in open-world production pipelines introduces the catastrophic forgetting dilemma. If a model is trained exclusively on target languages, it loses the ability to recognize global languages. Conversely, if off-the-shelf foundation models are deployed zero-shot, they fail on the target languages.
 
 \subsection{Zero-Shot Foundation Model Collapse}
-We evaluated six state-of-the-art foundation model families in a zero-shot regime on our hybrid benchmarks: multilingual transformers (XLM-RoBERTa Base \cite{conneau2020unsupervised}, following the multilingual masked language modeling paradigm of mBERT \cite{devlin2019bert}), ConLID \cite{dunn2023commonlid}, fastText LID-176 \cite{joulin2017bag}, GlotLID v3 \cite{kargaran2023glotlid}, NLLB LID-218 \cite{nllb2022}, and OpenLID-v2 \cite{burchell2023openlid}.
+We evaluated six state-of-the-art foundation model families in a zero-shot regime on our hybrid benchmarks: multilingual transformers (XLM-RoBERTa Base \cite{conneau2020unsupervised}, following the multilingual masked language modeling paradigm of mBERT \cite{devlin2019bert}), ConLID \cite{dunn2023commonlid}, fastText LID-176 \cite{joulin2017bag}, GlotLID v3 \cite{kargaran2023glotlid}, NLLB LID-218 \cite{nllb2022}, and OpenLID-v3 \cite{burchell2023openlid}.
 
 As detailed in Appendix \ref{sec:appendix_tables} (Tables \ref{tab:flores_full}, \ref{tab:common_full}, and \ref{tab:wili_full}), every stock model achieves \textbf{0.00\% F1 on Pali-Sinh and San-Sinh}. Because stock classification heads provide only a single generic Sinhala label (\texttt{sin} or \texttt{sin\_Sinh}), all Sinhala-script inputs are funneled into that class, depressing target recall to zero and yielding an aggregate target Macro-F1 of only $\approx 0.18$.
 
 \subsection{Targeted Adaptation Strategies}
 Direct, unconstrained fine-tuning on a narrow target dataset causes catastrophic forgetting, completely eroding pre-trained representations for global languages \cite{mccloskey1989catastrophic,french1999catastrophic,kirkpatrick2017overcoming}. To achieve high target precision while guaranteeing background retention, we engineered five architectural adaptation strategies:
 \begin{enumerate}
-    \item \textbf{Two-Stage Specialist Routing (OpenLID-v2 \& fastText LID-176):} A frozen pre-trained Stage 1 router screens incoming text. Non-Sinhala scripts are classified directly by the global model. When the Sinhala script is detected (\texttt{sin\_Sinh} / \texttt{sin}), text is diverted to an isolated Stage 2 specialist model fine-tuned for fine-grained 3-way discrimination (\texttt{Sinh-Sinh}, \texttt{Pali-Sinh}, \texttt{San-Sinh}). By design, this hierarchical routing guarantees \textbf{0.0\% performance degradation on all non-Sinhala languages}.
+    \item \textbf{Two-Stage Specialist Routing (OpenLID-v3 \& fastText LID-176):} A frozen pre-trained Stage 1 router screens incoming text. Non-Sinhala scripts are classified directly by the global model. When the Sinhala script is detected (\texttt{sin\_Sinh} / \texttt{sin}), text is diverted to an isolated Stage 2 specialist model fine-tuned for fine-grained 3-way discrimination (\texttt{Sinh-Sinh}, \texttt{Pali-Sinh}, \texttt{San-Sinh}). By design, this hierarchical routing guarantees \textbf{0.0\% performance degradation on all non-Sinhala languages}.
     \item \textbf{LoRA Parameter-Efficient Adaptation with Rebalancing (XLM-R Base):} Low-Rank Adaptation (LoRA; rank $r=8$, $\alpha=16$) matrices were injected into the query, key, and value attention projections of XLM-R Base \cite{hu2022lora}. During fine-tuning, training batches were dynamically rebalanced with background language exemplars from our non-contaminated corpus, anchoring the multilingual shared representations.
     \item \textbf{Weight-Preserving Head Extension \& C++ Continuation Training (NLLB LID-218):} A custom C++ compilation patch (\texttt{extend-labels}) was developed for fastText to expand the model's output projection matrix from 218 to 220 labels. Existing weight rows were preserved verbatim, while newly added label vectors were initialized and trained via continuation training (\texttt{finetune-loaded}) with linear learning rate decay ($lr=0.001$, 3 epochs).
     \item \textbf{In-Place Head Extension with Xavier Initialization (ConLID):} The final linear projection head of ConLID was expanded, preserving original pre-trained weights while initializing the new target heads with Xavier uniform initialization. Optimization utilized AdamW ($lr=1e-4$) and validation-loss early stopping.
@@ -223,13 +223,29 @@ GlotLID v3 (Vec Transfer) & 0.9465 & 0.9527 & 0.9570 \\
 ConLID (Head Ext.) & 0.9329 & 0.9261 & 0.9688 \\
 fastText LID-176 (2-Stage) & 0.9276 & 0.9645 & 0.9745 \\
 XLM-R Base (LoRA) & 0.9267 & \textbf{0.9737} & 0.8880 \\
-OpenLID-v2 (2-Stage) & 0.7759 & 0.7913 & 0.7782 \\
+OpenLID-v3 (2-Stage) & 0.7759 & 0.7913 & 0.7782 \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
 Table \ref{tab:sota_overall_summary} presents the comprehensive Macro-F1 performance across all three hybrid benchmarks for both our seven from-scratch baseline models (trained on the uniform 110,000-sentence dataset) and the six adapted foundation models. 
+
+Figures \ref{fig:radar_first_six} and \ref{fig:radar_last_five} show the fine-tuned per-language F1 profiles in a grid of benchmark rows and language columns. Each spoke represents one model, and every panel uses the same 0--1 scale.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/radar_grid_finetuning_languages_1-6.pdf}
+\caption{Fine-tuned per-language F1 for the first six languages. Model spokes run clockwise from the top: XLM-R Base, ConLID, fastText LID-176, GlotLID v3, NLLB LID-218, and OpenLID-v3. A missing score leaves a gap in the profile rather than being plotted as zero.}
+\label{fig:radar_first_six}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/radar_grid_finetuning_languages_7-11.pdf}
+\caption{Fine-tuned per-language F1 for the remaining five languages, using the same model-spoke order and radial scale as Figure \ref{fig:radar_first_six}. The WiLI-2018 Arabic panel is N/A because WiLI-2018 contains no Arabic samples.}
+\label{fig:radar_last_five}
+\end{figure*}
 
 A clear empirical dichotomy emerges between from-scratch baselines and adapted foundation models:
 \begin{itemize}
@@ -242,11 +258,11 @@ Crucially, while stock foundation models collapse zero-shot ($0.0\%$ target reca
 \FloatBarrier
 \section{Discussion: The Dialect Continuum Problem and Devanagari Fragmentation}
 
-A critical empirical discovery in Table \ref{tab:sota_overall_summary} is the stark divergence between OpenLID-v2 (Macro-F1 $0.7759$--$0.7913$) and other models like fastText LID-176 ($0.9276$--$0.9745$) and NLLB LID-218 ($0.9501$--$0.9675$).
+A critical empirical discovery in Table \ref{tab:sota_overall_summary} is the stark divergence between OpenLID-v3 (Macro-F1 $0.7759$--$0.7913$) and other models like fastText LID-176 ($0.9276$--$0.9745$) and NLLB LID-218 ($0.9501$--$0.9675$).
 
-Detailed inspection of the confusion matrices reveals that this performance gap stems entirely from the treatment of Devanagari Sanskrit (\texttt{San-Deva}). In FLORES+, OpenLID-v2 achieves a dismal \textbf{0.0350 F1 on \texttt{San-Deva}}, whereas fastText LID-176 achieves \textbf{0.9594 F1}.
+Detailed inspection of the confusion matrices reveals that this performance gap stems entirely from the treatment of Devanagari Sanskrit (\texttt{San-Deva}). In FLORES+, OpenLID-v3 achieves a dismal \textbf{0.0350 F1 on \texttt{San-Deva}}, whereas fastText LID-176 achieves \textbf{0.9594 F1}.
 
-This discrepancy highlights a fundamental manifestation of the \textbf{Dialect Continuum Problem} in massive multilingual LangID. Across continuous linguistic zones—such as the Indo-Aryan dialect continuum connecting Sanskrit, Prakrits, and modern regional varieties—languages share dense lexical, phonological, and subword inventories without sharp geographical boundaries. OpenLID-v2 was trained with an expansive label space designed to identify granular regional dialects across South Asia. When presented with classical Devanagari Sanskrit text, OpenLID-v2 fragments the probability mass across multiple genetically descended dialect heads, misclassifying 68.1\% of Sanskrit sentences as Bhojpuri (\texttt{bho\_Deva}), 15.1\% as Maithili (\texttt{mai\_Deva}), and 43.3\% of Hindi sentences as Kashmiri (\texttt{kas\_Deva}). In contrast, fastText LID-176 and NLLB LID-218 employ a unified classical language tag (\texttt{sa} / \texttt{san\_Deva}), avoiding continuous boundary leakage and preserving high classification fidelity. This finding demonstrates that for classical literary languages, ultra-granular dialect heads can actively undermine identification accuracy by exacerbating dialect continuum ambiguity.
+This discrepancy highlights a fundamental manifestation of the \textbf{Dialect Continuum Problem} in massive multilingual LangID. Across continuous linguistic zones—such as the Indo-Aryan dialect continuum connecting Sanskrit, Prakrits, and modern regional varieties—languages share dense lexical, phonological, and subword inventories without sharp geographical boundaries. OpenLID-v3 was trained with an expansive label space designed to identify granular regional dialects across South Asia. When presented with classical Devanagari Sanskrit text, OpenLID-v3 fragments the probability mass across multiple genetically descended dialect heads, misclassifying 68.1\% of Sanskrit sentences as Bhojpuri (\texttt{bho\_Deva}), 15.1\% as Maithili (\texttt{mai\_Deva}), and 43.3\% of Hindi sentences as Kashmiri (\texttt{kas\_Deva}). In contrast, fastText LID-176 and NLLB LID-218 employ a unified classical language tag (\texttt{sa} / \texttt{san\_Deva}), avoiding continuous boundary leakage and preserving high classification fidelity. This finding demonstrates that for classical literary languages, ultra-granular dialect heads can actively undermine identification accuracy by exacerbating dialect continuum ambiguity.
 
 \section{Practical Recommendations}
 Based on our empirical findings across closed and open benchmarks, we provide the following practical recommendations for NLP practitioners:
@@ -432,7 +448,7 @@ ConLID & 0.7916 & -- & -- & 0.9985 & 0.9960 & 0.9995 & 0.9970 & 0.9995 & 0.3733 
 fastText LID-176 & 0.7912 & -- & -- & 0.9594 & 0.7213 & 1.0000 & 0.9629 & 1.0000 & 0.6667 & 0.9873 & 0.9897 & -- \\
 GlotLID v3 & 0.7914 & -- & -- & 0.9950 & 1.0000 & 1.0000 & 0.9926 & 0.9995 & 0.6054 & 1.0000 & 1.0000 & -- \\
 NLLB LID-218 & 0.7912 & -- & -- & 0.9895 & 0.9840 & 1.0000 & 0.9912 & 1.0000 & 0.6664 & 0.9995 & 1.0000 & -- \\
-OpenLID-v2 & 0.7912 & -- & -- & 0.0350 & 0.9995 & 1.0000 & 0.0361 & 0.9970 & 0.5579 & 0.9975 & 1.0000 & -- \\
+OpenLID-v3 & 0.7912 & -- & -- & 0.0350 & 0.9995 & 1.0000 & 0.0361 & 0.9970 & 0.5579 & 0.9975 & 1.0000 & -- \\
 \midrule
 \multicolumn{13}{c}{\textbf{Fine-Tuned Model Results}} \\
 \midrule
@@ -443,7 +459,7 @@ ConLID & 0.9634 & 0.9705 & 0.9414 & 0.9985 & 0.9960 & 0.9995 & 0.9970 & 0.9995 &
 fastText LID-176 & 0.9611 & 0.9751 & 0.9805 & 0.9594 & 0.7213 & 1.0000 & 0.9629 & 1.0000 & 0.6667 & 0.9873 & 0.9892 & 0.9276 \\
 GlotLID v3 & 0.9688 & 0.9566 & 0.9019 & 0.9955 & 1.0000 & 1.0000 & 0.9926 & 0.9995 & 0.5962 & 1.0000 & 1.0000 & 0.9465 \\
 NLLB LID-218 & 0.9760 & 0.9526 & 0.9053 & 0.9915 & 1.0000 & 1.0000 & 0.9921 & 1.0000 & 0.6667 & 0.9995 & 0.9995 & 0.9530 \\
-OpenLID-v2 & 0.9670 & 0.9743 & 0.9704 & 0.0350 & 0.9995 & 1.0000 & 0.0361 & 0.9970 & 0.5579 & 0.9975 & 1.0000 & 0.7759 \\
+OpenLID-v3 & 0.9670 & 0.9743 & 0.9704 & 0.0350 & 0.9995 & 1.0000 & 0.0361 & 0.9970 & 0.5579 & 0.9975 & 1.0000 & 0.7759 \\
 \bottomrule
 \end{tabular}
 
@@ -462,7 +478,7 @@ ConLID & 0.7916 & -- & -- & 0.9591 & 0.8500 & 0.9818 & 0.9443 & 0.9615 & 0.7664 
 fastText LID-176 & 0.7910 & -- & -- & 0.8886 & 0.9724 & 0.9643 & 0.9702 & 0.9936 & 0.9947 & 0.9447 & 0.9673 & -- \\
 GlotLID v3 & 0.7914 & -- & -- & 0.9634 & 0.9255 & 0.9878 & 0.9713 & 0.9792 & 0.9631 & 0.9255 & 0.9215 & -- \\
 NLLB LID-218 & 0.7912 & -- & -- & 0.9282 & 0.9240 & 0.9747 & 0.9640 & 0.9863 & 0.9923 & 0.9289 & 0.9410 & -- \\
-OpenLID-v2 & 0.7912 & -- & -- & 0.1169 & 0.8973 & 0.9877 & 0.1749 & 0.9722 & 0.9473 & 0.9052 & 0.9239 & -- \\
+OpenLID-v3 & 0.7912 & -- & -- & 0.1169 & 0.8973 & 0.9877 & 0.1749 & 0.9722 & 0.9473 & 0.9052 & 0.9239 & -- \\
 \midrule
 \multicolumn{13}{c}{\textbf{Fine-Tuned Model Results}} \\
 \midrule
@@ -473,7 +489,7 @@ ConLID & 0.9634 & 0.9705 & 0.9414 & 0.9607 & 0.8488 & 0.9818 & 0.9415 & 0.9592 &
 fastText LID-176 & 0.9609 & 0.9751 & 0.9805 & 0.8886 & 0.9724 & 0.9643 & 0.9702 & 0.9936 & 0.9947 & 0.9447 & 0.9672 & 0.9645 \\
 GlotLID v3 & 0.9689 & 0.9566 & 0.9019 & 0.9612 & 0.9270 & 0.9818 & 0.9646 & 0.9792 & 0.9603 & 0.9256 & 0.9211 & 0.9527 \\
 NLLB LID-218 & 0.9625 & 0.9500 & 0.9053 & 0.9310 & 0.9072 & 0.9875 & 0.9588 & 0.9874 & 0.9919 & 0.9192 & 0.9407 & 0.9501 \\
-OpenLID-v2 & 0.9670 & 0.9743 & 0.9704 & 0.1169 & 0.8973 & 0.9877 & 0.1749 & 0.9722 & 0.9473 & 0.9052 & 0.9239 & 0.7913 \\
+OpenLID-v3 & 0.9670 & 0.9743 & 0.9704 & 0.1169 & 0.8973 & 0.9877 & 0.1749 & 0.9722 & 0.9473 & 0.9052 & 0.9239 & 0.7913 \\
 \bottomrule
 \end{tabular}
 
@@ -492,7 +508,7 @@ ConLID & 0.7916 & -- & -- & 0.9924 & 0.9439 & 0.9945 & 0.9899 & 0.9435 & -- & 0.
 fastText LID-176 & 0.7912 & -- & -- & 0.9904 & 0.9385 & 0.9950 & 0.9889 & 0.9529 & -- & 0.9774 & 0.9854 & -- \\
 GlotLID v3 & 0.7914 & -- & -- & 0.9914 & 0.9377 & 0.9950 & 0.9173 & 0.9451 & -- & 0.9880 & 0.9754 & -- \\
 NLLB LID-218 & 0.7912 & -- & -- & 0.9909 & 0.9301 & 0.9940 & 0.9889 & 0.9429 & -- & 0.9900 & 0.9904 & -- \\
-OpenLID-v2 & 0.7912 & -- & -- & 0.0276 & 0.9427 & 0.9940 & 0.0134 & 0.9424 & -- & 0.9687 & 0.9817 & -- \\
+OpenLID-v3 & 0.7912 & -- & -- & 0.0276 & 0.9427 & 0.9940 & 0.0134 & 0.9424 & -- & 0.9687 & 0.9817 & -- \\
 \midrule
 \multicolumn{13}{c}{\textbf{Fine-Tuned Model Results}} \\
 \midrule
@@ -503,7 +519,7 @@ ConLID & 0.9634 & 0.9705 & 0.9414 & 0.9924 & 0.9433 & 0.9945 & 0.9899 & 0.9435 &
 fastText LID-176 & 0.9611 & 0.9751 & 0.9805 & 0.9904 & 0.9385 & 0.9950 & 0.9889 & 0.9529 & -- & 0.9774 & 0.9850 & 0.9745 \\
 GlotLID v3 & 0.9688 & 0.9566 & 0.9019 & 0.9914 & 0.9367 & 0.9950 & 0.9126 & 0.9451 & -- & 0.9875 & 0.9744 & 0.9570 \\
 NLLB LID-218 & 0.9760 & 0.9526 & 0.9053 & 0.9909 & 0.9455 & 0.9940 & 0.9879 & 0.9429 & -- & 0.9900 & 0.9899 & 0.9675 \\
-OpenLID-v2 & 0.9670 & 0.9743 & 0.9704 & 0.0276 & 0.9427 & 0.9940 & 0.0134 & 0.9424 & -- & 0.9687 & 0.9817 & 0.7782 \\
+OpenLID-v3 & 0.9670 & 0.9743 & 0.9704 & 0.0276 & 0.9427 & 0.9940 & 0.0134 & 0.9424 & -- & 0.9687 & 0.9817 & 0.7782 \\
 \bottomrule
 \end{tabular}
 \end{table*}
