@@ -4,99 +4,116 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
-import {
-  ArrowLeft, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, Zap,
-} from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, XCircle, Clock, Zap, Download, Ban, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/auth-context";
 import { apiErrorDetail, cn } from "@/lib/utils";
+import { useLiveChannel, type LiveEvent } from "@/lib/live";
+import {
+  DEFAULT_CORRECTION_LANGUAGES, LanguageSummary, SegmentText, mergeSegments, type Segment,
+} from "@/components/classification/segments";
+import { languageLabel } from "@/lib/language-colors";
+import { downloadCsv } from "@/lib/export";
 
-type Segment = {
-  id: string;
-  segment_index: number;
-  text: string;
-  predicted_language: string;
-  confidence: number;
-  probabilities?: Record<string, number>;
-};
-
-// Fallback until the model list loads; the three categories every model reports.
-const DEFAULT_CORRECTION_LANGUAGES = ["sinhala", "pali", "sanskrit"];
-
-// ws(s)://host/api/v1 derived from the REST base URL.
-const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace(/^http/, "ws");
-
-// Fallback poll interval, in case a WebSocket event is missed.
-const POLL_MS = 3000;
+type JobStatus = "queued" | "processing" | "completed" | "failed" | "cancelled";
 
 type JobData = {
   id: string;
-  status: "queued" | "processing" | "completed" | "failed";
+  status: JobStatus;
   model_name?: string;
   segmentation_strategy: string;
   total_tokens: number;
-  segments?: Segment[];
+  error_message?: string | null;
+  cancel_requested?: boolean;
+  input_text?: string | null;
+  done?: number | null;
+  total?: number | null;
+  segments: Segment[];
 };
-
-const LANG_STYLES: Record<string, { bg: string; border: string; text: string; label: string }> = {
-  sinhala:  { bg: "bg-blue-50",   border: "border-blue-300",  text: "text-blue-800",  label: "Sinhala" },
-  pali:     { bg: "bg-emerald-50", border: "border-emerald-300", text: "text-emerald-800", label: "Pali" },
-  sanskrit: { bg: "bg-violet-50", border: "border-violet-300", text: "text-violet-800", label: "Sanskrit" },
-};
-
-function getStyle(lang: string) {
-  return LANG_STYLES[lang.toLowerCase()] ?? {
-    bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", label: lang,
-  };
-}
 
 export default function ClassificationResultPage() {
   const params = useParams();
   const router = useRouter();
-  const { token, refreshUser } = useAuth();
+  const { refreshUser } = useAuth();
   const [job, setJob] = useState<JobData | null>(null);
   const [correctionLanguages, setCorrectionLanguages] = useState<string[]>(DEFAULT_CORRECTION_LANGUAGES);
   const [modelLabel, setModelLabel] = useState<string | null>(null);
-  const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [focus, setFocus] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchJob = useCallback(async () => {
     try {
       const res = await axios.get(`/api/classification/jobs/${params.id}`);
       const data = res.data.data;
-      setJob(data);
-      if (data.status === "completed" || data.status === "failed") {
-        setLoading(false);
-      }
+      setJob({ ...data, segments: data.segments ?? [] });
     } catch (error) {
       toast.error(apiErrorDetail(error, "Failed to load job results"));
+    } finally {
       setLoading(false);
     }
   }, [params.id]);
 
-  const isRunning = job?.status === "queued" || job?.status === "processing";
-
-  // The job was charged when it finished, so refresh the balance in the header.
-  useEffect(() => {
-    if (job?.status === "completed") refreshUser();
-  }, [job?.status, refreshUser]);
-
-  // Poll as a safety net: the job can finish before the WebSocket subscribes.
-  useEffect(() => {
-    if (!isRunning) return;
-    const interval = setInterval(fetchJob, POLL_MS);
-    return () => clearInterval(interval);
-  }, [isRunning, fetchJob]);
-
+  // Load once; while the job runs, the live channel reloads and streams.
   useEffect(() => {
     fetchJob();
   }, [fetchJob]);
+
+  const isRunning = job?.status === "queued" || job?.status === "processing";
+
+  useLiveChannel({
+    path: `/ws/jobs/${params.id}`,
+    enabled: isRunning,
+    load: fetchJob,
+    onEvent: (event: LiveEvent) => {
+      setJob((prev) => {
+        if (!prev) return prev;
+        if (event.type === "segments") {
+          return {
+            ...prev,
+            segments: mergeSegments(prev.segments, event.segments as Segment[]),
+            done: event.done as number,
+            total: event.total as number,
+          };
+        }
+        if (event.type === "status") {
+          return {
+            ...prev,
+            status: event.status as JobStatus,
+            cancel_requested: (event.cancel_requested as boolean | undefined) ?? prev.cancel_requested,
+            done: (event.done as number | undefined) ?? prev.done,
+            total: (event.total as number | undefined) ?? prev.total,
+            error_message: event.status === "failed" ? (event.message as string) || prev.error_message : prev.error_message,
+          };
+        }
+        return prev;
+      });
+    },
+    isFinal: (event) =>
+      event.type === "status" && ["completed", "failed", "cancelled"].includes(event.status as string),
+  });
+
+  // The job is charged when it starts (and partly refunded when cancelled),
+  // so refresh the balance in the header.
+  useEffect(() => {
+    if (job?.status === "processing" || job?.status === "completed" || job?.status === "cancelled") refreshUser();
+  }, [job?.status, refreshUser]);
+
+  const handleCancel = async () => {
+    if (!confirm("Stop this classification? Sentences classified so far are kept, and you are refunded for the rest.")) return;
+    setCancelling(true);
+    try {
+      const res = await axios.post(`/api/classification/jobs/${params.id}/cancel`);
+      const { status, cancel_requested } = res.data.data;
+      setJob((prev) => (prev ? { ...prev, status, cancel_requested } : prev));
+      toast.success(res.data.message);
+    } catch (error) {
+      toast.error(apiErrorDetail(error, "Failed to cancel the job"));
+      fetchJob();
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // The correction options depend on the model that produced this job: the
   // baseline is three-way, the fine-tuned checkpoints also know the replay
@@ -122,29 +139,12 @@ export default function ClassificationResultPage() {
     };
   }, [job?.model_name]);
 
-  // WebSocket for live updates
-  useEffect(() => {
-    if (!token || !job || (job.status !== "queued" && job.status !== "processing")) return;
-    const ws = new WebSocket(`${WS_URL}/ws/jobs/${job.id}?token=${encodeURIComponent(token)}`);
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.status === "failed" && data.message) setFailureMessage(data.message);
-        if (data.status === "completed" || data.status === "failed") {
-          fetchJob();
-        } else {
-          setJob((prev) => prev ? { ...prev, status: data.status } : prev);
-        }
-      } catch { /* ignore */ }
-    };
-    return () => ws.close();
-  }, [token, job?.status, job?.id, fetchJob]);
-
   const statusConfig = {
     queued:     { icon: Clock,       color: "text-amber-500",  label: "Queued" },
     processing: { icon: Loader2,     color: "text-primary",    label: "Processing" },
     completed:  { icon: CheckCircle2, color: "text-emerald-500", label: "Completed" },
     failed:     { icon: XCircle,     color: "text-destructive", label: "Failed" },
+    cancelled:  { icon: Ban,         color: "text-amber-600",  label: "Cancelled" },
   };
 
   if (loading && !job) {
@@ -157,6 +157,12 @@ export default function ClassificationResultPage() {
   }
 
   if (!job) return null;
+
+  const exportCsv = () =>
+    downloadCsv(`classification-${job.id.slice(0, 8)}.csv`, [
+      ["segment", "language", "confidence", "text"],
+      ...job.segments.map((s) => [s.segment_index + 1, languageLabel(s.predicted_language), s.confidence.toFixed(4), s.text.trim()]),
+    ]);
 
   const StatusIcon = statusConfig[job.status]?.icon ?? Clock;
   const statusColor = statusConfig[job.status]?.color ?? "text-muted-foreground";
@@ -184,18 +190,63 @@ export default function ClassificationResultPage() {
           <StatusIcon className={cn("h-4 w-4", job.status === "processing" && "animate-spin")} />
           {statusLabel}
         </div>
+        {isRunning && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCancel}
+            disabled={cancelling || job.cancel_requested}
+            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+          >
+            {cancelling || job.cancel_requested ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-3.5 w-3.5 fill-current" />}
+            {job.cancel_requested ? "Cancelling…" : "Cancel"}
+          </Button>
+        )}
+        {(job.status === "completed" || job.status === "cancelled") && job.segments.length > 0 && (
+          <Button variant="outline" size="sm" onClick={exportCsv} className="gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        )}
       </div>
 
-      {/* Processing state */}
-      {(job.status === "queued" || job.status === "processing") && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-8 text-center space-y-3">
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-            <Zap className="h-6 w-6 text-primary" />
+      {/* Progress, while segments stream in below */}
+      {isRunning && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Zap className="h-4 w-4 text-primary" />
+            {job.cancel_requested
+              ? "Cancelling: stopping after the current batch…"
+              : job.status === "queued"
+              ? "Waiting for a worker…"
+              : job.total
+                ? `Classified ${job.done ?? 0} of ${job.total} segments`
+                : "Segmenting…"}
           </div>
-          <p className="font-semibold text-sm">Processing your text…</p>
-          <p className="text-xs text-muted-foreground">Real-time updates via WebSocket. This usually takes a few seconds.</p>
-          <div className="w-48 h-1.5 bg-primary/20 rounded-full mx-auto overflow-hidden">
-            <div className="h-full bg-primary rounded-full animate-pulse w-2/3" />
+          <div className="h-1.5 bg-primary/20 rounded-full overflow-hidden">
+            {job.total ? (
+              <div
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: `${Math.round(100 * (job.done ?? 0) / job.total)}%` }}
+              />
+            ) : (
+              <div className="h-full bg-primary rounded-full animate-pulse w-1/3" />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Cancelled state */}
+      {job.status === "cancelled" && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-3">
+          <Ban className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-900">Classification cancelled</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              {job.segments.length > 0
+                ? `${job.segments.length} sentence${job.segments.length === 1 ? " was" : "s were"} classified before you cancelled; they are highlighted below. You were refunded for the rest.`
+                : "It was cancelled before any sentence was classified. You were not charged."}
+            </p>
           </div>
         </div>
       )}
@@ -205,183 +256,28 @@ export default function ClassificationResultPage() {
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center space-y-2">
           <XCircle className="h-8 w-8 text-destructive mx-auto" />
           <p className="font-semibold text-sm">Classification failed</p>
-          <p className="text-xs text-muted-foreground">{failureMessage || "An error occurred during processing."}</p>
+          <p className="text-xs text-muted-foreground">{job.error_message || "An error occurred during processing."}</p>
+          {job.segments.length > 0 && (
+            <p className="text-xs text-muted-foreground">The segments classified before the failure are shown below. You were not charged.</p>
+          )}
         </div>
       )}
 
-      {/* Results */}
-      {job.status === "completed" && job.segments && (
+      {/* The text as submitted, highlighted as segments arrive */}
+      {(job.input_text || job.segments.length > 0) && (
         <div className="space-y-4">
-          {/* Legend */}
-          <div className="flex flex-wrap gap-3">
-            {Object.entries(LANG_STYLES).map(([lang, style]) => (
-              <div key={lang} className={cn("flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium", style.bg, style.border, style.text)}>
-                <span className={cn("h-1.5 w-1.5 rounded-full", style.text.replace("text", "bg"))} />
-                {style.label}
-              </div>
-            ))}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Click any segment to report an error
-            </div>
-          </div>
-
-          {/* Segments */}
+          <LanguageSummary segments={job.segments} focus={focus} onFocus={setFocus} />
           <div className="rounded-xl border border-border bg-white shadow-sm p-6 leading-[2.2] text-base">
-            {job.segments.map((seg, i, arr) => {
-              const isFirstInGroup = i === 0 || arr[i - 1].predicted_language !== seg.predicted_language;
-              const isLastInGroup = i === arr.length - 1 || arr[i + 1].predicted_language !== seg.predicted_language;
-              
-              return (
-                <SegmentFeedback 
-                  key={seg.segment_index} 
-                  segment={seg} 
-                  token={token}
-                  correctionLanguages={correctionLanguages}
-                  isFirstInGroup={isFirstInGroup}
-                  isLastInGroup={isLastInGroup}
-                />
-              );
-            })}
+            <SegmentText
+              text={job.input_text}
+              segments={job.segments}
+              correctionLanguages={correctionLanguages}
+              running={isRunning}
+              focus={focus}
+            />
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-function SegmentFeedback({
-  segment,
-  token,
-  correctionLanguages,
-  isFirstInGroup = true,
-  isLastInGroup = true,
-}: {
-  segment: Segment;
-  token: string | null;
-  correctionLanguages: string[];
-  isFirstInGroup?: boolean;
-  isLastInGroup?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [correctedLang, setCorrectedLang] = useState<string | null>(null);
-  const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
-  const style = getStyle(segment.predicted_language);
-
-  const handleSubmit = async () => {
-    if (!correctedLang) { toast.error("Please select a corrected language"); return; }
-    setSubmitting(true);
-    try {
-      await axios.post("/api/annotations", {
-        segment_id: segment.id,
-        corrected_language: correctedLang,
-        comment: comment || undefined,
-      });
-      toast.success("Correction submitted. Thank you!");
-      setSubmitted(true);
-      setOpen(false);
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || error.response?.data?.error || "Failed to submit");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <PopoverTrigger
-          nativeButton={false}
-          render={
-            <TooltipTrigger
-              render={
-                <span
-                  className={cn(
-                    "inline cursor-pointer border-y transition-all hover:shadow-sm hover:opacity-80 select-none whitespace-pre-wrap",
-                    style.bg, style.border, style.text,
-                    isFirstInGroup ? "rounded-l-md pl-1.5 border-l ml-0.5" : "border-l-0 pl-0.5",
-                    isLastInGroup ? "rounded-r-md pr-1.5 border-r mr-0.5" : "border-r-0 pr-0.5",
-                    submitted && "opacity-50 cursor-default",
-                  )}
-                >
-                  {segment.text}
-                </span>
-              }
-            />
-          }
-        />
-        <TooltipContent className="z-50 max-w-xs space-y-1">
-          <div className="font-semibold">{style.label} ({(segment.confidence * 100).toFixed(1)}% confidence)</div>
-          {segment.probabilities && (
-            <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
-              {Object.entries(segment.probabilities)
-                .sort(([, a], [, b]) => b - a)
-                .map(([lang, prob]) => (
-                  <div key={lang} className="contents">
-                    <span className="capitalize">{lang}:</span>
-                    <span className="font-mono">{(prob * 100).toFixed(2)}%</span>
-                  </div>
-              ))}
-            </div>
-          )}
-          <div className="text-[10px] text-muted-foreground pt-1 border-t mt-2">Click to report misclassification</div>
-        </TooltipContent>
-      </Tooltip>
-      <PopoverContent className="w-80 p-4" align="start" sideOffset={6}>
-        {submitted ? (
-          <div className="text-center py-3 space-y-2">
-            <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
-            <p className="font-semibold text-sm">Feedback submitted</p>
-            <p className="text-xs text-muted-foreground">An admin will review your correction.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <h4 className="font-semibold text-sm flex items-center gap-1.5 mb-1">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                Report Misclassification
-              </h4>
-              <p className="text-xs text-muted-foreground">
-                Model predicted <strong className="capitalize">{segment.predicted_language}</strong>.
-                Select the correct language below.
-              </p>
-            </div>
-
-            <Select value={correctedLang} onValueChange={setCorrectedLang}>
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder="Select correct language…" />
-              </SelectTrigger>
-              <SelectContent>
-                {correctionLanguages.map((lang) => (
-                  <SelectItem key={lang} value={lang} className="capitalize">
-                    {lang}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Textarea
-              placeholder="Optional comment…"
-              className="h-16 text-xs resize-none"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-
-            <Button
-              size="sm"
-              className="w-full text-xs h-9"
-              disabled={submitting || !correctedLang}
-              onClick={handleSubmit}
-            >
-              {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
-              Submit Correction
-            </Button>
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
   );
 }

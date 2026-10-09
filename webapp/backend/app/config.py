@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = "minioadmin"
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_SECURE: bool = False
+    # Host that browsers reach MinIO on, for presigned links. Unset: MINIO_ENDPOINT.
+    MINIO_PUBLIC_ENDPOINT: str | None = None
+    MINIO_PUBLIC_SECURE: bool = False
 
     # PayHere Sri Lanka Gateway
     PAYHERE_MERCHANT_ID: str = "1211149"

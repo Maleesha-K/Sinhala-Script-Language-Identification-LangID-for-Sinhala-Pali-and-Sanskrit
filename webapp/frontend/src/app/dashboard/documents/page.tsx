@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
-  Loader2, Download, Trash2, FileText, CheckCircle2, Clock, XCircle, Upload, Eye,
+  Loader2, Download, Trash2, FileText, CheckCircle2, Clock, XCircle, Upload, Eye, Ban,
 } from "lucide-react";
 import { UploadModal } from "@/components/documents/upload-modal";
 import { PageHeader } from "@/components/layout/page-header";
 import { apiErrorDetail, cn } from "@/lib/utils";
 import { ocrEngineLabel, type OCREngine } from "@/lib/ocr-engines";
 
-type DocumentStatus = "uploading" | "ready" | "failed" | "deleted";
+type DocumentStatus = "uploading" | "ready" | "failed" | "deleted" | "cancelled";
 
 type Document = {
   id: string;
@@ -29,6 +29,7 @@ type Document = {
 
 const statusConfig: Record<DocumentStatus, { icon: React.ElementType; label: string; className: string }> = {
   uploading: { icon: Loader2,      label: "Processing", className: "text-primary" },
+  cancelled: { icon: Ban,          label: "Cancelled",  className: "text-amber-600" },
   ready:     { icon: CheckCircle2, label: "Ready",      className: "text-emerald-600" },
   failed:    { icon: XCircle,      label: "Failed",     className: "text-destructive" },
   deleted:   { icon: XCircle,      label: "Deleted",    className: "text-destructive" },
@@ -93,10 +94,9 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleRowClick = (docId: string, status: DocumentStatus) => {
-    if (status === "ready") {
-      router.push(`/dashboard/documents/${docId}`);
-    }
+  // Documents open while they are processed: pages appear as they are read.
+  const handleRowClick = (docId: string) => {
+    router.push(`/dashboard/documents/${docId}`);
   };
 
   return (
@@ -104,7 +104,14 @@ export default function DocumentsPage() {
       <PageHeader
         title="Documents"
         description="Upload PDFs to extract text and run language identification."
-        actions={<UploadModal onUploadSuccess={fetchDocuments} />}
+        actions={
+          <UploadModal
+            onUploadSuccess={(doc) => {
+              // Pages and their languages stream in on the document view.
+              router.push(`/dashboard/documents/${doc.id}`);
+            }}
+          />
+        }
       />
 
       <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
@@ -142,13 +149,13 @@ export default function DocumentsPage() {
                 return (
                   <TableRow 
                     key={doc.id} 
-                    className={cn("hover:bg-muted/30 transition-colors", doc.upload_status === "ready" && "cursor-pointer")}
-                    onClick={() => handleRowClick(doc.id, doc.upload_status)}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => handleRowClick(doc.id)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-medium truncate max-w-[240px]">{doc.filename}</span>
+                        <span className="text-sm font-medium truncate max-w-[240px] xl:max-w-[480px]">{doc.filename}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -171,7 +178,6 @@ export default function DocumentsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          disabled={doc.upload_status !== "ready"}
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/dashboard/documents/${doc.id}`);
@@ -184,7 +190,6 @@ export default function DocumentsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          disabled={doc.upload_status !== "ready"}
                           onClick={(e) => handleDownload(e, doc.id, doc.filename)}
                           className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
                           title="Download"

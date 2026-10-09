@@ -433,6 +433,76 @@ async def test_get_pages_without_token_returns_401(async_client):
     assert response.status_code == 401, response.text
 
 
+# --- page image ------------------------------------------------------------
+
+def two_page_pdf() -> bytes:
+    import fitz
+
+    with fitz.open() as pdf:
+        for _ in range(2):
+            pdf.new_page(width=200, height=300)
+        return pdf.tobytes()
+
+
+@pytest.mark.asyncio
+async def test_page_image_renders_the_page_as_png(
+    async_client, auth_headers, mock_storage, mock_ocr_task
+):
+    """A page of the stored PDF comes back as a cacheable PNG."""
+    document = await upload_document(async_client, auth_headers)
+    mock_storage.get_document_bytes.return_value = two_page_pdf()
+
+    response = await async_client.get(
+        f"{API}/documents/{document['id']}/pages/2/image", headers=auth_headers
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "image/png"
+    assert response.content.startswith(b"\x89PNG")
+    assert "max-age" in response.headers["cache-control"]
+
+
+@pytest.mark.asyncio
+async def test_page_image_for_missing_page_returns_404(
+    async_client, auth_headers, mock_storage, mock_ocr_task
+):
+    document = await upload_document(async_client, auth_headers)
+    mock_storage.get_document_bytes.return_value = two_page_pdf()
+
+    response = await async_client.get(
+        f"{API}/documents/{document['id']}/pages/3/image", headers=auth_headers
+    )
+    assert response.status_code == 404, response.text
+
+
+@pytest.mark.asyncio
+async def test_page_image_returns_500_when_storage_fails(
+    async_client, auth_headers, mock_storage, mock_ocr_task
+):
+    document = await upload_document(async_client, auth_headers)
+    mock_storage.get_document_bytes.return_value = None
+
+    response = await async_client.get(
+        f"{API}/documents/{document['id']}/pages/1/image", headers=auth_headers
+    )
+    assert response.status_code == 500, response.text
+
+
+@pytest.mark.asyncio
+async def test_page_image_for_another_users_document_returns_404(
+    async_client, auth_headers, second_user_headers, mock_storage, mock_ocr_task
+):
+    """Another user's pages are never rendered."""
+    theirs = await upload_document(async_client, second_user_headers, "private.pdf")
+    mock_storage.get_document_bytes.return_value = two_page_pdf()
+
+    response = await async_client.get(
+        f"{API}/documents/{theirs['id']}/pages/1/image", headers=auth_headers
+    )
+    assert response.status_code == 404, response.text
+    mock_storage.get_document_bytes.assert_not_called()
+
+
 # --- delete ----------------------------------------------------------------
 
 @pytest.mark.asyncio

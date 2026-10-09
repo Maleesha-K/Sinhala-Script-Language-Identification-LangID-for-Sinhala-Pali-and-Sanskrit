@@ -3,28 +3,28 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
-  DialogFooter 
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Loader2, 
-  Coins, 
-  Check, 
-  ShieldCheck, 
-  Sparkles, 
-  CreditCard, 
-  Smartphone, 
-  Building2, 
-  CheckCircle2, 
+import {
+  Loader2,
+  Coins,
+  Check,
+  ShieldCheck,
+  Sparkles,
+  CreditCard,
+  Smartphone,
+  Building2,
+  CheckCircle2,
   Lock,
   ArrowRight,
   ChevronLeft
@@ -119,7 +119,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
 
     if (selectedId === "custom") {
       const credits = Math.max(1000, Number(customCredits) || 1000);
-      const amountLkr = Math.round(credits * unitPrice * 100) / 100;
+      const amountLkr = Math.round(credits * unitPrice);
       return { credits, amountLkr, name: "Custom Pack" };
     }
     const pkg = packages.find((p) => p.id === selectedId) || packages[1] || packages[0];
@@ -226,11 +226,10 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                       <div
                         key={pkg.id}
                         onClick={() => setSelectedId(pkg.id)}
-                        className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                          isSelected
+                        className={`relative flex flex-col justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${isSelected
                             ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
                             : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
-                        }`}
+                          }`}
                       >
                         {pkg.popular && (
                           <Badge className="absolute -top-2.5 right-3 bg-primary text-white text-[10px] px-2 py-0.5 shadow-sm">
@@ -263,13 +262,12 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                 </div>
 
                 {/* Custom Credits Option */}
-                <div 
+                <div
                   onClick={() => setSelectedId("custom")}
-                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    selectedId === "custom" 
-                      ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary" 
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedId === "custom"
+                      ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
                       : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -335,8 +333,8 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                 <Button variant="outline" onClick={() => handleModalOpenChange(false)} disabled={loading}>
                   Cancel
                 </Button>
-                <Button 
-                  onClick={handleLaunchPayHere} 
+                <Button
+                  onClick={handleLaunchPayHere}
                   disabled={loading || fetchingPackages}
                   className="bg-primary hover:bg-primary/90 text-white min-w-[170px]"
                 >
@@ -396,33 +394,30 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                   <div className="grid grid-cols-3 gap-2.5 p-1.5 bg-slate-200/70 rounded-xl border border-slate-200">
                     <button
                       onClick={() => setActivePaymentMethod("card")}
-                      className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
-                        activePaymentMethod === "card"
+                      className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${activePaymentMethod === "card"
                           ? "bg-white text-slate-900 shadow-sm border border-slate-200/80"
                           : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-                      }`}
+                        }`}
                     >
                       <CreditCard className="h-4 w-4 text-blue-600" />
                       Card (Visa/Master)
                     </button>
                     <button
                       onClick={() => setActivePaymentMethod("wallet")}
-                      className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
-                        activePaymentMethod === "wallet"
+                      className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${activePaymentMethod === "wallet"
                           ? "bg-white text-slate-900 shadow-sm border border-slate-200/80"
                           : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-                      }`}
+                        }`}
                     >
                       <Smartphone className="h-4 w-4 text-emerald-600" />
                       eZ Cash / mCash
                     </button>
                     <button
                       onClick={() => setActivePaymentMethod("bank")}
-                      className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
-                        activePaymentMethod === "bank"
+                      className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${activePaymentMethod === "bank"
                           ? "bg-white text-slate-900 shadow-sm border border-slate-200/80"
                           : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-                      }`}
+                        }`}
                     >
                       <Building2 className="h-4 w-4 text-indigo-600" />
                       Internet Banking
@@ -443,10 +438,10 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                         <div>
                           <Label className="text-xs font-medium text-slate-600">Card Number</Label>
                           <div className="relative mt-1">
-                            <Input 
-                              value={cardNumber} 
-                              onChange={(e) => setCardNumber(e.target.value)} 
-                              className="bg-white border-slate-200 text-slate-900 font-mono text-sm pl-3 pr-20 h-10 shadow-sm" 
+                            <Input
+                              value={cardNumber}
+                              onChange={(e) => setCardNumber(e.target.value)}
+                              className="bg-white border-slate-200 text-slate-900 font-mono text-sm pl-3 pr-20 h-10 shadow-sm"
                             />
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-1.5 text-[10px] font-bold text-slate-400">
                               <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded">VISA</span>
@@ -458,28 +453,28 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                         <div className="grid grid-cols-2 gap-3.5">
                           <div>
                             <Label className="text-xs font-medium text-slate-600">Expiration Date</Label>
-                            <Input 
-                              value={cardExpiry} 
-                              onChange={(e) => setCardExpiry(e.target.value)} 
-                              className="bg-white border-slate-200 text-slate-900 font-mono text-sm mt-1 h-10 shadow-sm" 
+                            <Input
+                              value={cardExpiry}
+                              onChange={(e) => setCardExpiry(e.target.value)}
+                              className="bg-white border-slate-200 text-slate-900 font-mono text-sm mt-1 h-10 shadow-sm"
                             />
                           </div>
                           <div>
                             <Label className="text-xs font-medium text-slate-600">CVV / CVC</Label>
-                            <Input 
-                              value={cardCvv} 
-                              onChange={(e) => setCardCvv(e.target.value)} 
-                              className="bg-white border-slate-200 text-slate-900 font-mono text-sm mt-1 h-10 shadow-sm" 
+                            <Input
+                              value={cardCvv}
+                              onChange={(e) => setCardCvv(e.target.value)}
+                              className="bg-white border-slate-200 text-slate-900 font-mono text-sm mt-1 h-10 shadow-sm"
                             />
                           </div>
                         </div>
 
                         <div>
                           <Label className="text-xs font-medium text-slate-600">Cardholder Name</Label>
-                          <Input 
-                            value={cardHolder} 
-                            onChange={(e) => setCardHolder(e.target.value)} 
-                            className="bg-white border-slate-200 text-slate-900 text-sm mt-1 h-10 shadow-sm" 
+                          <Input
+                            value={cardHolder}
+                            onChange={(e) => setCardHolder(e.target.value)}
+                            className="bg-white border-slate-200 text-slate-900 text-sm mt-1 h-10 shadow-sm"
                           />
                         </div>
                       </div>
@@ -512,10 +507,10 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                           </div>
                           <div>
                             <Label className="text-xs font-medium text-slate-600">Registered Mobile Number</Label>
-                            <Input 
-                              value={walletPhone} 
-                              onChange={(e) => setWalletPhone(e.target.value)} 
-                              className="bg-white border-slate-200 text-slate-900 font-mono text-sm mt-1 h-10 shadow-sm" 
+                            <Input
+                              value={walletPhone}
+                              onChange={(e) => setWalletPhone(e.target.value)}
+                              className="bg-white border-slate-200 text-slate-900 font-mono text-sm mt-1 h-10 shadow-sm"
                             />
                           </div>
                         </div>
@@ -566,15 +561,15 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                       </p>
                     </div>
                     <div className="flex items-center space-x-2.5 w-full sm:w-auto justify-end">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setShowSandboxGateway(false)} 
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowSandboxGateway(false)}
                         className="border-slate-300 text-slate-700 hover:bg-slate-100 h-10 text-xs font-medium px-4"
                       >
                         <ChevronLeft className="h-4 w-4 mr-1" />
                         Back
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleConfirmSandboxPayment}
                         className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-10 px-5 shadow-sm flex items-center gap-2"
                       >
@@ -637,7 +632,7 @@ export function TopUpModal({ open, onOpenChange, onSuccess }: TopUpModalProps) {
                   </div>
 
                   <div className="pt-2">
-                    <Button 
+                    <Button
                       onClick={() => handleModalOpenChange(false)}
                       className="bg-primary hover:bg-primary/90 text-white font-semibold px-8 h-10 text-xs"
                     >

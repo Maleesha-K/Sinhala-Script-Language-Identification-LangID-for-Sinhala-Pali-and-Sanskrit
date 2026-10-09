@@ -1,8 +1,9 @@
-"""fastText LID backends: the fine-tuned NLLB (lid218e) and GlotLID v3 checkpoints.
+"""fastText LID backends: the fine-tuned NLLB LID-218, GlotLID v3 and OpenLID v3.
 
-These are the `replay` arm checkpoints produced by data_pipeline/new_method,
-which extend the pretrained label space with sin_Sinh / pli_Sinh / san_Sinh
-without replacing the original classifier head.
+These are the data_pipeline stage-07 rehearsal checkpoints (see app/ml/paths.py):
+native fastText softmax models continued on the target and replay data, which
+extend the pretrained label space with sin_Sinh / pli_Sinh / san_Sinh while
+keeping every original label.
 
 Predictions are unrestricted top-1 over the model's full label space, then
 mapped onto the three categories the web app reports. A prediction outside the
@@ -17,6 +18,8 @@ from typing import Dict, List
 
 from app.ml.base import BaseClassifier
 from app.ml.language_names import describe_code
+from app.ml.paths import finetuned
+from app.ml.text import normalise
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +59,7 @@ class FastTextLangIDClassifier(BaseClassifier):
             if not os.path.exists(self.model_path):
                 raise FileNotFoundError(
                     f"{self.display_name} checkpoint not found at {self.model_path}. "
-                    "Run the new_method pipeline or set the *_MODEL_PATH env var."
+                    "Run data_pipeline stage 07 or set the *_MODEL_PATH env var."
                 )
             import fasttext
             import numpy as np
@@ -91,20 +94,21 @@ class FastTextLangIDClassifier(BaseClassifier):
             return []
         self._ensure_loaded()
 
-        # fastText treats a newline as an end-of-sentence token; collapse to
-        # spaces exactly as the training pipeline does.
-        cleaned = [(t or "").replace(chr(10), " ").strip() for t in texts]
+        # The pipeline normalises every input; this also turns newlines, which
+        # fastText treats as end-of-sentence, into spaces.
+        cleaned = [normalise(t or "") for t in texts]
 
         results: List[Dict] = []
         for text in cleaned:
-            if not text:
+            # None: the model abstains (ConLID finds no features in the text).
+            probs = self._probabilities(text) if text else None
+            if probs is None:
                 results.append(
                     {"language": "unknown", "confidence": 0.0,
                      "probabilities": {c: 0.0 for c in REPORTED}}
                 )
                 continue
 
-            probs = self._probabilities(text)
             top_index = int(probs.argmax())
             top_code = self._labels[top_index]
             confidence = float(probs[top_index])
@@ -136,99 +140,17 @@ class FastTextLangIDClassifier(BaseClassifier):
         return results
 
 
-class FastTextHeadClassifier(FastTextLangIDClassifier):
-    """A pretrained fastText encoder with a separately fine-tuned linear head.
-
-    Produced by data_pipeline/scripts/06.finetune_models/finetune_OpenLID_expansion:
-    the base model's sentence vector is frozen and only a bias-free
-    nn.Linear(dim, n_labels) is trained. Its labels are the base labels in
-    order, followed by the NEW_LABELS the base model did not already have.
-    """
-
-    # Order matters: it must match DATASET_TO_OPENLID_MAP in the training notebook.
-    NEW_LABELS = [
-        "eng_Latn", "sin_Sinh", "san_Sinh", "pli_Sinh", "tam_Taml", "hin_Deva",
-        "ben_Beng", "ara_Arab", "fra_Latn", "deu_Latn", "jpn_Jpan", "nld_Latn",
-        "pol_Latn", "ita_Latn", "por_Latn", "tur_Latn", "spa_Latn", "ell_Grek",
-        "urd_Arab", "bul_Cyrl", "cmn_Hans", "rus_Cyrl", "tha_Thai", "swh_Latn",
-        "vie_Latn",
-    ]
-
-    def __init__(self, model_path: str, head_path: str, display_name: str):
-        super().__init__(model_path, display_name)
-        self.head_path = head_path
-
-    @property
-    def available(self) -> bool:
-        if not (os.path.exists(self.model_path) and os.path.exists(self.head_path)):
-            return False
-        try:
-            import torch  # noqa: F401
-        except ImportError:
-            return False
-        return True
-
-    def _ensure_loaded(self):
-        if self._model is not None:
-            return
-        with self._lock:
-            if self._model is not None:
-                return
-            for path in (self.model_path, self.head_path):
-                if not os.path.exists(path):
-                    raise FileNotFoundError(
-                        f"{self.display_name} file not found at {path}. "
-                        "Set OPENLID_MODEL_PATH / OPENLID_HEAD_PATH."
-                    )
-            import fasttext
-            import numpy as np
-            import torch
-
-            logger.info("Loading %s from %s + %s", self.display_name, self.model_path, self.head_path)
-            model = fasttext.load_model(self.model_path)
-            labels = [l.removeprefix("__label__") for l in model.get_labels()]
-            labels += [l for l in self.NEW_LABELS if l not in labels]
-
-            state = torch.load(self.head_path, map_location="cpu", weights_only=True)
-            output = state["weight"].numpy()
-            if output.shape != (len(labels), model.get_dimension()):
-                raise ValueError(
-                    f"{self.display_name} head is {output.shape}, expected "
-                    f"({len(labels)}, {model.get_dimension()})"
-                )
-            # head(x) = W @ x, so the inherited softmax over output @ hidden applies as is.
-            self._labels = labels
-            self._output = np.asarray(output)
-            self._model = model
-            logger.info("Loaded %s (%d labels)", self.display_name, len(self._labels))
-
-
-def _default_path(model_dir: str) -> str:
-    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
-    return os.path.join(
-        root, "data_pipeline", "new_method", "results", "main_seed42_arbonly",
-        model_dir, "replay", "model.bin",
-    )
-
-
 nllb_classifier = FastTextLangIDClassifier(
-    os.environ.get("NLLB_MODEL_PATH") or _default_path("nllb"),
+    os.environ.get("NLLB_MODEL_PATH") or finetuned("nllb_lid218", "model.bin"),
     "NLLB LID-218 (fine-tuned)",
 )
 
 glotlid_classifier = FastTextLangIDClassifier(
-    os.environ.get("GLOTLID_MODEL_PATH") or _default_path("glotlid"),
+    os.environ.get("GLOTLID_MODEL_PATH") or finetuned("glotlid_v3", "model.bin"),
     "GlotLID v3 (fine-tuned)",
 )
 
-_MODELS_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../../../data_pipeline/models")
-)
-
-openlid_classifier = FastTextHeadClassifier(
-    os.environ.get("OPENLID_MODEL_PATH")
-    or os.path.join(_MODELS_ROOT, "pretrained", "openlid", "openlid-v3.bin"),
-    os.environ.get("OPENLID_HEAD_PATH")
-    or os.path.join(_MODELS_ROOT, "finetuned", "openlid", "openlid_head_with_rehearsal.pt"),
+openlid_classifier = FastTextLangIDClassifier(
+    os.environ.get("OPENLID_MODEL_PATH") or finetuned("openlid_v3", "model.bin"),
     "OpenLID v3 (fine-tuned)",
 )

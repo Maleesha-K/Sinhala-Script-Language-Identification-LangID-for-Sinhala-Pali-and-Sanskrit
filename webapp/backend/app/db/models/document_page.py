@@ -14,6 +14,8 @@ class PageStatus(str, enum.Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    # Not read: the document's processing was cancelled first.
+    CANCELLED = "cancelled"
 
 class DocumentPage(Base, TimestampMixin):
     __tablename__ = "document_pages"

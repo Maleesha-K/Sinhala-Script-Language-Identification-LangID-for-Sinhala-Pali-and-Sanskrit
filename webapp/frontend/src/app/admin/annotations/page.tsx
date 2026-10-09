@@ -109,13 +109,13 @@ export default function AdminAnnotationsPage() {
             ) : (
               annotations.map((ann) => (
                 <TableRow key={ann.id} className="hover:bg-muted/30 align-top">
-                  <TableCell className="max-w-[260px]">
+                  <TableCell className="max-w-[260px] xl:max-w-[420px]">
                     <Phrase text={ann.original_text} highlight />
                   </TableCell>
-                  <TableCell className="max-w-[200px]">
+                  <TableCell className="max-w-[200px] xl:max-w-[320px]">
                     <Phrase text={ann.previous_text} />
                   </TableCell>
-                  <TableCell className="max-w-[200px]">
+                  <TableCell className="max-w-[200px] xl:max-w-[320px]">
                     <Phrase text={ann.next_text} />
                   </TableCell>
                   <TableCell>
@@ -136,7 +136,7 @@ export default function AdminAnnotationsPage() {
                       <span className="capitalize">{ann.corrected_language}</span>
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[200px] whitespace-normal break-words">
+                  <TableCell className="text-sm text-muted-foreground max-w-[200px] xl:max-w-[320px] whitespace-normal break-words">
                     {ann.comment || <span className="italic opacity-50">No comment</span>}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-nowrap">

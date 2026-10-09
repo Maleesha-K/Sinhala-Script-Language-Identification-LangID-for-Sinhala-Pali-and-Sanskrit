@@ -11,7 +11,11 @@ from app.db.models.classified_segment import ClassifiedSegment
 from app.dependencies import get_db, get_current_user
 from app.schemas.response import BaseResponse, success_response
 from app.utils.exceptions import NotFoundException, BadRequestException
-from app.workers.tasks.classification_tasks import process_classification_job, estimate_tokens
+from app.workers.tasks.classification_tasks import (
+    process_classification_job, estimate_tokens, split_segments,
+)
+from app.utils.events import segment_payload
+from app.services.job_control import ACTIVE_JOB_STATUSES, cancel_job
 from app.services.credit_service import credit_service
 from app.ml.registry import MODELS, BASELINE_MODEL, list_models
 from pydantic import BaseModel, Field
@@ -20,7 +24,8 @@ router = APIRouter(prefix="/classification", tags=["classification"])
 
 class JobCreateRequest(BaseModel):
     input_text: str = Field(..., min_length=1)
-    segmentation_strategy: str = Field("sentence", pattern="^(sentence|paragraph|full_text|auto)$")
+    # "document": sentences of OCR'd text, where a single line break is a printed wrap.
+    segmentation_strategy: str = Field("sentence", pattern="^(sentence|paragraph|full_text|auto|document)$")
     model_name: str = Field(BASELINE_MODEL, description="Classification model id")
 
 
@@ -51,6 +56,16 @@ class JobResponse(BaseModel):
     total_tokens: int
     created_at: datetime
     completed_at: Optional[datetime]
+    error_message: Optional[str] = None
+    # A cancel was requested; the job stops at its next batch.
+    cancel_requested: bool = False
+    # The classified text; segments index into it by their character offsets.
+    input_text: Optional[str] = None
+    document_id: Optional[UUID] = None
+    page_number: Optional[int] = None
+    # Classified so far / in total, while the job runs (total unknown while queued).
+    done: Optional[int] = None
+    total: Optional[int] = None
     segments: Optional[List[SegmentResponse]] = None
 
 @router.post("/jobs", response_model=BaseResponse[JobResponse], status_code=status.HTTP_201_CREATED)
@@ -115,7 +130,8 @@ async def list_classification_jobs(
     """List the current user's most recent classification jobs (without segments)."""
     result = await db.execute(
         select(ClassificationJob)
-        .where(ClassificationJob.user_id == current_user.id)
+        # Per-page jobs of a document are shown on the document, not here.
+        .where(ClassificationJob.user_id == current_user.id, ClassificationJob.page_number.is_(None))
         .order_by(ClassificationJob.created_at.desc())
         .limit(limit)
     )
@@ -156,28 +172,53 @@ async def get_classification_job(
         "completed_at": job.completed_at,
     }
     
-    if job.status == JobStatus.COMPLETED:
-        # Fetch segments
-        segments_result = await db.execute(
-            select(ClassifiedSegment)
-            .where(ClassifiedSegment.job_id == job.id)
-            .order_by(ClassifiedSegment.segment_index)
-        )
-        segments = segments_result.scalars().all()
-        response_data["segments"] = [
-            {
-                "id": s.id,
-                "segment_index": s.segment_index,
-                "text": s.text,
-                "predicted_language": s.predicted_language,
-                "confidence": float(s.confidence),
-                "probabilities": s.probabilities,
-                "start_char_offset": s.start_char_offset,
-                "end_char_offset": s.end_char_offset
-            } for s in segments
-        ]
-        
+    response_data.update(
+        input_text=job.input_text,
+        error_message=job.error_message,
+        cancel_requested=job.cancel_requested,
+        document_id=job.document_id,
+        page_number=job.page_number,
+    )
+
+    # Segments are saved in batches while the job runs, so return what exists.
+    segments_result = await db.execute(
+        select(ClassifiedSegment)
+        .where(ClassifiedSegment.job_id == job.id)
+        .order_by(ClassifiedSegment.segment_index)
+    )
+    response_data["segments"] = [segment_payload(s) for s in segments_result.scalars().all()]
+    response_data["done"] = len(response_data["segments"])
+    if job.status == JobStatus.PROCESSING:
+        response_data["total"] = len(split_segments(job.input_text or "", job.segmentation_strategy))
+    elif job.status in (JobStatus.COMPLETED, JobStatus.CANCELLED):
+        response_data["total"] = response_data["done"]
+
     return success_response(data=response_data)
+
+
+@router.post("/jobs/{job_id}/cancel")
+async def cancel_classification_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Stop a queued or running job. Segments classified so far are kept and
+    the unclassified part is refunded."""
+    result = await db.execute(
+        select(ClassificationJob).where(ClassificationJob.id == job_id, ClassificationJob.user_id == current_user.id)
+    )
+    job = result.scalar_one_or_none()
+    if not job:
+        raise NotFoundException(item="Job")
+    if job.status not in ACTIVE_JOB_STATUSES:
+        raise BadRequestException(f"This job has already {job.status.value}.")
+
+    await cancel_job(db, job)
+    stopped = job.status == JobStatus.CANCELLED
+    return success_response(
+        data={"id": job.id, "status": job.status, "cancel_requested": job.cancel_requested},
+        message="Job cancelled" if stopped else "Cancelling: the job stops after its current batch",
+    )
 
 
 @router.get("/models", response_model=BaseResponse[List[ModelInfoResponse]])

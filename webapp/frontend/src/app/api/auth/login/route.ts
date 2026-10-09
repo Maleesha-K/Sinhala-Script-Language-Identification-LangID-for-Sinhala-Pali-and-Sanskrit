@@ -15,7 +15,12 @@ export async function POST(request: Request) {
     const { access_token, refresh_token } = response.data.data;
     setAuthCookies(await cookies(), access_token, refresh_token);
 
-    return NextResponse.json({ success: true });
+    // The page sends admins to the admin panel and everyone else to the dashboard.
+    const me = await axios.get(`${API_URL}/users/me`, {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+
+    return NextResponse.json({ success: true, role: me.data.data.role });
   } catch (error) {
     return NextResponse.json(
       { detail: backendErrorMessage(error, 'Authentication failed') },

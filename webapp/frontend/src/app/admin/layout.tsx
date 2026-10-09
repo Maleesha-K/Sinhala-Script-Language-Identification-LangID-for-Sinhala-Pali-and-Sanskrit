@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AppHeader } from "@/components/layout/app-header";
+import { SidebarProvider } from "@/components/layout/sidebar";
+import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import axios from "axios";
 import { API_URL } from "@/lib/backend";
 
@@ -32,16 +34,19 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <AppHeader />
-      <div className="flex flex-1 overflow-hidden">
-        <AdminSidebar />
-        <main className="flex-1 overflow-y-auto">
-          <div className="container max-w-6xl mx-auto p-6 lg:p-8 space-y-6">
-            {children}
-          </div>
-        </main>
+    <SidebarProvider defaultCollapsed={cookieStore.get(SIDEBAR_COOKIE)?.value === "true"}>
+      <div className="flex flex-col h-screen overflow-hidden">
+        <AppHeader />
+        <div className="flex flex-1 overflow-hidden">
+          <AdminSidebar />
+          <main className="flex-1 min-w-0 overflow-y-auto">
+            {/* Wide enough for side-by-side work; capped so lines stay readable on huge screens. */}
+            <div className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

@@ -1,6 +1,6 @@
 import uuid
 import enum
-from sqlalchemy import String, BigInteger, Text, ForeignKey, Enum as SQLEnum
+from sqlalchemy import String, BigInteger, Text, ForeignKey, Enum as SQLEnum, Boolean, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base, TimestampMixin
@@ -10,6 +10,8 @@ class UploadStatus(str, enum.Enum):
     READY = "ready"
     FAILED = "failed"
     DELETED = "deleted"
+    # OCR stopped by the user; pages read before the stop are kept.
+    CANCELLED = "cancelled"
 
 class Document(Base, TimestampMixin):
     __tablename__ = "documents"
@@ -23,6 +25,10 @@ class Document(Base, TimestampMixin):
     upload_status: Mapped[UploadStatus] = mapped_column(SQLEnum(UploadStatus), default=UploadStatus.UPLOADING, nullable=False)
     # OCR engine chosen at upload; see app.ocr.registry.
     ocr_engine: Mapped[str] = mapped_column(String(64), default="tesseract", server_default="tesseract", nullable=False)
+    # Classification model run on each page as soon as it is OCR'd; None: OCR only.
+    lid_model: Mapped[str | None] = mapped_column(String(128))
+    # Set by the cancel endpoint; the OCR worker stops before its next page.
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
     
     user = relationship("User")
     pages = relationship("DocumentPage", back_populates="document", cascade="all, delete-orphan")

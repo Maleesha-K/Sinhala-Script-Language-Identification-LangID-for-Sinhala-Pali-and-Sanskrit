@@ -1,0 +1,18 @@
+{$DOMAIN} {
+	encode zstd gzip
+
+	# FastAPI: REST and the job-progress WebSockets (Caddy upgrades them as is).
+	handle /api/v1/* {
+		reverse_proxy backend:8000
+	}
+
+	# Presigned MinIO download links. Caddy keeps the original Host header,
+	# which the link was signed for, so MinIO accepts the signature.
+	handle /langid-docs/* {
+		reverse_proxy minio:9000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

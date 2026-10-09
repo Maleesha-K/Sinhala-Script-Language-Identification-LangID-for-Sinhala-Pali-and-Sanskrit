@@ -1,0 +1,104 @@
+# Experiment protocol. Every model is trained, selected and scored with these
+# settings; nothing model-specific lives in stage scripts.
+
+seeds: [42]
+
+# Percentile-bootstrap 95% CIs on every reported metric.
+bootstrap:
+  resamples: 1000
+  seed: 0
+
+preprocess:
+  normalization: NFC          # applied to every dataset and model input
+  short_text_min_letters: 5   # rows below this are flagged `short`
+
+# Target-language dataset construction (scripts/maintainer/resplit_target.py).
+target_split:
+  seed: 42
+  fractions: {train: 0.8, validation: 0.1, test: 0.1}
+  # Sentence-level instances, as in FLORES+/OpenLID: paragraphs are split at
+  # sentence terminators and packed up to this many characters, removing the
+  # length cue (parallel paragraphs avg 435-661 chars vs ~110 for Sanskrit).
+  # 200 keeps units near FLORES+ sentence length.
+  max_chars: 200
+  min_letters: 5
+  # Split unit: contiguous block of <= block_size units within one document
+  # (blocked grouping for sequential text without finer document boundaries).
+  block_size: 25
+  # Near-duplicate removal (Broder 1997; Lee et al. 2022): MinHash LSH over
+  # character 5-gram shingles; pairs with true Jaccard >= threshold keep one.
+  near_dup: {shingle: 5, num_perm: 128, threshold: 0.8}
+
+# Rehearsal (experience replay) data for the 8 replay labels, stage 03.
+replay:
+  source: openlid_v2
+  seed: 42
+  # Balanced: every replay label gets the same number of units, so no language
+  # is starved (Aya gave German ~200 rows against ~26k Sinhala).
+  per_language: {train: 10000, validation: 1250}
+  # Random candidates drawn per language before filtering, dedup and
+  # decontamination; must leave >= train + validation units.
+  candidates_per_language: 40000
+  # OpenLID sub-sources that are (or derive from) one of our benchmarks are
+  # excluded wholesale, in addition to text-level decontamination.
+  exclude_sources: [wili2018]
+  # Decontamination against every benchmark eval set: exact text match, plus
+  # MinHash near-duplicates at the same settings as target_split.near_dup.
+
+# Fine-tuning protocol (stage 07), identical for every model:
+#  - target_only: train on target train, select on target validation (macro_target3)
+#  - rehearsal:   train on mixed train,  select on mixed validation  (macro_all, 11 labels)
+#  - every model gets a 3-point learning-rate grid spanning one decade around its
+#    optimiser's standard value, and the same epoch budget; validation is scored
+#    after every epoch and the best (lr, epoch) is kept. Test sets are never used.
+#  - ties keep the first found: smaller learning rate, then earlier epoch.
+training:
+  # Models trained only when named explicitly (run_pipeline.py --only 07 --models xlmr):
+  # XLM-R fine-tuning takes hours on a laptop GPU.
+  deferred_models: [xlmr]
+  max_epochs: 3
+  selection_metric: {target_only: macro_target3, rehearsal: macro_all}
+  lr_grid:
+    fasttext_softmax: [0.02, 0.05, 0.2]   # native fastText SGD, linear decay within each epoch
+    fasttext_hs: [0.1, 0.5, 2.0]          # LID-176 leaf surgery, constant SGD
+    conlid: [0.02, 0.05, 0.2]             # sparse SGD, linear decay within each epoch
+    xlmr: [2.0e-5, 5.0e-5, 1.0e-4]        # papluca XLM-R LID: AdamW, LoRA r=16 + extended head
+  batch_size: {fasttext_hs: 64, conlid: 32, xlmr: 32}
+  xlmr: {lora_r: 16, lora_alpha: 32, lora_dropout: 0.1, max_length: 128}
+
+# Short-text stress test (stage 03 builds, stage 05 scores): from every target
+# test sentence, a contiguous run of k words starting at a seeded random word
+# (sentences with <= k words are kept whole). Words are whitespace tokens with at
+# least one letter, so a fragment is never bare punctuation.
+fragments:
+  words: [5, 3, 1]
+  seed: 42
+
+# Traditional baselines (stage 05): trained from scratch on the target train
+# split only (Sinhala/Pali/Sanskrit), selected on target validation with the
+# same rule as the fine-tuned models (3-point grid of each model's main
+# hyperparameter), then scored on the target test split as full sentences and
+# as 5-, 3- and 1-word fragments.
+baselines:
+  phases: [target_only]
+  features: {analyzer: char_wb, ngram_range: [1, 4], n_features: 1048576}
+  # Parallel worker processes for one-vs-rest LogReg. Each worker holds its own copy of the feature matrix (~1 GB on the rehearsal data),
+  # so keep this small on a 16 GB machine.
+  n_jobs: 2
+  grid:
+    nb: {alpha: [0.01, 0.1, 1.0]}
+    svm: {C: [0.1, 1.0, 10.0]}
+    logreg: {C: [1.0, 10.0, 100.0]}
+    xgboost: {learning_rate: [0.1, 0.3, 0.6]}
+    fasttext_scratch: {lr: [0.1, 0.5, 1.0]}
+    char_cnn: {lr: [3.0e-4, 1.0e-3, 3.0e-3]}
+    char_bigru: {lr: [3.0e-4, 1.0e-3, 3.0e-3]}
+  max_epochs: 3                 # neural baselines and fastText
+  # Runs on CPU: 11-class GPU histograms (classes x features x bins x nodes) exceed a 4 GB GPU.
+  xgboost: {n_estimators: 200, max_depth: 6, n_features: 16384, max_bin: 64}
+
+# Smoke mode: tiny subsample + single grid point, to check the plumbing.
+smoke: false
+
+disk_gb:
+  benchmarks: 3

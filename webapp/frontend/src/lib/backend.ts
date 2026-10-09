@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import axios, { type Method } from "axios";
 import { getValidToken } from "@/lib/auth-server";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// Server-side only. API_INTERNAL_URL lets a container reach the backend directly
+// instead of through the public URL inlined at build time.
+export const API_URL =
+  process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 /**
  * Pulls a readable message out of a failed backend call. The backend wraps

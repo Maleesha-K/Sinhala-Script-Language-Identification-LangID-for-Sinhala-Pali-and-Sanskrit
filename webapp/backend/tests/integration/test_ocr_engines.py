@@ -104,12 +104,15 @@ async def test_upload_with_unknown_engine_returns_400(
     mock_storage.upload_document.assert_not_called()
 
 
-def test_surya_task_is_routed_to_its_own_queue():
+def test_ocr_tasks_are_routed_away_from_classification():
+    """OCR never occupies the classification worker: pages it has read are
+    classified on the default queue while later pages are still being OCR'd."""
     from app.workers.celery_app import celery_app
 
-    route = celery_app.amqp.router.route({}, "process_document_ocr_surya")
-    assert route["queue"].name == "surya"
-    assert celery_app.amqp.router.route({}, "process_document_ocr")["queue"].name == "celery"
+    route = lambda name: celery_app.amqp.router.route({}, name)["queue"].name
+    assert route("process_document_ocr_surya") == "surya"
+    assert route("process_document_ocr") == "ocr"
+    assert route("process_classification_job") == "celery"
 
 
 # --- worker ------------------------------------------------------------------
@@ -155,7 +158,7 @@ async def test_worker_uses_the_documents_engine(
 
 
 def test_surya_engine_joins_recognised_lines(mocker):
-    """SuryaEngine returns the recognised lines joined top to bottom."""
+    """SuryaEngine returns the recognised lines in reading order."""
     from types import SimpleNamespace
 
     from PIL import Image
@@ -163,7 +166,11 @@ def test_surya_engine_joins_recognised_lines(mocker):
     from app.ocr.surya_engine import SuryaEngine
 
     engine = SuryaEngine()
-    lines = [SimpleNamespace(text="බුද්ධං සරණං ගච්ඡාමි."), SimpleNamespace(text="ධම්මං සරණං ගච්ඡාමි.")]
+    # Detected bottom line first; read top to bottom.
+    lines = [
+        SimpleNamespace(text="ධම්මං සරණං ගච්ඡාමි.", bbox=[0, 30, 200, 50]),
+        SimpleNamespace(text="බුද්ධං සරණං ගච්ඡාමි.", bbox=[0, 0, 200, 20]),
+    ]
     engine._recognition = mocker.Mock(return_value=[SimpleNamespace(text_lines=lines)])
     engine._detection = object()
 

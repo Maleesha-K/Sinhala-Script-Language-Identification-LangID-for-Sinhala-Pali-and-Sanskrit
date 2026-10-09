@@ -1,0 +1,70 @@
+# Single source of truth for labels. Every gold label and every model prediction
+# is mapped through lidpipe/labels.py using this file. Labels are always
+# `<ISO 639-3>_<ISO 15924>`.
+
+# The 11 scored labels (order is the column order of every table).
+target: [sin_Sinh, pli_Sinh, san_Sinh]
+replay: [san_Deva, eng_Latn, tam_Taml, hin_Deva, ben_Beng, arb_Arab, fra_Latn, deu_Latn]
+
+# Expected script of each scored language. WiLI and CommonLID carry no script
+# tag; stage 02 derives it per language and asserts these.
+expected_script:
+  sin: Sinh
+  pli: Sinh
+  eng: Latn
+  tam: Taml
+  hin: Deva
+  ben: Beng
+  arb: Arab
+  fra: Latn
+  deu: Latn
+
+# Languages legitimately written in several scripts in our data: for benchmarks
+# without a script tag, their script is taken from each row's text (if it is
+# one of the listed scripts) instead of the per-language majority.
+multi_script:
+  san: [Deva, Sinh]
+
+# Arabic policy (user decision): arb_Arab means ISO `arb` (Modern Standard
+# Arabic) in Arabic script ONLY, for training, rehearsal and every benchmark.
+# Gold `ara` (macrolanguage) and dialect codes are never mapped to arb; WiLI,
+# which only has `ara`, therefore has no arb_Arab rows.
+#
+# Gold language-code overrides, per benchmark (raw code -> ISO 639-3).
+gold_overrides:
+  wili_2018:
+    als: gsw        # WiLI `als` is Alemannic; ISO `als` is Tosk Albanian.
+  commonlid: {}
+  flores_plus: {}
+
+# Scored labels the benchmark itself (as published) legitimately lacks. Anything
+# else missing aborts stage 02, because a silently vanishing label is normally a
+# bug. Checked on the benchmark's own rows: in the scored hybrid eval sets the
+# three target labels always come from our target test split instead.
+absent_by_design:
+  flores_plus: [pli_Sinh, san_Sinh]
+  wili_2018: [pli_Sinh, san_Sinh, arb_Arab]
+  commonlid: [sin_Sinh, pli_Sinh, san_Sinh]
+
+# Prediction language codes -> ISO 639-3. Applied to model OUTPUTS only.
+# Predictions without a script tag get the script of the input text, so a
+# model that outputs `sa` on Devanagari text is scored as san_Deva.
+prediction_language_aliases:
+  si: sin
+  pi: pli
+  sa: san
+  en: eng
+  ta: tam
+  hi: hin
+  bn: ben
+  fr: fra
+  de: deu
+  sinhala: sin
+  pali: pli
+  sanskrit: san
+  # LID-176 (`ar`) and OpenLID-v3 (`ara_Arab`) only have the macrolanguage
+  # label for Arabic; it is credited as arb. This is a documented limitation,
+  # not a gold-label mapping. When such a model is fine-tuned, arb_Arab training
+  # rows use the model's own Arabic label (see lidpipe.labels.model_label_map).
+  ar: arb
+  ara: arb

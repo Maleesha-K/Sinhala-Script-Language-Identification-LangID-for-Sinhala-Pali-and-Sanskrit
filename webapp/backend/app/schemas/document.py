@@ -3,7 +3,6 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 from app.db.models.document import UploadStatus
-from app.db.models.document_page import ExtractionMethod, PageStatus
 
 class DocumentBase(BaseModel):
     filename: str
@@ -19,6 +18,8 @@ class DocumentResponse(DocumentBase):
     user_id: UUID
     upload_status: UploadStatus
     ocr_engine: str
+    lid_model: Optional[str] = None
+    cancel_requested: bool = False
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
@@ -28,13 +29,3 @@ class OCREngineResponse(BaseModel):
     label: str
     description: str
     is_default: bool
-
-class DocumentPageResponse(BaseModel):
-    id: UUID
-    document_id: UUID
-    page_number: int
-    extracted_text: Optional[str] = None
-    extraction_method: Optional[ExtractionMethod] = None
-    ocr_model: Optional[str] = None
-    status: PageStatus
-    model_config = ConfigDict(from_attributes=True)

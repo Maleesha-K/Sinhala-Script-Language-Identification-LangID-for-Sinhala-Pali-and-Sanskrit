@@ -1,54 +1,145 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import axios from "axios";
+import { formatDistanceToNow } from "date-fns";
+import {
+  FileText, Activity, CheckCircle2, Coins, ArrowRight, Loader2, XCircle, Clock, Upload, Ban,
+} from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { PageHeader } from "@/components/layout/page-header";
-import { FileText, Activity, CheckCircle2, ShieldCheck } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-const quickLinks = [
-  {
-    href: "/dashboard/documents",
-    icon: FileText,
-    label: "Documents",
-    desc: "Upload PDFs and manage your document library.",
-    cta: "Manage Documents",
-  },
-  {
-    href: "/dashboard/classification",
-    icon: Activity,
-    label: "Language ID",
-    desc: "Paste text and identify Sinhala, Pali, or Sanskrit.",
-    cta: "Run Classification",
-  },
-];
+type Job = {
+  id: string;
+  status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+  model_name: string;
+  total_tokens: number;
+  created_at: string;
+};
+
+type Document = {
+  id: string;
+  filename: string;
+  upload_status: "uploading" | "ready" | "failed" | "deleted" | "cancelled";
+  created_at: string;
+};
+
+// The jobs endpoint returns the most recent 20.
+const JOB_PAGE = 20;
+const RECENT = 5;
+
+const STATUS = {
+  queued:     { icon: Clock,        className: "text-amber-500",   label: "Queued" },
+  processing: { icon: Loader2,      className: "text-primary",     label: "Processing" },
+  uploading:  { icon: Loader2,      className: "text-primary",     label: "Processing" },
+  completed:  { icon: CheckCircle2, className: "text-emerald-500", label: "Completed" },
+  ready:      { icon: CheckCircle2, className: "text-emerald-500", label: "Ready" },
+  failed:     { icon: XCircle,      className: "text-destructive", label: "Failed" },
+  deleted:    { icon: XCircle,      className: "text-destructive", label: "Deleted" },
+  cancelled:  { icon: Ban,          className: "text-amber-500",   label: "Cancelled" },
+} as const;
+
+function StatusIcon({ status }: { status: keyof typeof STATUS }) {
+  const { icon: Icon, className, label } = STATUS[status] ?? STATUS.queued;
+  return <Icon className={cn("h-4 w-4 shrink-0", className, Icon === Loader2 && "animate-spin")} aria-label={label} />;
+}
+
+const ago = (date: string) => formatDistanceToNow(new Date(date), { addSuffix: true });
 
 export default function DashboardOverviewPage() {
   const { user } = useAuth();
+  const [jobs, setJobs] = useState<Job[] | null>(null);
+  const [documents, setDocuments] = useState<Document[] | null>(null);
+  const [modelLabels, setModelLabels] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    axios.get("/api/classification/jobs").then((r) => setJobs(r.data?.data ?? [])).catch(() => setJobs([]));
+    axios.get("/api/documents").then((r) => setDocuments(r.data ?? [])).catch(() => setDocuments([]));
+    axios
+      .get("/api/classification/models")
+      .then((r) => setModelLabels(Object.fromEntries((r.data?.data ?? []).map((m: { id: string; label: string }) => [m.id, m.label]))))
+      .catch(() => { /* show model ids */ });
+  }, []);
+
+  const name = user?.email ? user.email.split("@")[0] : "";
+  const processingDocs = documents?.filter((d) => d.upload_status === "uploading").length ?? 0;
+  const runningJobs = jobs?.filter((j) => j.status === "queued" || j.status === "processing").length ?? 0;
 
   return (
     <div className="space-y-8">
       <PageHeader
-        title={`Welcome back${user?.email ? `, ${user.email.split("@")[0]}` : ""}`}
-        description="Here's an overview of your LangID workspace."
-      />
-
-      {/* Quick access cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {quickLinks.map(({ href, icon: Icon, label, desc, cta }) => (
-          <div key={href} className="rounded-xl border border-border bg-white p-6 shadow-sm hover:border-primary/40 hover:shadow-md transition-all group">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-              <Icon className="h-5 w-5 text-primary" />
-            </div>
-            <h3 className="font-semibold text-sm mb-1">{label}</h3>
-            <p className="text-muted-foreground text-sm mb-4">{desc}</p>
-            <Link href={href}>
-              <Button size="sm" variant="outline" className="text-xs border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground transition-colors">
-                {cta}
-              </Button>
+        title={`Welcome back${name ? `, ${name}` : ""}`}
+        description="Identify Sinhala, Pali and Sanskrit in pasted text or scanned PDFs."
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard/documents">
+              <Button variant="outline" className="gap-2"><Upload className="h-4 w-4" />Upload PDF</Button>
+            </Link>
+            <Link href="/dashboard/classification">
+              <Button className="gap-2"><Activity className="h-4 w-4" />Classify Text</Button>
             </Link>
           </div>
-        ))}
+        }
+      />
+
+      {/* At a glance */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Stat
+          icon={Coins}
+          tone="bg-emerald-50 text-emerald-600"
+          label="Credit balance"
+          value={user ? Number(user.credits_balance ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}
+          link={{ href: "/dashboard/usage", label: "Usage & top-up" }}
+        />
+        <Stat
+          icon={FileText}
+          tone="bg-blue-50 text-blue-600"
+          label="Documents"
+          value={documents ? documents.length.toLocaleString() : "—"}
+          note={processingDocs ? `${processingDocs} processing` : undefined}
+          link={{ href: "/dashboard/documents", label: "All documents" }}
+        />
+        <Stat
+          icon={Activity}
+          tone="bg-violet-50 text-violet-600"
+          label="Text classifications"
+          value={jobs ? (jobs.length >= JOB_PAGE ? `${JOB_PAGE}+` : jobs.length.toLocaleString()) : "—"}
+          note={runningJobs ? `${runningJobs} running` : undefined}
+          link={{ href: "/dashboard/classification", label: "New classification" }}
+        />
+      </div>
+
+      {/* Recent activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RecentList
+          title="Recent classifications"
+          loading={jobs === null}
+          empty="No classifications yet. Paste some text to get started."
+          emptyAction={{ href: "/dashboard/classification", label: "Classify text" }}
+          items={(jobs ?? []).slice(0, RECENT).map((j) => ({
+            key: j.id,
+            href: `/dashboard/classification/${j.id}`,
+            status: j.status,
+            title: modelLabels[j.model_name] ?? j.model_name,
+            meta: `${j.total_tokens ? `${j.total_tokens.toLocaleString()} tokens · ` : ""}${ago(j.created_at)}`,
+          }))}
+        />
+        <RecentList
+          title="Recent documents"
+          loading={documents === null}
+          empty="No documents yet. Upload a PDF to OCR it and identify its languages page by page."
+          emptyAction={{ href: "/dashboard/documents", label: "Upload a PDF" }}
+          items={(documents ?? []).slice(0, RECENT).map((d) => ({
+            key: d.id,
+            href: `/dashboard/documents/${d.id}`,
+            status: d.upload_status,
+            title: d.filename,
+            meta: ago(d.created_at),
+          }))}
+        />
       </div>
 
       {/* Info banner */}
@@ -57,26 +148,81 @@ export default function DashboardOverviewPage() {
         <div>
           <p className="text-sm font-medium text-foreground">Help improve LangID</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            After running a classification job, you can click any segment to report a misclassification. Your corrections help retrain the model.
+            In any result, click a sentence to report a misclassification. Your corrections help retrain the models.
           </p>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {user?.role === "admin" && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 flex items-start gap-4">
-          <ShieldCheck className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-amber-900">You have admin privileges</p>
-            <p className="text-xs text-amber-700 mt-0.5">
-              Use the Admin Panel to manage tiers, system configuration, and review user annotations.
-            </p>
-          </div>
-          <Link href="/admin">
-            <Button size="sm" className="text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0">
-              Admin Panel
-            </Button>
+function Stat({
+  icon: Icon, tone, label, value, note, link,
+}: {
+  icon: React.ElementType;
+  tone: string;
+  label: string;
+  value: string;
+  note?: string;
+  link: { href: string; label: string };
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-white p-5 shadow-sm flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center", tone)}>
+          <Icon className="h-4.5 w-4.5" />
+        </div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <p className="text-2xl font-bold tracking-tight tabular-nums">{value}</p>
+        {note && <p className="text-xs font-medium text-primary">{note}</p>}
+      </div>
+      <Link href={link.href} className="text-xs font-medium text-primary hover:underline flex items-center gap-1 mt-auto">
+        {link.label} <ArrowRight className="h-3 w-3" />
+      </Link>
+    </div>
+  );
+}
+
+function RecentList({
+  title, loading, empty, emptyAction, items,
+}: {
+  title: string;
+  loading: boolean;
+  empty: string;
+  emptyAction: { href: string; label: string };
+  items: { key: string; href: string; status: keyof typeof STATUS; title: string; meta: string }[];
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-border bg-slate-50/60">
+        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+      ) : items.length === 0 ? (
+        <div className="px-5 py-8 text-center space-y-3">
+          <p className="text-sm text-muted-foreground">{empty}</p>
+          <Link href={emptyAction.href}>
+            <Button size="sm" variant="outline" className="text-xs">{emptyAction.label}</Button>
           </Link>
         </div>
+      ) : (
+        <ul className="divide-y divide-border">
+          {items.map((item) => (
+            <li key={item.key}>
+              <Link href={item.href} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors group">
+                <StatusIcon status={item.status} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{item.title}</p>
+                  <p className="text-xs text-muted-foreground">{item.meta}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-primary transition-colors" />
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

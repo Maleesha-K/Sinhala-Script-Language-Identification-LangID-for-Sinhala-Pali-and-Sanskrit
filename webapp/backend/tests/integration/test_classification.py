@@ -267,7 +267,9 @@ async def test_get_job_while_queued(
     assert data["id"] == job["id"]
     assert data["status"] == "queued"
     assert data["completed_at"] is None
-    assert data["segments"] is None
+    assert data["segments"] == []
+    assert data["done"] == 0
+    assert data["total"] is None
 
 
 @pytest.mark.asyncio
@@ -325,19 +327,20 @@ async def test_get_completed_job_orders_segments(
 
 
 @pytest.mark.asyncio
-async def test_get_job_omits_segments_until_completed(
+async def test_get_job_returns_partial_segments_while_processing(
     async_client, auth_headers, mock_classification_task
 ):
-    """Segments are withheld while the job is still processing.
+    """Segments are served as soon as the worker saves them, with progress.
 
-    Rows are attached to a job left in PROCESSING; the endpoint only reads
-    them once the status is COMPLETED, so partial results are never served.
+    The worker saves and publishes segments in batches, so a client that
+    loads a running job sees what is classified so far and how much is left.
     """
     from sqlalchemy import select
 
     from app.db.models.classification_job import ClassificationJob, JobStatus
     from app.db.models.classified_segment import ClassifiedSegment
     from app.db.session import async_session_maker
+    from app.workers.tasks.classification_tasks import split_segments
 
     job = await create_job(async_client, auth_headers)
 
@@ -357,7 +360,9 @@ async def test_get_job_omits_segments_until_completed(
     assert response.status_code == 200, response.text
     data = response.json()["data"]
     assert data["status"] == "processing"
-    assert data["segments"] is None
+    assert [s["text"] for s in data["segments"]] == ["partial"]
+    assert data["done"] == 1
+    assert data["total"] == len(split_segments(stored.input_text, stored.segmentation_strategy))
 
 
 @pytest.mark.asyncio
