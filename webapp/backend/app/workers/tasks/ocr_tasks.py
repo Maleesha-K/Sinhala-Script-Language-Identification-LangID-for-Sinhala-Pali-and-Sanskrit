@@ -29,7 +29,8 @@ async def _queue_page_classification(session, owner_id, document_id, page, model
         page_number=page.page_number,
         input_text=page.extracted_text,
         model_name=model_name,
-        segmentation_strategy="sentence",
+        # OCR'd lines wrap mid-sentence; see split_segments("document").
+        segmentation_strategy="document",
         status=JobStatus.QUEUED,
         error_message=None,
         cancel_requested=False,

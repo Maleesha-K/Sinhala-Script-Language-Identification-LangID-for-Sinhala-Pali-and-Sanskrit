@@ -155,7 +155,7 @@ export default function DocumentsPage() {
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-medium truncate max-w-[240px]">{doc.filename}</span>
+                        <span className="text-sm font-medium truncate max-w-[240px] xl:max-w-[480px]">{doc.filename}</span>
                       </div>
                     </TableCell>
                     <TableCell>

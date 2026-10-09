@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Globe, ShieldCheck, Zap, BookOpen, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/layout/app-header";
+import { Logo } from "@/components/layout/logo";
 
 export default function Home() {
   return (
@@ -103,10 +104,7 @@ export default function Home() {
 
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
-          <div className="flex justify-center items-center gap-2 mb-2">
-            <Globe className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-foreground">LangID Platform</span>
-          </div>
+          <Logo size={20} label="LangID Platform" className="justify-center mb-2" labelClassName="text-sm font-semibold" />
           <p>© {new Date().getFullYear()} LangID. All rights reserved.</p>
         </div>
       </footer>

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, Response, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from uuid import UUID
@@ -142,6 +143,46 @@ async def get_document_download_url(
         raise AppException(message="Failed to generate download link", status_code=500)
         
     return success_response(data={"download_url": url}, message="Download URL generated")
+
+# Pages are previewed beside their OCR text, not re-OCR'd: screen resolution.
+PREVIEW_DPI = 110
+
+
+def _render_page_png(pdf_bytes: bytes, page_number: int, dpi: int) -> bytes | None:
+    """One page of a PDF as a PNG, or None when the PDF has no such page."""
+    import fitz
+
+    with fitz.open(stream=pdf_bytes, filetype="pdf") as pdf:
+        if not 1 <= page_number <= len(pdf):
+            return None
+        return pdf.load_page(page_number - 1).get_pixmap(dpi=dpi).tobytes("png")
+
+
+@router.get("/{document_id}/pages/{page_number}/image")
+async def get_document_page_image(
+    document_id: UUID,
+    page_number: int,
+    dpi: int = Query(PREVIEW_DPI, ge=36, le=200),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Response:
+    """The original PDF page rendered as a PNG, to compare with its OCR text."""
+    result = await db.execute(select(Document).where(Document.id == document_id, Document.user_id == current_user.id))
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise NotFoundException(item="Document")
+
+    pdf_bytes = await run_in_threadpool(storage_service.get_document_bytes, doc.minio_key)
+    if not pdf_bytes:
+        raise AppException(message="Could not load the document from storage", status_code=500)
+    try:
+        png = await run_in_threadpool(_render_page_png, pdf_bytes, page_number, dpi)
+    except Exception:
+        raise AppException(message="Could not render this page", status_code=500)
+    if png is None:
+        raise NotFoundException(item="Page")
+    # A stored PDF never changes, so its pages can be cached by the browser.
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "private, max-age=86400"})
 
 @router.post("/{document_id}/cancel", response_model=BaseResponse[DocumentResponse])
 async def cancel_document_processing(

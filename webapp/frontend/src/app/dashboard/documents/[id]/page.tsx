@@ -6,6 +6,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import {
   Loader2, ArrowLeft, Languages, FileText, Download, ChevronDown, Cpu, Sparkles, Clock, XCircle, Ban, Square,
+  Eye, EyeOff, ZoomIn, ZoomOut, X, ImageOff,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -75,6 +76,14 @@ type DocumentPage = {
 
 type View = "languages" | "text";
 
+// Whether the original page is shown beside its OCR text, remembered per browser.
+const SHOW_ORIGINAL_KEY = "documents.showOriginal";
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+// The page panels fill the window below the header, so text and original can
+// be read without scrolling the whole page.
+const TEXT_HEIGHT = "h-[max(420px,calc(100vh_-_13rem))]";
+const TEXT_MAX_HEIGHT = "max-h-[max(420px,calc(100vh_-_13rem))]";
+
 function updateClassification(
   pages: DocumentPage[],
   pageNumber: number,
@@ -100,6 +109,22 @@ export default function DocumentDetailsPage() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [engines, setEngines] = useState<OCREngine[]>([]);
+  // Read once; the first render is the loading screen, so the server's default
+  // cannot mismatch.
+  const [showOriginal, setShowOriginal] = useState(() => {
+    try {
+      return typeof window === "undefined" || localStorage.getItem(SHOW_ORIGINAL_KEY) !== "false";
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleOriginal = (show: boolean) => {
+    setShowOriginal(show);
+    try {
+      localStorage.setItem(SHOW_ORIGINAL_KEY, String(show));
+    } catch { /* storage unavailable: the choice lasts for this visit */ }
+  };
 
   useEffect(() => {
     axios
@@ -219,7 +244,8 @@ export default function DocumentDetailsPage() {
     try {
       const res = await axios.post("/api/classification/jobs", {
         input_text: fullText,
-        segmentation_strategy: "sentence", // Default strategy
+        // OCR'd text: a printed line wrap does not end a sentence.
+        segmentation_strategy: "document",
         model_name: modelName,
       });
 
@@ -296,6 +322,7 @@ export default function DocumentDetailsPage() {
   const jobsCancelled = pages.filter((p) => p.classification?.status === "cancelled").length;
   const wasCancelled = !active && (document.upload_status === "cancelled" || jobsCancelled > 0);
   const allSegments = pages.flatMap((p) => p.classification?.segments ?? []);
+  const comparing = showOriginal && !!activePage;
 
   const exportCsv = () =>
     downloadCsv(`${document.filename.replace(/\.pdf$/i, "")}-languages.csv`, [
@@ -308,7 +335,7 @@ export default function DocumentDetailsPage() {
     ]);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6">
       <div className="flex items-center gap-4 mb-2">
         <Button
           variant="ghost"
@@ -325,7 +352,7 @@ export default function DocumentDetailsPage() {
         title={document.filename}
         description={`Uploaded on ${new Date(document.created_at).toLocaleDateString()} • ${(document.size_bytes / 1024 / 1024).toFixed(2)} MB • ${pages.length} Pages • OCR: ${ocrEngineLabel(engines, document.ocr_engine)}${lidModel ? ` • Languages: ${lidModel.label}` : ""}`}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {active && (
               <Button
                 variant="outline"
@@ -440,12 +467,12 @@ export default function DocumentDetailsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* Left sidebar: Page Navigation */}
-        <div className="md:col-span-3 space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-[13rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)] gap-6">
+        {/* Left: page navigation, kept in view while the page panels scroll */}
+        <div className="space-y-4 md:sticky md:top-0 md:self-start">
           <div className="bg-white rounded-xl border border-border overflow-hidden p-4 shadow-sm">
             <h3 className="font-semibold text-sm mb-3 text-slate-800">Document Pages</h3>
-            <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="space-y-1.5 max-h-[50vh] md:max-h-[calc(100vh_-_18rem)] overflow-y-auto pr-1 custom-scrollbar">
               {pages.map((page) => (
                 <PageButton
                   key={page.page_number}
@@ -477,13 +504,29 @@ export default function DocumentDetailsPage() {
         </div>
 
         {/* Right side: the active page */}
-        <div className="md:col-span-9">
+        <div className="min-w-0">
           <div className="bg-white rounded-xl border border-border shadow-sm flex flex-col h-full min-h-[500px]">
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border bg-slate-50/50 rounded-t-xl">
               <h2 className="font-semibold text-slate-800">
                 {activePage ? `Page ${activePage.page_number}` : "Extracted Text"}
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {activePage && (
+                  <button
+                    onClick={() => toggleOriginal(!showOriginal)}
+                    aria-pressed={showOriginal}
+                    title={showOriginal ? "Hide the original page" : "Show the original page beside its text"}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+                      showOriginal
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : "border-slate-200 bg-white text-slate-500 hover:text-slate-800",
+                    )}
+                  >
+                    {showOriginal ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    {showOriginal ? "Hide original" : "Show original"}
+                  </button>
+                )}
                 {activePage?.classification && (
                   <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-medium">
                     {(["languages", "text"] as View[]).map((v) => (
@@ -508,7 +551,15 @@ export default function DocumentDetailsPage() {
               </div>
             </div>
 
-            <div className="p-6 flex-1 bg-[#fcfdfd]">
+            <div className={cn("flex-1 grid grid-cols-1", comparing && "lg:grid-cols-2")}>
+            {comparing && (
+              <OriginalPage
+                documentId={document.id}
+                pageNumber={activePage.page_number}
+                onHide={() => toggleOriginal(false)}
+              />
+            )}
+            <div className={cn("p-6 bg-[#fcfdfd] min-w-0 rounded-b-xl", comparing && "lg:rounded-bl-none")}>
               {!activePage ? (
                 <Placeholder>{processing ? "Pages will appear here as they are read." : "Select a page to view extracted text."}</Placeholder>
               ) : activePage.status === "pending" ? (
@@ -529,12 +580,13 @@ export default function DocumentDetailsPage() {
                   focus={focus}
                 />
               ) : activePage.extracted_text ? (
-                <div className="whitespace-pre-wrap font-mono text-sm text-slate-700 leading-relaxed custom-scrollbar h-[500px] overflow-y-auto">
+                <div className={cn("whitespace-pre-wrap font-mono text-sm text-slate-700 leading-relaxed custom-scrollbar overflow-y-auto", TEXT_HEIGHT)}>
                   {activePage.extracted_text}
                 </div>
               ) : (
                 <Placeholder icon={<FileText className="h-8 w-8 opacity-20" />}>No text found on this page.</Placeholder>
               )}
+            </div>
             </div>
           </div>
         </div>
@@ -549,6 +601,87 @@ function Placeholder({ children, icon, className }: { children: React.ReactNode;
       {icon}
       <p>{children}</p>
     </div>
+  );
+}
+
+/** The PDF page itself, rendered by the backend, to check the OCR text against. */
+function OriginalPage({
+  documentId, pageNumber, onHide,
+}: { documentId: string; pageNumber: number; onHide: () => void }) {
+  const [zoom, setZoom] = useState(1);
+  const src = `/api/documents/${documentId}/pages/${pageNumber}/image`;
+  // Tracked per source, so switching pages shows the spinner again.
+  const [loaded, setLoaded] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const step = ZOOM_STEPS.indexOf(zoom);
+
+  return (
+    <div className="flex flex-col min-w-0 border-b lg:border-b-0 lg:border-r border-border bg-slate-100/70 lg:rounded-bl-xl">
+      <div className="flex items-center justify-between gap-2 h-10 px-3 border-b border-border">
+        <span className="text-xs font-medium text-slate-600">Original page</span>
+        <div className="flex items-center gap-0.5 text-slate-500">
+          <IconButton label="Zoom out" disabled={step <= 0} onClick={() => setZoom(ZOOM_STEPS[step - 1])}>
+            <ZoomOut className="h-3.5 w-3.5" />
+          </IconButton>
+          <button
+            onClick={() => setZoom(1)}
+            title="Fit to width"
+            className="w-11 text-center text-xs font-medium tabular-nums rounded-md py-1 hover:bg-white hover:text-slate-800"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <IconButton label="Zoom in" disabled={step >= ZOOM_STEPS.length - 1} onClick={() => setZoom(ZOOM_STEPS[step + 1])}>
+            <ZoomIn className="h-3.5 w-3.5" />
+          </IconButton>
+          <span className="mx-1 h-4 w-px bg-slate-300" />
+          <IconButton label="Hide the original page" onClick={onHide}>
+            <X className="h-3.5 w-3.5" />
+          </IconButton>
+        </div>
+      </div>
+      <div className="relative h-[60vh] lg:h-[max(428px,calc(100vh_-_12.5rem))] overflow-auto custom-scrollbar p-4">
+        {failed === src ? (
+          <Placeholder icon={<ImageOff className="h-6 w-6 text-slate-300" />}>Could not load the original page.</Placeholder>
+        ) : (
+          <>
+            {loaded !== src && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary/50" />
+              </div>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element -- an authenticated API image, not a static asset */}
+            <img
+              key={src}
+              src={src}
+              alt={`Original page ${pageNumber}`}
+              onLoad={() => setLoaded(src)}
+              onError={() => setFailed(src)}
+              style={{ width: `${zoom * 100}%` }}
+              className={cn(
+                "max-w-none h-auto bg-white border border-slate-200 shadow-sm transition-opacity",
+                loaded === src ? "opacity-100" : "opacity-0",
+              )}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IconButton({
+  label, disabled, onClick, children,
+}: { label: string; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="rounded-md p-1.5 hover:bg-white hover:text-slate-800 disabled:opacity-40 disabled:pointer-events-none"
+    >
+      {children}
+    </button>
   );
 }
 
@@ -660,7 +793,7 @@ function PageLanguages({
         </div>
       )}
       {(text || segments.length > 0) && (
-        <div className="leading-[2.2] text-base max-h-[500px] overflow-y-auto custom-scrollbar">
+        <div className={cn("leading-[2.2] text-base overflow-y-auto custom-scrollbar", TEXT_MAX_HEIGHT)}>
           <SegmentText
             text={text}
             segments={segments}

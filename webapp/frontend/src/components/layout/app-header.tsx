@@ -3,11 +3,13 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Globe, LayoutDashboard, ShieldCheck, LogOut, User, ChevronDown, Loader2, Coins } from "lucide-react";
+import { LayoutDashboard, ShieldCheck, LogOut, User, ChevronDown, Loader2, Coins } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 import { homePath } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/layout/logo";
+import { SidebarTrigger, useSidebar } from "@/components/layout/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,18 +31,20 @@ export function AppHeader() {
   }, [pathname, refreshUser]);
 
   const isAdmin = user?.role === "admin";
+  // In the app (with a sidebar) the header spans the window; the landing page keeps it centered.
+  const inApp = !!useSidebar();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur-md shadow-sm">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <div className={cn(inApp ? "px-3 sm:px-4" : "container mx-auto px-4 sm:px-6 lg:px-8")}>
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href={user ? homePath(user.role) : "/"} className="flex items-center gap-2 group">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shadow-sm group-hover:bg-primary/90 transition-colors">
-              <Globe className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-lg tracking-tight text-foreground">LangID</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            {/* Logo */}
+            <Link href={user ? homePath(user.role) : "/"} className="transition-opacity hover:opacity-85">
+              <Logo priority />
+            </Link>
+          </div>
 
           {/* Right side */}
           <div className="flex items-center gap-3">

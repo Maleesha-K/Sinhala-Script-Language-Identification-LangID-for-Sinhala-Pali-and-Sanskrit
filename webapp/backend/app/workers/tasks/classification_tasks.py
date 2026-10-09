@@ -22,6 +22,22 @@ def estimate_tokens(text: str) -> int:
     """Billable token count: whitespace-separated words."""
     return len(text.split())
 
+# Where a sentence of OCR'd text ends: sentence punctuation followed by space,
+# a colon closing a line (it usually introduces a verse or quotation), or a
+# blank line (a paragraph break). A single line break is only where the
+# printed line wrapped, so it does not end a sentence.
+_DOCUMENT_BOUNDARY = re.compile(r'[.!?।॥෴]+(?=\s|$)|:(?=[ \t]*\n)|\n[ \t]*\n')
+
+
+def _document_segments(text: str) -> list[dict]:
+    segments, start = [], 0
+    for cut in sorted({m.end() for m in _DOCUMENT_BOUNDARY.finditer(text)} | {len(text)}):
+        if text[start:cut].strip():
+            segments.append({"text": text[start:cut], "start": start, "end": cut})
+        start = cut
+    return segments
+
+
 def split_segments(text: str, strategy: str) -> list[dict]:
     """
     Segments the given text according to the strategy.
@@ -70,6 +86,10 @@ def split_segments(text: str, strategy: str) -> list[dict]:
                     "end": match.end()
                 })
         return segments
+
+    elif strategy == "document":
+        # OCR'd text: sentences may wrap across printed lines.
+        return _document_segments(text)
         
     return [{"text": text, "start": 0, "end": len(text)}]
 

@@ -233,7 +233,7 @@ export default function UsagePage() {
                           <span className="capitalize">{activity.activity_type}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-[300px] truncate" title={activity.name}>
+                      <TableCell className="max-w-[300px] xl:max-w-[560px] truncate" title={activity.name}>
                         {activity.name}
                       </TableCell>
                       <TableCell>

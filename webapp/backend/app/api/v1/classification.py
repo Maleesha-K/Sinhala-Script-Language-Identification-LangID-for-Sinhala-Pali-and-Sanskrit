@@ -24,7 +24,8 @@ router = APIRouter(prefix="/classification", tags=["classification"])
 
 class JobCreateRequest(BaseModel):
     input_text: str = Field(..., min_length=1)
-    segmentation_strategy: str = Field("sentence", pattern="^(sentence|paragraph|full_text|auto)$")
+    # "document": sentences of OCR'd text, where a single line break is a printed wrap.
+    segmentation_strategy: str = Field("sentence", pattern="^(sentence|paragraph|full_text|auto|document)$")
     model_name: str = Field(BASELINE_MODEL, description="Classification model id")
 
 

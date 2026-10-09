@@ -7,10 +7,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Globe, Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/layout/logo";
+import { AuthPanel } from "@/components/layout/auth-panel";
 import { useAuth } from "@/context/auth-context";
 
 const signupSchema = z.object({
@@ -46,30 +48,19 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex bg-white">
       {/* Left decorative panel */}
-      <div className="hidden lg:flex w-1/2 bg-primary flex-col justify-between p-12">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center">
-            <Globe className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-bold text-lg text-white tracking-tight">LangID</span>
-        </div>
-        <div>
-          <h2 className="text-white text-2xl font-bold mb-3 leading-snug">
-            Start classifying historical texts today
-          </h2>
-          <p className="text-white/70 text-sm leading-relaxed">
-            Join researchers and scholars using LangID to identify Sinhala, Pali, and Sanskrit in historical manuscripts.
-          </p>
-        </div>
-      </div>
+      <AuthPanel>
+        <h2 className="text-white text-2xl font-bold mb-3 leading-snug">
+          Start classifying historical texts today
+        </h2>
+        <p className="text-white/70 text-sm leading-relaxed">
+          Join researchers and scholars using LangID to identify Sinhala, Pali, and Sanskrit in historical manuscripts.
+        </p>
+      </AuthPanel>
 
       {/* Right form panel */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <Link href="/" className="flex items-center gap-2 mb-10 lg:hidden">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <Globe className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-bold text-lg tracking-tight">LangID</span>
+          <Logo priority />
         </Link>
 
         <div className="w-full max-w-sm">

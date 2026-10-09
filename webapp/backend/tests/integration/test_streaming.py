@@ -154,6 +154,8 @@ async def test_ocr_publishes_each_page_and_queues_its_classification(
     assert [(j.page_number, j.input_text, j.model_name) for j in jobs] == [
         (1, "text one", "sklearn_langid"), (3, "text three", "sklearn_langid"),
     ]
+    # OCR'd lines wrap mid-sentence, so page jobs split sentences across them.
+    assert {j.segmentation_strategy for j in jobs} == {"document"}
     assert [c.args[0] for c in mock_page_job_queue.call_args_list] == [str(j.id) for j in jobs]
     queued = [(e["page_number"], e["job"]["status"]) for e in events if e["type"] == "page_job"]
     assert queued == [(1, "queued"), (3, "queued")]
