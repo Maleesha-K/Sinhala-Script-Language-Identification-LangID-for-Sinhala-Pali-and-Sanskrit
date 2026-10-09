@@ -1,21 +1,43 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.pytest_tmp*/
 .env
-data/raw/
-data/processed/
-*.pt
-*.bin
 .ipynb_checkpoints/
-.venv/
-third_party/
 
-# Large ML artifacts: regenerable, kept out of git
-*.safetensors
-*.ftz
+# Former root-level experiment trees may still hold local, untracked data.
+/data/
+/models/
+/pipeline/
+/results/
+/Overleaf/
+/notebooks/
+/third_party/
+/.vscode/
+/.codex-final-report-build/
+/.codex-slide-build/
+
+# Downloaded inputs, generated checkpoints, and run reports.
+data_pipeline/datasets/
+data_pipeline/models/
+data_pipeline/logs/
+data_pipeline/.state/
+data_pipeline/smoke/
 data_pipeline/new_method/data/
 data_pipeline/new_method/bin/
-data_pipeline/new_method/results/**/predictions.csv
-data_pipeline/new_method/results/**/evaluation_index_*.csv
-pipeline/datasets/
-pipeline/models/
+data_pipeline/new_method/results/
+*.pt
+*.bin
+*.safetensors
+*.ftz
+
+# Web-app build and local-service state.
+webapp/frontend/node_modules/
+webapp/frontend/.next/
+webapp/frontend/tsconfig.tsbuildinfo
+webapp/backend/.venv/
+webapp/backend/cov_html/
+webapp/backend/.coverage
+webapp/testing/stress/reports/

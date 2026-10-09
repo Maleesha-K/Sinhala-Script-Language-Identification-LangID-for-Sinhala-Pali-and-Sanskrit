@@ -36,12 +36,13 @@ x-backend-env: &backend-env
   PAYHERE_MERCHANT_SECRET: ${PAYHERE_MERCHANT_SECRET:-4MzM4NDYyMDUxMzA5OTY3NDI2MzcxNjA3NTIzMTM0MjcyMzI5NA==}
   PAYHERE_MODE: ${PAYHERE_MODE:-sandbox}
   LANGID_FINETUNED_DIR: /finetuned
+  LANGID_BASELINE_DIR: /models
 
 # Classification models, read-only (see README.md, "Models"):
 #   /models     baseline langid_model.pkl + langid_vectorizer.pkl
 #   /finetuned  data_pipeline stage-07 rehearsal checkpoints, <model>/seed42/best/
 x-model-volumes: &model-volumes
-  - ${BASELINE_MODELS_DIR:-../models}:/models:ro
+  - ${BASELINE_MODELS_DIR:-./models}:/models:ro
   - ${FINETUNED_MODELS_DIR:-../data_pipeline/models/03_global_rehearsal_sota}:/finetuned:ro
 
 x-backend: &backend

@@ -2,7 +2,7 @@
 Sinhala script) from the pooled corpus. Run once by a maintainer; researchers
 download the published release in stage 01.
 
-    uv run python scripts/maintainer/resplit_target.py --input-dir ../data/Nadil
+    uv run python scripts/maintainer/resplit_target.py --input-dir source_data/target
 
 Method (parameters in config/pipeline.yaml `target_split`):
  1. Pool train/val/test, NFC-normalise, keep Sinhala-script text only.
@@ -208,7 +208,7 @@ def verify(units, nd):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--input-dir', default=str(paths.ROOT.parent / 'data' / 'Nadil'))
+    ap.add_argument('--input-dir', default=str(paths.ROOT / 'source_data' / 'target'))
     ap.add_argument('--out-dir', default=str(paths.DATASETS / 'target_release'))
     ap.add_argument('--update-lock', action='store_true',
                     help='pin the new files in config/locks.json (only when the release is meant to change)')

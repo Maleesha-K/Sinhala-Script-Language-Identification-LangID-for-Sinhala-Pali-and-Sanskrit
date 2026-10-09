@@ -3,8 +3,9 @@
 Reproducible pipeline for language identification of **Sinhala, Pali and
 Sanskrit written in Sinhala script**, with retention of 8 other languages
 (Sanskrit-Devanagari, English, Tamil, Hindi, Bengali, Modern Standard Arabic,
-French, German). One command runs every stage, validates every output and tells
-you whether you reproduced the published data byte-for-byte.
+French, German). One command runs every stage, validates output manifests and
+checks deterministic artifacts against the pinned reference hashes. A full run
+and score comparison are still needed to verify the reported model results.
 
 ## Quick start
 
@@ -19,6 +20,12 @@ With your Hugging Face account, accept the terms of these gated datasets first
 [FLORES+](https://huggingface.co/datasets/openlanguagedata/flores_plus),
 [CommonLID](https://huggingface.co/datasets/commoncrawl/CommonLID),
 [OpenLID-v2](https://huggingface.co/datasets/laurievb/OpenLID-v2).
+
+The source CSVs needed to rebuild the published target split are included in
+`source_data/target/`; their SHA-256 hashes and provenance are recorded there.
+The externally supplied three-regime comparison sheet is kept in `reference/`.
+It is a comparison reference, not a result regenerated or verified by this
+checkout. No full model run is required to inspect or test the repository.
 
 Useful options:
 
@@ -232,7 +239,7 @@ to `$HF_ORG/$HF_TARGET_DATASET`. Method (parameters in `config/pipeline.yaml`,
 ```bash
 # rebuild the target release (prints PASS/FAIL for provenance and leakage,
 # and whether it reproduces the release pinned in config/locks.json)
-uv run python scripts/maintainer/resplit_target.py [--update-lock]
+uv run python scripts/maintainer/resplit_target.py [--input-dir source_data/target] [--update-lock]
 
 # publish it to $HF_ORG/$HF_TARGET_DATASET and pin the revision in locks.json
 # (needs a token with write access to the organisation)

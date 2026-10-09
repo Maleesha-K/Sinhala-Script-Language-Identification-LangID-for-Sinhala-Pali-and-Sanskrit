@@ -13,10 +13,11 @@ class SklearnLangIDClassifier(BaseClassifier):
     """
     
     def __init__(self, model_path: str = None, vectorizer_path: str = None):
-        # Default paths assuming we run from webapp/backend and models are in the root directory
+        # Docker mounts /models; local development uses the checked-in webapp models.
         root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
-        self.model_path = model_path or os.path.join(root_dir, "models", "langid_model.pkl")
-        self.vectorizer_path = vectorizer_path or os.path.join(root_dir, "models", "langid_vectorizer.pkl")
+        baseline_dir = os.environ.get("LANGID_BASELINE_DIR") or os.path.join(root_dir, "webapp", "models")
+        self.model_path = model_path or os.path.join(baseline_dir, "langid_model.pkl")
+        self.vectorizer_path = vectorizer_path or os.path.join(baseline_dir, "langid_vectorizer.pkl")
         
         self.model = None
         self.vectorizer = None

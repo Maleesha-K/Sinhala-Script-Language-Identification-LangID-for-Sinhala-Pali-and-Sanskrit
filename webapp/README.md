@@ -70,7 +70,7 @@ git clone https://github.com/Maleesha-K/Sinhala-Script-Language-Identification-L
 cd langid
 ```
 
-The baseline model (`models/langid_model.pkl`, `models/langid_vectorizer.pkl`)
+The baseline model (`webapp/models/langid_model.pkl`, `webapp/models/langid_vectorizer.pkl`)
 comes with the repository. The fine-tuned checkpoints are not in git; copy them
 from the machine that ran the pipeline:
 
@@ -125,12 +125,12 @@ mounted read-only from two host directories:
 
 | Host directory (default) | Container path | `.env` override |
 |---|---|---|
-| `models/` | `/models` | `BASELINE_MODELS_DIR` |
+| `webapp/models/` | `/models` | `BASELINE_MODELS_DIR` |
 | `data_pipeline/models/03_global_rehearsal_sota/` | `/finetuned` | `FINETUNED_MODELS_DIR` |
 
 | Model id (web app) | Files | Size |
 |---|---|---|
-| `sklearn_langid` (baseline) | `models/langid_model.pkl`, `models/langid_vectorizer.pkl` | <1 MB |
+| `sklearn_langid` (baseline) | `webapp/models/langid_model.pkl`, `webapp/models/langid_vectorizer.pkl` | <1 MB |
 | `nllb_finetuned` | `nllb_lid218/seed42/best/model.bin` | 1.1 GB |
 | `glotlid_finetuned` | `glotlid_v3/seed42/best/model.bin` | 1.6 GB |
 | `openlid_finetuned` | `openlid_v3/seed42/best/model.bin` | 1.2 GB |
